@@ -1,0 +1,71 @@
+import { ALL_STOCKS } from "./sectors.js";
+import { fetchYahooQuote, mapWithConcurrency } from "./yahoo.js";
+
+export const INDICES = [
+  { symbol: "^NSEI", label: "NIFTY 50" },
+  { symbol: "^BSESN", label: "SENSEX" },
+  { symbol: "^NSEBANK", label: "NIFTY BANK" },
+];
+
+const CONCURRENCY = 8;
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+
+let cache = { fetchedAt: 0, stocks: {}, indices: {}, failedCount: 0 };
+let inFlight = null;
+
+async function refreshPrices() {
+  const stockSymbols = ALL_STOCKS.map((s) => s.symbol);
+
+  const [stockResults, indexResults] = await Promise.all([
+    mapWithConcurrency(stockSymbols, CONCURRENCY, async (symbol) => {
+      const quote = await fetchYahooQuote(`${symbol}.NS`);
+      return { symbol, ...quote };
+    }),
+    mapWithConcurrency(INDICES, CONCURRENCY, async (idx) => {
+      const quote = await fetchYahooQuote(idx.symbol);
+      return { symbol: idx.symbol, label: idx.label, ...quote };
+    }),
+  ]);
+
+  const stocks = {};
+  let failedCount = 0;
+  stockResults.forEach((r, i) => {
+    if (r && !r.error) stocks[stockSymbols[i]] = { price: r.price, changePct: r.changePct };
+    else failedCount += 1;
+  });
+
+  const indices = {};
+  for (const r of indexResults) {
+    if (r && !r.error && r.symbol) indices[r.symbol] = { label: r.label, price: r.price, changePct: r.changePct };
+  }
+
+  cache = { fetchedAt: Date.now(), stocks, indices, failedCount };
+  return cache;
+}
+
+export async function getPrices() {
+  const isStale = Date.now() - cache.fetchedAt > REFRESH_INTERVAL_MS;
+  if (!isStale) return cache;
+  if (inFlight) return inFlight;
+  inFlight = refreshPrices().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+// Synchronous lookup for the current cache — used while building news items,
+// where we don't want to block on a network round trip per article.
+export function getCachedPrice(symbol) {
+  return cache.stocks[symbol] || null;
+}
+
+export function startPricePolling() {
+  refreshPrices()
+    .then((c) => console.log(`[prices] warm cache loaded: ${Object.keys(c.stocks).length} stocks, ${Object.keys(c.indices).length} indices (${c.failedCount} failed)`))
+    .catch((err) => console.error("[prices] initial fetch failed:", err.message));
+  setInterval(() => {
+    refreshPrices()
+      .then((c) => console.log(`[prices] refreshed: ${Object.keys(c.stocks).length} stocks, ${c.failedCount} failed`))
+      .catch((err) => console.error("[prices] refresh failed:", err.message));
+  }, REFRESH_INTERVAL_MS);
+}
