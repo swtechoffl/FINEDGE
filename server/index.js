@@ -183,11 +183,24 @@ if (fs.existsSync(distDir)) {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`[stoqtrade.ai] news API listening on http://localhost:${PORT}`);
-  refreshCache()
-    .then((c) => console.log(`[stoqtrade.ai] warm cache loaded: ${c.items.length} items`))
-    .catch((err) => console.error("[stoqtrade.ai] initial cache warm failed:", err.message));
-  startPricePolling();
-  startPremarketPolling();
-});
+// `app.listen()` + setInterval-based background polling only make sense for
+// a long-running process (local dev, or a plain Node host like Render/
+// Railway). On Vercel each request is a fresh/short-lived serverless
+// invocation — there's no persistent process for setInterval to run in, and
+// Vercel never calls .listen() itself, it just invokes the exported handler
+// directly. The three cache-getter functions (getCache/getPrices/
+// getPremarket) already fetch-on-demand when their cache is stale, so the
+// app works correctly without the background pollers; they're just a
+// same-process latency optimization that's unavailable in that model.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`[stoqtrade.ai] news API listening on http://localhost:${PORT}`);
+    refreshCache()
+      .then((c) => console.log(`[stoqtrade.ai] warm cache loaded: ${c.items.length} items`))
+      .catch((err) => console.error("[stoqtrade.ai] initial cache warm failed:", err.message));
+    startPricePolling();
+    startPremarketPolling();
+  });
+}
+
+export default app;
