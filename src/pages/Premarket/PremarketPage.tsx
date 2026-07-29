@@ -7,6 +7,7 @@ import { usePremarket } from "./usePremarket";
 import { useReportBranding } from "./useReportBranding";
 import { ReportBrandingEditor } from "./ReportBrandingEditor";
 import { PremarketReportContent } from "./PremarketReportContent";
+import { PremarketPosters } from "./PremarketPosters";
 import { DisclaimerReportPage } from "./DisclaimerReportPage";
 import { useNewsFeed } from "../MarketBuzz/useNewsFeed";
 import { usePostMarket } from "../PostMarket/usePostMarket";
@@ -157,6 +158,13 @@ export function PremarketPage() {
                 earningsCalendar={moversData.earningsCalendar}
               />
             </Card>
+
+            <PremarketPosters
+              near52WeekHigh={moversData.near52WeekHigh}
+              earningsCalendar={moversData.earningsCalendar}
+              corporateActions={moversData.corporateActionsAll}
+              branding={branding}
+            />
 
             <Card className="overflow-hidden">
               <DisclaimerReportPage ref={disclaimerRef} />
