@@ -116,6 +116,73 @@ async function fetchNiftyPivots() {
   };
 }
 
+function parseNseIpoDate(d) {
+  // NSE's IPO endpoints mix casing across feeds — "29-Jul-2026" (current/
+  // upcoming) vs "27-JUL-2026" (past) — both parse fine once hyphens become
+  // spaces, but a bare "-" (not yet listed) has to be treated as "no date".
+  if (!d || d === "-") return null;
+  const parsed = new Date(d.replace(/-/g, " "));
+  return isNaN(+parsed) ? null : parsed;
+}
+
+const IPO_LOOKAHEAD_DAYS = 45;
+const IPO_PAST_LIMIT = 15;
+
+// Three separate NSE endpoints, matching the reference NseIndiaApi library's
+// listCurrentIPO/listUpcomingIPO/listPastIPO — current-issue only has one row
+// per symbol (category="Total"), unlike some other NSE analysis feeds that
+// break out multiple rows per name.
+async function fetchIpoListings() {
+  const [currentRows, upcomingRows, pastRows] = await Promise.all([
+    fetchNseJson("/api/ipo-current-issue", "https://www.nseindia.com/market-data/all-forthcoming-issues"),
+    fetchNseJson("/api/all-upcoming-issues?category=ipo", "https://www.nseindia.com/market-data/all-upcoming-issues-ipo"),
+    fetchNseJson("/api/public-past-issues?index=ipo", "https://www.nseindia.com/market-data/all-past-issues-ipo"),
+  ]);
+
+  const current = (Array.isArray(currentRows) ? currentRows : []).map((r) => ({
+    symbol: r.symbol,
+    company: r.companyName,
+    priceRange: r.issuePrice,
+    startDate: r.issueStartDate,
+    endDate: r.issueEndDate,
+    subscriptionTimes: r.noOfTime ? +parseFloat(r.noOfTime).toFixed(2) : null,
+  }));
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const lookaheadCutoff = new Date(today);
+  lookaheadCutoff.setDate(lookaheadCutoff.getDate() + IPO_LOOKAHEAD_DAYS);
+  const currentSymbols = new Set(current.map((c) => c.symbol));
+
+  const upcoming = (Array.isArray(upcomingRows) ? upcomingRows : [])
+    .filter((r) => !currentSymbols.has(r.symbol))
+    .map((r) => ({ ...r, _start: parseNseIpoDate(r.issueStartDate) }))
+    .filter((r) => r._start && r._start <= lookaheadCutoff)
+    .sort((a, b) => +a._start - +b._start)
+    .map((r) => ({
+      symbol: r.symbol,
+      company: r.companyName,
+      priceRange: r.issuePrice,
+      startDate: r.issueStartDate,
+      endDate: r.issueEndDate,
+    }));
+
+  const past = (Array.isArray(pastRows) ? pastRows : [])
+    .map((r) => ({ ...r, _end: parseNseIpoDate(r.ipoEndDate) }))
+    .filter((r) => r._end)
+    .sort((a, b) => +b._end - +a._end)
+    .slice(0, IPO_PAST_LIMIT)
+    .map((r) => ({
+      symbol: r.symbol,
+      company: r.company,
+      priceRange: r.priceRange,
+      endDate: r.ipoEndDate,
+      listingDate: r.listingDate && r.listingDate !== "-" ? r.listingDate : null,
+    }));
+
+  return { current, upcoming, past };
+}
+
 // Simple, transparent weighted-cue heuristic (no ML/LLM) for "what kind of
 // opening should today's session expect" — not a prediction, a same-day
 // pre-market read. GIFT Nifty carries the most weight since it *is* the
@@ -197,6 +264,7 @@ let cache = {
   fiiDii: null,
   niftyPivots: null,
   barometer: null,
+  ipos: { current: [], upcoming: [], past: [] },
   aiSummary: null,
   failedCount: 0,
 };
@@ -207,7 +275,7 @@ async function refreshPremarket() {
     list.map((item) => ({ groupKey, ...item })),
   );
 
-  const [symbolResults, giftResult, fiiDiiResult, pivotsResult] = await Promise.all([
+  const [symbolResults, giftResult, fiiDiiResult, pivotsResult, iposResult] = await Promise.all([
     mapWithConcurrency(allSymbols, CONCURRENCY, async (item) => {
       const quote = await fetchYahooQuote(item.symbol);
       return { ...item, ...quote };
@@ -215,6 +283,7 @@ async function refreshPremarket() {
     fetchGiftNifty().catch((err) => ({ error: err.message })),
     fetchFiiDii().catch((err) => ({ error: err.message })),
     fetchNiftyPivots().catch((err) => ({ error: err.message })),
+    fetchIpoListings().catch((err) => ({ error: err.message })),
   ]);
 
   const groups = {};
@@ -248,6 +317,7 @@ async function refreshPremarket() {
     fiiDii,
     niftyPivots: pivotsResult && !pivotsResult.error ? pivotsResult : null,
     barometer,
+    ipos: iposResult && !iposResult.error ? iposResult : cache.ipos,
     aiSummary,
     failedCount,
   };
@@ -265,7 +335,10 @@ export async function getPremarket() {
 }
 
 function summarize(c) {
-  return `gift=${!!c.giftNifty}, fiiDii=${!!c.fiiDii}, pivots=${!!c.niftyPivots}, barometer=${c.barometer?.label ?? "n/a"}, ${c.failedCount} symbols failed`;
+  return (
+    `gift=${!!c.giftNifty}, fiiDii=${!!c.fiiDii}, pivots=${!!c.niftyPivots}, barometer=${c.barometer?.label ?? "n/a"}, ` +
+    `ipos=${c.ipos.current.length}/${c.ipos.upcoming.length}/${c.ipos.past.length}, ${c.failedCount} symbols failed`
+  );
 }
 
 export function startPremarketPolling() {

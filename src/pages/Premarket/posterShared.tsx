@@ -1,7 +1,7 @@
 import { forwardRef, useState, type ReactNode } from "react";
 import { Download, Share2 } from "lucide-react";
 import type { ReportBranding } from "./useReportBranding";
-import { socialDisplay, SOCIAL_META, type SocialLinks } from "./useSocialLinks";
+import { socialDisplay, SOCIAL_META, DEFAULT_FOLLOW_LINKS, type SocialLinks } from "./useSocialLinks";
 import { nodeToImageFile, downloadFile, shareImageFile } from "../../lib/shareImage";
 
 export const POSTER_WIDTH = 234;
@@ -11,32 +11,39 @@ function todayLabel() {
 }
 
 function BrandFooter({ branding, links }: { branding: ReportBranding; links: SocialLinks }) {
-  const entries = (Object.keys(links) as (keyof SocialLinks)[]).filter((k) => links[k].trim());
+  // Falls back to Sharewealth's own handles per-field so a viewer who's only
+  // filled in, say, Instagram still gets the rest of the default set rather
+  // than an empty gap.
+  const effectiveLinks: SocialLinks = {
+    instagram: links.instagram || DEFAULT_FOLLOW_LINKS.instagram,
+    twitter: links.twitter || DEFAULT_FOLLOW_LINKS.twitter,
+    telegram: links.telegram || DEFAULT_FOLLOW_LINKS.telegram,
+    youtube: links.youtube || DEFAULT_FOLLOW_LINKS.youtube,
+    website: links.website || DEFAULT_FOLLOW_LINKS.website,
+  };
+  const entries = (Object.keys(effectiveLinks) as (keyof SocialLinks)[]).filter((k) => effectiveLinks[k].trim());
   return (
     <div className="flex items-center gap-2 border-t border-white/25 pt-2.5">
       {branding.logoDataUrl ? (
         <img src={branding.logoDataUrl} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" />
       ) : (
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white p-1">
-          <img src="/logo.png" alt="Finedge" className="h-full w-full object-contain" />
-        </div>
+        <img src="/sharewealth-logo.png" alt="Sharewealth" className="h-5 w-5 shrink-0 rounded-full object-cover" />
       )}
       <div className="min-w-0 flex-1">
         {entries.length > 0 ? (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             {entries.map((k) => {
-              const { icon: Icon, tag } = SOCIAL_META[k];
+              const { icon: Icon } = SOCIAL_META[k];
               return (
                 <div key={k} className="flex items-center gap-0.5 text-[8px] font-semibold text-white/85">
                   <Icon size={8} className="shrink-0 text-white/70" />
-                  {tag && <span className="text-white/55">{tag}</span>}
-                  <span className="truncate">{socialDisplay(k, links[k])}</span>
+                  <span className="truncate">{socialDisplay(k, effectiveLinks[k])}</span>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="truncate text-[9px] font-semibold text-white/70">{branding.name || "stoqtrade.ai"}</div>
+          <div className="truncate text-[9px] font-semibold text-white/70">{branding.name || "sharewealth"}</div>
         )}
       </div>
     </div>
@@ -46,6 +53,7 @@ function BrandFooter({ branding, links }: { branding: ReportBranding; links: Soc
 export const PosterFrame = forwardRef<
   HTMLDivElement,
   {
+    posterId: string;
     gradient: string;
     icon: ReactNode;
     title: string;
@@ -55,10 +63,11 @@ export const PosterFrame = forwardRef<
     children: ReactNode;
     width?: number;
   }
->(function PosterFrame({ gradient, icon, title, subtitle, branding, links, children, width }, ref) {
+>(function PosterFrame({ posterId, gradient, icon, title, subtitle, branding, links, children, width }, ref) {
   return (
     <div
       ref={ref}
+      data-poster={posterId}
       className="relative flex aspect-[9/16] flex-col overflow-hidden p-4"
       style={{ width: width ?? POSTER_WIDTH, background: gradient }}
     >

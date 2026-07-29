@@ -1,6 +1,15 @@
 import { forwardRef, type ReactNode } from "react";
 import { TrendingUp, TrendingDown, X, Sparkles } from "lucide-react";
-import type { PremarketData, FiiDiiSide, PremarketQuote, BarometerData, NiftyPivotData } from "./usePremarket";
+import type {
+  PremarketData,
+  FiiDiiSide,
+  PremarketQuote,
+  BarometerData,
+  NiftyPivotData,
+  CurrentIpo,
+  UpcomingIpo,
+  PastIpo,
+} from "./usePremarket";
 import type { ReportBranding } from "./useReportBranding";
 import type { Week52Entry, CorporateAction, EarningsEvent } from "../PostMarket/usePostMarket";
 import type { NewsItem } from "../../types";
@@ -314,6 +323,61 @@ function EarningsRow({ item }: { item: EarningsEvent }) {
   );
 }
 
+function CurrentIpoRow({ item }: { item: CurrentIpo }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-foreground">{item.company}</div>
+        <div className="text-xs text-subtle-foreground">
+          {item.symbol} &middot; {item.priceRange}
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <Badge variant="accent" size="sm">
+          Open till {item.endDate.replace(/-\d{4}$/, "")}
+        </Badge>
+        {item.subscriptionTimes !== null && (
+          <div className="mt-1 text-[10px] font-semibold text-subtle-foreground">
+            {item.subscriptionTimes}x subscribed
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingIpoRow({ item }: { item: UpcomingIpo }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-foreground">{item.company}</div>
+        <div className="text-xs text-subtle-foreground">
+          {item.symbol} &middot; {item.priceRange}
+        </div>
+      </div>
+      <span className="shrink-0 text-xs font-medium text-muted-foreground">
+        {item.startDate.replace(/-\d{4}$/, "")} – {item.endDate.replace(/-\d{4}$/, "")}
+      </span>
+    </div>
+  );
+}
+
+function PastIpoRow({ item }: { item: PastIpo }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-foreground">{item.company}</div>
+        <div className="text-xs text-subtle-foreground">
+          {item.symbol} &middot; {item.priceRange}
+        </div>
+      </div>
+      <span className="shrink-0 text-xs font-medium text-muted-foreground">
+        {item.listingDate ? `Listed ${item.listingDate.replace(/-\d{4}$/, "")}` : "Closed"}
+      </span>
+    </div>
+  );
+}
+
 function NewsRow({
   item,
   hideSource,
@@ -537,6 +601,43 @@ export const PremarketReportContent = forwardRef<
               {corporateActions.slice(0, 12).map((item) => (
                 <CorporateActionChip key={`${item.symbol}-${item.exDate}-${item.subject}`} item={item} />
               ))}
+            </div>
+          </BentoCard>
+        )}
+
+        {(data.ipos.current.length > 0 || data.ipos.upcoming.length > 0 || data.ipos.past.length > 0) && (
+          <BentoCard title="IPO Watch" className="col-span-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {data.ipos.current.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-xs font-bold text-accent">Currently Open</div>
+                  <div className="flex flex-col">
+                    {data.ipos.current.map((item) => (
+                      <CurrentIpoRow key={item.symbol} item={item} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {data.ipos.upcoming.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-xs font-bold text-subtle-foreground">Upcoming</div>
+                  <div className="flex flex-col">
+                    {data.ipos.upcoming.slice(0, 5).map((item) => (
+                      <UpcomingIpoRow key={item.symbol} item={item} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {data.ipos.past.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-xs font-bold text-subtle-foreground">Recently Closed</div>
+                  <div className="flex flex-col">
+                    {data.ipos.past.slice(0, 5).map((item) => (
+                      <PastIpoRow key={item.symbol} item={item} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </BentoCard>
         )}

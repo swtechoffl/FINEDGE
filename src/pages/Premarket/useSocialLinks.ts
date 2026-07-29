@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { AtSign, Send, Globe, type LucideIcon } from "lucide-react";
+import { useEffect, useState, type ComponentType } from "react";
+import { Globe } from "lucide-react";
+import { InstagramIcon, XIcon, TelegramIcon, YoutubeIcon } from "../../components/icons/SocialIcons";
 
 const STORAGE_KEY = "stoqtrade-report-social-links";
 // Same-tab instances (e.g. the poster editor and the nav rail) don't see each
@@ -11,17 +12,35 @@ export interface SocialLinks {
   instagram: string;
   twitter: string;
   telegram: string;
+  youtube: string;
   website: string;
 }
 
-export const SOCIAL_META: Record<keyof SocialLinks, { icon: LucideIcon; tag: string }> = {
-  instagram: { icon: AtSign, tag: "IG" },
-  twitter: { icon: AtSign, tag: "X" },
-  telegram: { icon: Send, tag: "TG" },
-  website: { icon: Globe, tag: "" },
+type SocialIcon = ComponentType<{ size?: number; className?: string }>;
+
+export const SOCIAL_META: Record<keyof SocialLinks, { icon: SocialIcon }> = {
+  instagram: { icon: InstagramIcon },
+  twitter: { icon: XIcon },
+  telegram: { icon: TelegramIcon },
+  youtube: { icon: YoutubeIcon },
+  website: { icon: Globe },
 };
 
-const EMPTY: SocialLinks = { instagram: "", twitter: "", telegram: "", website: "" };
+const EMPTY: SocialLinks = { instagram: "", twitter: "", telegram: "", youtube: "", website: "" };
+
+// Shown on the poster footer whenever the viewer hasn't set their own
+// Follow-Us links (e.g. the automated Telegram posters, or a first-time
+// visitor's exports) — Sharewealth's own handles, as a fallback rather than
+// an editable field.
+// TODO: placeholder handles — swap for the real Sharewealth Instagram/X/
+// YouTube handles once provided.
+export const DEFAULT_FOLLOW_LINKS: SocialLinks = {
+  instagram: "sharewealth",
+  twitter: "sharewealth",
+  telegram: "",
+  youtube: "sharewealth",
+  website: "",
+};
 
 function readInitial(): SocialLinks {
   try {
@@ -45,6 +64,8 @@ export function socialHref(platform: keyof SocialLinks, value: string): string {
       return `https://x.com/${handle}`;
     case "telegram":
       return `https://t.me/${handle}`;
+    case "youtube":
+      return `https://youtube.com/@${handle}`;
     case "website":
       return `https://${v}`;
   }

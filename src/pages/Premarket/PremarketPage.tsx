@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, RefreshCw } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -17,8 +17,8 @@ const MAX_HIGH_IMPACT_NEWS = 6;
 const IMPACT_RANK: Record<string, number> = { high: 3, moderate: 2, low: 1, none: 0 };
 
 export function PremarketPage() {
-  const { data, loading } = usePremarket();
-  const { data: moversData } = usePostMarket();
+  const { data, loading, refreshing, refresh } = usePremarket();
+  const { data: moversData, refreshing: moversRefreshing, refresh: refreshMovers } = usePostMarket();
   const { items: newsItems } = useNewsFeed();
   const { branding, setName, setLogoDataUrl, clear } = useReportBranding();
   const reportRef = useRef<HTMLDivElement>(null);
@@ -68,6 +68,12 @@ export function PremarketPage() {
   }
 
   const meta = data.fetchedAt > 0 ? `Updated ${relativeTime(new Date(data.fetchedAt).toISOString())}` : undefined;
+  const isRefreshing = refreshing || moversRefreshing;
+
+  function handleRefresh() {
+    refresh();
+    refreshMovers();
+  }
 
   async function handleExport() {
     if (!reportRef.current || !disclaimerRef.current) return;
@@ -98,6 +104,16 @@ export function PremarketPage() {
         meta={meta}
         extra={
           <>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Refresh for latest data"
+              className="hidden lg:inline-flex"
+            >
+              <RefreshCw size={14} className={isRefreshing ? "animate-spin" : undefined} />
+            </Button>
             <ReportBrandingEditor
               branding={branding}
               setName={setName}
@@ -130,13 +146,19 @@ export function PremarketPage() {
                 exported node below, not a child of it, so it's never
                 captured by the PDF export. */}
             {data.fetchedAt > 0 && (
-              <div className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh for latest data"
+                className="focus-ring flex items-center justify-end gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+              >
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-bullish opacity-75" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-bullish" />
                 </span>
                 Data updated {relativeTime(new Date(data.fetchedAt).toISOString())}
-              </div>
+                <RefreshCw size={12} className={isRefreshing ? "animate-spin" : undefined} />
+              </button>
             )}
 
             <Card className="overflow-hidden">

@@ -8,6 +8,7 @@ const FIELDS: { key: keyof SocialLinks; label: string; placeholder: string }[] =
   { key: "instagram", label: "Instagram", placeholder: "@yourhandle" },
   { key: "twitter", label: "X / Twitter", placeholder: "@yourhandle" },
   { key: "telegram", label: "Telegram", placeholder: "@yourchannel" },
+  { key: "youtube", label: "YouTube", placeholder: "@yourchannel" },
   { key: "website", label: "Website", placeholder: "yourdomain.com" },
 ];
 

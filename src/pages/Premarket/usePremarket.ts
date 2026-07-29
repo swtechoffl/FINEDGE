@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface PremarketQuote {
   symbol: string;
@@ -53,6 +53,37 @@ export interface BarometerData {
   cues: { giftNifty: number | null; us: number | null; global: number | null; commodities: number | null };
 }
 
+export interface CurrentIpo {
+  symbol: string;
+  company: string;
+  priceRange: string;
+  startDate: string;
+  endDate: string;
+  subscriptionTimes: number | null;
+}
+
+export interface UpcomingIpo {
+  symbol: string;
+  company: string;
+  priceRange: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface PastIpo {
+  symbol: string;
+  company: string;
+  priceRange: string;
+  endDate: string;
+  listingDate: string | null;
+}
+
+export interface IpoListings {
+  current: CurrentIpo[];
+  upcoming: UpcomingIpo[];
+  past: PastIpo[];
+}
+
 export interface PremarketData {
   fetchedAt: number;
   giftNifty: GiftNiftyData | null;
@@ -60,6 +91,7 @@ export interface PremarketData {
   fiiDii: FiiDiiData | null;
   niftyPivots: NiftyPivotData | null;
   barometer: BarometerData | null;
+  ipos: IpoListings;
   aiSummary: string | null;
 }
 
@@ -72,37 +104,49 @@ const EMPTY: PremarketData = {
   fiiDii: null,
   niftyPivots: null,
   barometer: null,
+  ipos: { current: [], upcoming: [], past: [] },
   aiSummary: null,
 };
 
 export function usePremarket() {
   const [data, setData] = useState<PremarketData>(EMPTY);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const cancelledRef = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const res = await fetch("/api/premarket");
-        if (!res.ok) return;
-        const json = await res.json();
-        if (cancelled) return;
-        setData(json);
-      } catch {
-        // supplementary data — fail silently and retry on the next interval
-      } finally {
-        if (!cancelled) setLoading(false);
+  const load = useCallback(async ({ manual = false } = {}) => {
+    if (manual) setRefreshing(true);
+    try {
+      // A manual refresh should show the latest the server already has —
+      // the server keeps its own cache warm on a background interval
+      // regardless of frontend requests, so this can be ahead of the
+      // frontend's own polling cadence without needing a force-refetch.
+      const res = await fetch("/api/premarket");
+      if (!res.ok) return;
+      const json = await res.json();
+      if (cancelledRef.current) return;
+      setData(json);
+    } catch {
+      // supplementary data — fail silently and retry on the next interval
+    } finally {
+      if (!cancelledRef.current) {
+        setLoading(false);
+        if (manual) setRefreshing(false);
       }
     }
+  }, []);
 
+  useEffect(() => {
+    cancelledRef.current = false;
     load();
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [load]);
 
-  return { data, loading };
+  const refresh = useCallback(() => load({ manual: true }), [load]);
+
+  return { data, loading, refreshing, refresh };
 }

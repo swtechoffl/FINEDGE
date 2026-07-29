@@ -35,6 +35,38 @@ async function fetchGainersLosers() {
   return { gainers, losers };
 }
 
+// Distinct from "most active by value" above — this is NSE's dedicated
+// Volume Gainers report (today's volume vs its own 1-week/2-week average),
+// matching the reference NseIndiaApi library's liveVolumeGainers().
+async function fetchVolumeGainers() {
+  const rows = await fetchNseJson(
+    "/api/live-analysis-volume-gainers",
+    "https://www.nseindia.com/market-data/volume-gainers",
+  );
+  return (rows?.data || []).slice(0, 10).map((r) => ({
+    symbol: r.symbol,
+    price: r.ltp,
+    changePct: r.pChange,
+    volume: r.volume,
+    week1AvgVolume: r.week1AvgVolume,
+    week1VolChangePct: +r.week1volChange.toFixed(2),
+  }));
+}
+
+// Market-wide breadth — how many NSE-listed securities advanced vs declined
+// today, independent of our own tracked stock universe.
+async function fetchAdvanceDecline() {
+  const res = await fetchNseJson("/api/live-analysis-advance", "https://www.nseindia.com/");
+  const count = res?.advance?.count;
+  if (!count) throw new Error("unexpected advance/decline response shape");
+  return {
+    advances: count.Advances,
+    declines: count.Declines,
+    unchanged: count.Unchange,
+    total: count.Total,
+  };
+}
+
 async function fetchMostActive() {
   const rows = await fetchNseJson(
     "/api/live-analysis-most-active-securities?index=value",
@@ -253,6 +285,8 @@ let cache = {
   gainers: [],
   losers: [],
   mostActive: [],
+  volumeGainers: [],
+  advanceDecline: null,
   oiBuildup: EMPTY_OI_BUILDUP,
   indexOi: [],
   near52WeekHigh: [],
@@ -265,18 +299,22 @@ let cache = {
 let inFlight = null;
 
 async function refreshMovers() {
-  const [glResult, oiResult, caResult, ecResult, maResult] = await Promise.all([
+  const [glResult, oiResult, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
     fetchGainersLosers().catch((err) => ({ error: err.message })),
     fetchOiSpurts().catch((err) => ({ error: err.message })),
     fetchCorporateActions().catch(() => ({ all: [], curated: [] })),
     fetchEarningsCalendar().catch(() => []),
     fetchMostActive().catch(() => []),
+    fetchVolumeGainers().catch(() => []),
+    fetchAdvanceDecline().catch((err) => ({ error: err.message })),
   ]);
   const week52 = compute52WeekMovers();
 
   const gainers = glResult && !glResult.error ? glResult.gainers : [];
   const losers = glResult && !glResult.error ? glResult.losers : [];
   const mostActive = Array.isArray(maResult) ? maResult : [];
+  const volumeGainers = Array.isArray(vgResult) ? vgResult : [];
+  const advanceDecline = adResult && !adResult.error ? adResult : null;
   const oiBuildup = oiResult && !oiResult.error ? oiResult.oiBuildup : EMPTY_OI_BUILDUP;
   const indexOi = oiResult && !oiResult.error ? oiResult.indexOi : [];
 
@@ -294,6 +332,8 @@ async function refreshMovers() {
     gainers,
     losers,
     mostActive,
+    volumeGainers,
+    advanceDecline,
     oiBuildup,
     indexOi,
     near52WeekHigh: week52.near52WeekHigh,
@@ -321,8 +361,9 @@ function summarize(c) {
     .map(([k, v]) => `${k}=${v.length}`)
     .join(", ");
   return (
-    `${c.gainers.length} gainers, ${c.losers.length} losers, mostActive=${c.mostActive.length}, oi buildup: ${oi}, ` +
-    `indexOi=${c.indexOi.length}, 52wHigh=${c.near52WeekHigh.length}, 52wLow=${c.near52WeekLow.length}, ` +
+    `${c.gainers.length} gainers, ${c.losers.length} losers, mostActive=${c.mostActive.length}, ` +
+    `volumeGainers=${c.volumeGainers.length}, advanceDecline=${c.advanceDecline ? `${c.advanceDecline.advances}/${c.advanceDecline.declines}` : "n/a"}, ` +
+    `oi buildup: ${oi}, indexOi=${c.indexOi.length}, 52wHigh=${c.near52WeekHigh.length}, 52wLow=${c.near52WeekLow.length}, ` +
     `corpActions=${c.corporateActions.length}/${c.corporateActionsAll.length}, earnings=${c.earningsCalendar.length}`
   );
 }

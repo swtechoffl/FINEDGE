@@ -11,6 +11,8 @@ import { getPremarket, startPremarketPolling } from "./premarket.js";
 import { getMarketMovers, startMarketMoversPolling } from "./marketMovers.js";
 import { getMarketInternals, startMarketInternalsPolling } from "./marketInternals.js";
 import { getStockDetail } from "./stockDetail.js";
+import { capturePremarketPosters } from "./posterScreenshots.js";
+import { sendTelegramPosterAlbum } from "./telegram.js";
 
 // Local dev / a plain Node host reads GROQ_API_KEY from .env; on Vercel (or
 // any platform that injects env vars directly) there's no .env file to
@@ -146,15 +148,20 @@ function normalizeItem(source, item, sectionLabel) {
 
   const { signal, impact, category, matchedTickers, bullHits, bearHits } = classify(text, { sectionLabel });
 
-  const tickers = matchedTickers.map((t) => {
-    const p = resolveTicker(t.symbol);
-    return { symbol: t.symbol, changePct: p.changePct, commentCount: 0 };
-  });
+  // Only show a ticker chip when we actually have a real live price for it —
+  // no fabricated placeholder price/% presented as if it were real data.
+  const pricedTickers = matchedTickers
+    .map((t) => ({ symbol: t.symbol, p: resolveTicker(t.symbol) }))
+    .filter(({ p }) => p.isLivePrice);
 
-  const affectedTickers = matchedTickers.map((t) => {
-    const p = resolveTicker(t.symbol);
-    return { symbol: t.symbol, screensCount: p.screensCount, price: p.price, changePct: p.changePct };
-  });
+  const tickers = pricedTickers.map(({ symbol, p }) => ({ symbol, changePct: p.changePct, commentCount: 0 }));
+
+  const affectedTickers = pricedTickers.map(({ symbol, p }) => ({
+    symbol,
+    screensCount: p.screensCount,
+    price: p.price,
+    changePct: p.changePct,
+  }));
 
   let timestamp;
   const parsed = item.isoDate ? new Date(item.isoDate) : item.pubDate ? new Date(item.pubDate) : null;
@@ -314,6 +321,48 @@ app.get("/api/stock/:symbol", async (req, res) => {
   }
 });
 
+async function deliverTelegramPosters(origin, captionSuffix) {
+  const posters = await capturePremarketPosters(origin);
+  if (posters.length === 0) {
+    return { sent: false, reason: "no pre-market poster data available yet" };
+  }
+  const dateLabel = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  await sendTelegramPosterAlbum(posters, `Pre-Market Briefing — ${dateLabel}${captionSuffix ?? ""}`);
+  return { sent: true, posters: posters.map((p) => p.posterId) };
+}
+
+// Triggered by the Vercel Cron in vercel.json at 03:00 UTC (08:30 IST).
+// Vercel signs cron requests with a bearer token matching CRON_SECRET — that
+// check is skipped when the var isn't set (local/manual testing) but is
+// mandatory in any deployment that configures it, since this endpoint sends
+// a real message to a real Telegram chat.
+app.get("/api/cron/telegram-posters", async (req, res) => {
+  if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  try {
+    const origin = `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`;
+    res.json(await deliverTelegramPosters(origin));
+  } catch (err) {
+    console.error("[stoqtrade.ai] telegram poster delivery failed:", err);
+    res.status(500).json({ error: "Failed to deliver posters", detail: String(err.message || err) });
+  }
+});
+
+// Manual "Send Now" trigger from the Posters page — same delivery as the
+// cron, just operator-initiated instead of scheduled. No CRON_SECRET check:
+// this is reachable by anyone who can load the (already-public, unauthed)
+// Posters page, same exposure as every other /api route in this app.
+app.post("/api/telegram/send-now", async (req, res) => {
+  try {
+    const origin = `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`;
+    res.json(await deliverTelegramPosters(origin, " (sent manually)"));
+  } catch (err) {
+    console.error("[stoqtrade.ai] manual telegram poster send failed:", err);
+    res.status(500).json({ error: "Failed to deliver posters", detail: String(err.message || err) });
+  }
+});
+
 const distDir = path.join(__dirname, "..", "dist");
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
@@ -335,14 +384,15 @@ if (fs.existsSync(distDir)) {
 if (!process.env.VERCEL) {
   app.listen(PORT, async () => {
     console.log(`[stoqtrade.ai] news API listening on http://localhost:${PORT}`);
+    startPremarketPolling();
+    // Both the news cache (ticker chips, via resolveTicker) and market
+    // movers (OI-buildup/52-week classification) read the price cache
+    // synchronously — wait for its first warm-up before either runs so
+    // neither's initial pass is silently empty of price data.
+    await startPricePolling();
     refreshCache()
       .then((c) => console.log(`[stoqtrade.ai] warm cache loaded: ${c.items.length} items`))
       .catch((err) => console.error("[stoqtrade.ai] initial cache warm failed:", err.message));
-    startPremarketPolling();
-    // Market movers' OI-buildup/52-week classification reads the price cache
-    // synchronously — wait for its first warm-up so the initial pass isn't
-    // silently empty.
-    await startPricePolling();
     startMarketMoversPolling();
     startMarketInternalsPolling();
   });

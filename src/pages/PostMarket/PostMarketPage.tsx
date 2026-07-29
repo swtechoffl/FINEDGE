@@ -1,12 +1,22 @@
 import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, TrendingDown, Loader2, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Header } from "../../components/Header";
+import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { cn } from "../../lib/utils";
 import { relativeTime } from "../../data/mock";
 import { usePostMarket } from "./usePostMarket";
-import type { MoverQuote, OiBuildupEntry, IndexOiEntry, Week52Entry, MostActiveQuote, CorporateAction } from "./usePostMarket";
+import type {
+  MoverQuote,
+  OiBuildupEntry,
+  IndexOiEntry,
+  Week52Entry,
+  MostActiveQuote,
+  CorporateAction,
+  VolumeGainerQuote,
+  AdvanceDeclineData,
+} from "./usePostMarket";
 
 function CorporateActionChip({ item }: { item: CorporateAction }) {
   const shortDate = item.exDate.replace(/-\d{4}$/, "");
@@ -89,6 +99,44 @@ function MostActiveRow({ item }: { item: MostActiveQuote }) {
   );
 }
 
+function VolumeGainerRow({ item }: { item: VolumeGainerQuote }) {
+  const up = item.changePct >= 0;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <SymbolLink symbol={item.symbol} />
+      <div className="flex items-center gap-3 text-xs">
+        <span className="text-subtle-foreground">
+          Vol {(item.volume / 1e5).toFixed(1)}L ({item.week1VolChangePct >= 0 ? "+" : ""}
+          {item.week1VolChangePct}% vs 1wk avg)
+        </span>
+        <span className={cn("font-semibold", up ? "text-bullish" : "text-bearish")}>
+          {up ? "+" : ""}
+          {item.changePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function AdvanceDeclineBar({ data }: { data: AdvanceDeclineData }) {
+  const advPct = data.total > 0 ? (data.advances / data.total) * 100 : 50;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-bold text-bullish">{data.advances} Advances</span>
+        <span className="font-bold text-bearish">{data.declines} Declines</span>
+      </div>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-chip">
+        <div className="h-full bg-bullish" style={{ width: `${advPct}%` }} />
+        <div className="h-full bg-bearish" style={{ width: `${100 - advPct}%` }} />
+      </div>
+      <div className="text-xs text-subtle-foreground">
+        {data.unchanged} unchanged · {data.total} total securities traded
+      </div>
+    </div>
+  );
+}
+
 function BuildupRow({ item }: { item: OiBuildupEntry }) {
   const priceUp = item.changePct >= 0;
   return (
@@ -151,7 +199,7 @@ function Week52Row({ item, kind }: { item: Week52Entry; kind: "high" | "low" }) 
 }
 
 export function PostMarketPage() {
-  const { data, loading } = usePostMarket();
+  const { data, loading, refreshing, refresh } = usePostMarket();
   const hasAnyData =
     data.gainers.length > 0 ||
     data.losers.length > 0 ||
@@ -164,7 +212,21 @@ export function PostMarketPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header title="post market report" meta={meta} />
+      <Header
+        title="post market report"
+        meta={meta}
+        extra={
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={refresh}
+            disabled={refreshing}
+            title="Refresh for latest data"
+          >
+            <RefreshCw size={14} className={refreshing ? "animate-spin" : undefined} />
+          </Button>
+        }
+      />
 
       <div className="mx-auto w-full max-w-5xl px-6 py-6">
         {loading && !hasAnyData ? (
@@ -233,6 +295,22 @@ export function PostMarketPage() {
                     <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
                       {data.mostActive.map((item) => (
                         <MostActiveRow key={item.symbol} item={item} />
+                      ))}
+                    </div>
+                  </BentoCard>
+                )}
+
+                {data.advanceDecline && (
+                  <BentoCard title="Market Breadth (Advance / Decline)" className="col-span-4 self-start lg:col-span-2">
+                    <AdvanceDeclineBar data={data.advanceDecline} />
+                  </BentoCard>
+                )}
+
+                {data.volumeGainers.length > 0 && (
+                  <BentoCard title="Volume Gainers" className="col-span-4 lg:col-span-2">
+                    <div className="flex flex-col">
+                      {data.volumeGainers.slice(0, 8).map((item) => (
+                        <VolumeGainerRow key={item.symbol} item={item} />
                       ))}
                     </div>
                   </BentoCard>

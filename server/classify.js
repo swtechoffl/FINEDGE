@@ -1,5 +1,6 @@
 import { ALL_STOCKS } from "./sectors.js";
 import { getCachedPrice } from "./prices.js";
+import { COMMON_NAME_ALIASES, AMBIGUOUS_SYMBOLS, deriveCommonName } from "./companyAliases.js";
 
 // Curated market/macro and industry-level terms used to recognize news that
 // is genuinely about the Indian market, the economy, or a specific industry
@@ -46,6 +47,31 @@ function matchesKeywordList(lowerText, list) {
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// Precomputed once per stock: word-boundary regexes for the full legal name
+// plus every common-name variant (auto-derived + manual alias) it should
+// also be recognized by — a plain substring check would have a short
+// derived name like "REC" (from "REC Limited") false-match inside unrelated
+// words ("record", "recent"), so every variant is boundary-anchored just
+// like the existing ticker-symbol check below.
+const STOCK_NAME_VARIANTS = new Map(
+  ALL_STOCKS.map((s) => {
+    const variantStrings = new Set([s.name]);
+    const common = deriveCommonName(s.name);
+    // Only skip the derived name when it reduces to literally the same bare
+    // word as an ambiguous symbol (e.g. TRIDENT -> "Trident") — for RELIANCE
+    // the derived name "Reliance Industries" is a different, safe phrase and
+    // stays in even though the bare symbol itself is excluded below.
+    const derivedIsBareAmbiguousWord =
+      AMBIGUOUS_SYMBOLS.has(s.symbol) && common.toLowerCase() === s.symbol.toLowerCase();
+    if (common && common.toLowerCase() !== s.name.toLowerCase() && !derivedIsBareAmbiguousWord) {
+      variantStrings.add(common);
+    }
+    for (const alias of COMMON_NAME_ALIASES[s.symbol] || []) variantStrings.add(alias);
+    const patterns = Array.from(variantStrings).map((v) => new RegExp(`\\b${escapeRegex(v)}\\b`, "i"));
+    return [s.symbol, patterns];
+  }),
+);
 
 const BULLISH_WORDS = [
   "profit",
@@ -212,10 +238,19 @@ export function classify(text, { sectionLabel } = {}) {
 
   const matchedTickers = ALL_STOCKS.filter((s) => {
     const sym = s.symbol.toLowerCase();
-    const name = s.name.toLowerCase();
-    if (lower.includes(name)) return true;
-    const textForSymbolCheck = sym === "bse" ? bseSafeText : text;
-    return new RegExp(`\\b${sym.replace(/[&]/g, "\\&")}\\b`, "i").test(textForSymbolCheck);
+    // "bse" collides with the generic "on the BSE"/"at the BSE" exchange
+    // reference in both its ticker symbol AND its derived common name (both
+    // are literally "bse") — every check for this symbol must run against
+    // the exchange-reference-stripped text, not just the ticker regex.
+    const textForCheck = sym === "bse" ? bseSafeText : text;
+    const patterns = STOCK_NAME_VARIANTS.get(s.symbol);
+    if (patterns.some((re) => re.test(textForCheck))) return true;
+    // The bare ticker symbol regex is skipped for symbols that double as an
+    // ordinary English word (RELIANCE, TRIDENT, LUPIN) — those must be
+    // recognized via a longer, distinctive name/alias instead (checked
+    // above), never by the word alone.
+    if (AMBIGUOUS_SYMBOLS.has(s.symbol)) return false;
+    return new RegExp(`\\b${sym.replace(/[&]/g, "\\&")}\\b`, "i").test(textForCheck);
   });
 
   // Relevant = ties to a specific listed company, OR reads as genuine
@@ -270,24 +305,17 @@ function placeholderScreensCount(symbol) {
   return count;
 }
 
-function fallbackPrice(symbol) {
-  const seed = hashSeed(symbol);
-  return {
-    price: +(200 + (seed % 3000)).toFixed(2),
-    changePct: +((((seed >> 3) % 800) / 100 - 4).toFixed(2)),
-  };
-}
-
 // Real price/change from the Yahoo Finance poller (server/prices.js, 15-min
-// refresh) when available; falls back to a deterministic placeholder only
-// for symbols Yahoo hasn't returned data for (e.g. cache still warming up,
-// or that symbol's fetch failed this cycle).
+// refresh) when available. No fabricated fallback — a symbol Yahoo hasn't
+// returned data for yet (cache still warming up, or that symbol's fetch
+// failed this cycle) gets null price/changePct instead of a made-up number;
+// callers must not display a ticker chip with fabricated data as if it were
+// real market data.
 export function resolveTicker(symbol) {
   const live = getCachedPrice(symbol);
-  const { price, changePct } = live || fallbackPrice(symbol);
   return {
-    price,
-    changePct,
+    price: live ? live.price : null,
+    changePct: live ? live.changePct : null,
     screensCount: placeholderScreensCount(symbol),
     isLivePrice: Boolean(live),
   };

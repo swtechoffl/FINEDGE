@@ -1,7 +1,8 @@
 import { useRef } from "react";
-import { Gauge, Globe2, Boxes, Target, Landmark, BarChart3 } from "lucide-react";
+import { Gauge, Globe2, Boxes, Target, Landmark, BarChart3, Scale } from "lucide-react";
 import type { GiftNiftyData, PremarketQuote, NiftyPivotData, FiiDiiData, FiiDiiSide } from "./usePremarket";
 import type { OptionChainSummary } from "../MarketInternals/useMarketInternals";
+import type { AdvanceDeclineData } from "../PostMarket/usePostMarket";
 import type { ReportBranding } from "./useReportBranding";
 import type { SocialLinks } from "./useSocialLinks";
 import { SocialLinksEditor } from "./SocialLinksEditor";
@@ -155,12 +156,38 @@ function OptionChainBlock({ chain }: { chain: OptionChainSummary }) {
   );
 }
 
+function AdvanceDeclinePosterBlock({ data }: { data: AdvanceDeclineData }) {
+  const advPct = data.total > 0 ? (data.advances / data.total) * 100 : 50;
+  return (
+    <div className="flex flex-col gap-2 rounded-lg bg-white/10 px-3 py-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-lg font-extrabold leading-tight text-emerald-300">{data.advances}</div>
+          <div className="text-[9px] font-semibold uppercase tracking-wide text-white/50">Advances</div>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-extrabold leading-tight text-red-300">{data.declines}</div>
+          <div className="text-[9px] font-semibold uppercase tracking-wide text-white/50">Declines</div>
+        </div>
+      </div>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-white/15">
+        <div className="h-full bg-emerald-400" style={{ width: `${advPct}%` }} />
+        <div className="h-full bg-red-400" style={{ width: `${100 - advPct}%` }} />
+      </div>
+      <div className="text-[9px] text-white/60">
+        {data.unchanged} unchanged · {data.total} total securities traded
+      </div>
+    </div>
+  );
+}
+
 export function GlobalMarketPosters({
   giftNifty,
   groups,
   niftyPivots,
   fiiDii,
   optionChains,
+  advanceDecline,
   branding,
   links,
   setField,
@@ -171,6 +198,7 @@ export function GlobalMarketPosters({
   niftyPivots: NiftyPivotData | null;
   fiiDii: FiiDiiData | null;
   optionChains: OptionChainSummary[];
+  advanceDecline: AdvanceDeclineData | null;
   branding: ReportBranding;
   links: SocialLinks;
   setField: (field: keyof SocialLinks, value: string) => void;
@@ -182,6 +210,7 @@ export function GlobalMarketPosters({
   const pivotRef = useRef<HTMLDivElement>(null);
   const fiiDiiRef = useRef<HTMLDivElement>(null);
   const optionChainRef = useRef<HTMLDivElement>(null);
+  const breadthRef = useRef<HTMLDivElement>(null);
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const vix = groups.domestic || [];
@@ -197,8 +226,10 @@ export function GlobalMarketPosters({
   const hasPivots = Boolean(niftyPivots);
   const hasFiiDii = Boolean(fiiDii && (fiiDii.fii || fiiDii.dii));
   const hasOptionChains = optionChains.length > 0;
+  const hasBreadth = Boolean(advanceDecline);
 
-  if (!hasGift && !hasIndices && !hasCommodities && !hasPivots && !hasFiiDii && !hasOptionChains) return null;
+  if (!hasGift && !hasIndices && !hasCommodities && !hasPivots && !hasFiiDii && !hasOptionChains && !hasBreadth)
+    return null;
 
   return (
     <Card className="overflow-hidden">
@@ -219,6 +250,7 @@ export function GlobalMarketPosters({
               <div className="overflow-hidden rounded-2xl shadow-md">
                 <PosterFrame
                   ref={giftRef}
+                  posterId="gift-nifty-vix-currency"
                   gradient="linear-gradient(160deg, #4c1d95 0%, #0b0713 70%)"
                   icon={<Gauge size={26} />}
                   title="GIFT Nifty, VIX & Currency"
@@ -248,6 +280,7 @@ export function GlobalMarketPosters({
               <div className="overflow-hidden rounded-2xl shadow-md">
                 <PosterFrame
                   ref={indicesRef}
+                  posterId="global-indices"
                   width={300}
                   gradient="linear-gradient(160deg, #0c4a6e 0%, #070c14 70%)"
                   icon={<Globe2 size={26} />}
@@ -302,6 +335,7 @@ export function GlobalMarketPosters({
               <div className="overflow-hidden rounded-2xl shadow-md">
                 <PosterFrame
                   ref={commoditiesRef}
+                  posterId="commodities"
                   gradient="linear-gradient(160deg, #78350f 0%, #0d0906 70%)"
                   icon={<Boxes size={26} />}
                   title="Commodities"
@@ -327,6 +361,7 @@ export function GlobalMarketPosters({
               <div className="overflow-hidden rounded-2xl shadow-md">
                 <PosterFrame
                   ref={pivotRef}
+                  posterId="nifty-pivot-levels"
                   gradient="linear-gradient(160deg, #3730a3 0%, #0a0a14 70%)"
                   icon={<Target size={26} />}
                   title="Nifty Pivot Levels"
@@ -350,6 +385,7 @@ export function GlobalMarketPosters({
               <div className="overflow-hidden rounded-2xl shadow-md">
                 <PosterFrame
                   ref={fiiDiiRef}
+                  posterId="fii-dii-activity"
                   gradient="linear-gradient(160deg, #164e63 0%, #08111a 70%)"
                   icon={<Landmark size={26} />}
                   title="FII / DII Activity"
@@ -374,6 +410,7 @@ export function GlobalMarketPosters({
               <div className="overflow-hidden rounded-2xl shadow-md">
                 <PosterFrame
                   ref={optionChainRef}
+                  posterId="index-option-chain"
                   gradient="linear-gradient(160deg, #4a044e 0%, #0c0a14 70%)"
                   icon={<BarChart3 size={26} />}
                   title="Index Option Chain"
@@ -390,6 +427,30 @@ export function GlobalMarketPosters({
                 nodeRef={optionChainRef}
                 filename={`stoqtrade-option-chain-pcr-maxpain-${dateStr}.png`}
                 shareTitle="Index Option Chain — PCR & Max Pain"
+              />
+            </div>
+          )}
+
+          {hasBreadth && advanceDecline && (
+            <div className="flex shrink-0 snap-start flex-col">
+              <div className="overflow-hidden rounded-2xl shadow-md">
+                <PosterFrame
+                  ref={breadthRef}
+                  posterId="market-breadth"
+                  gradient="linear-gradient(160deg, #134e4a 0%, #08120f 70%)"
+                  icon={<Scale size={26} />}
+                  title="Market Breadth"
+                  subtitle="Advance / Decline"
+                  branding={branding}
+                  links={links}
+                >
+                  <AdvanceDeclinePosterBlock data={advanceDecline} />
+                </PosterFrame>
+              </div>
+              <PosterActions
+                nodeRef={breadthRef}
+                filename={`stoqtrade-market-breadth-${dateStr}.png`}
+                shareTitle="Market Breadth — Advance / Decline"
               />
             </div>
           )}
