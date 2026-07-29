@@ -92,6 +92,11 @@ export function NewsDrawer({
               <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-subtle-foreground">
                 <Sparkles size={13} className="text-accent" />
                 AI Analysis
+                {item.aiAnalysisSource === "ai" && (
+                  <span className="rounded-full bg-accent-bg px-1.5 py-0.5 text-[9px] font-bold normal-case tracking-normal text-accent">
+                    Live AI
+                  </span>
+                )}
               </span>
               <ChevronDown
                 size={15}

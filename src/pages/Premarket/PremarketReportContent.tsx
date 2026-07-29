@@ -1,5 +1,5 @@
 import { forwardRef, type ReactNode } from "react";
-import { TrendingUp, TrendingDown, X } from "lucide-react";
+import { TrendingUp, TrendingDown, X, Sparkles } from "lucide-react";
 import type { PremarketData, FiiDiiSide, PremarketQuote, BarometerData, NiftyPivotData } from "./usePremarket";
 import type { ReportBranding } from "./useReportBranding";
 import type { Week52Entry, CorporateAction, EarningsEvent } from "../PostMarket/usePostMarket";
@@ -409,6 +409,13 @@ export const PremarketReportContent = forwardRef<
           </div>
         )}
       </div>
+
+      {data.aiSummary && (
+        <div className="mb-5 flex gap-2.5 rounded-xl border border-accent/15 bg-accent-bg p-4">
+          <Sparkles size={16} className="mt-0.5 shrink-0 text-accent" />
+          <p className="text-sm leading-relaxed text-foreground">{data.aiSummary}</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-3">
         {data.giftNifty && (

@@ -45,7 +45,7 @@ function fmt(n: number) {
 function ParticipantTable({ series }: { series: ParticipantSeries }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[480px] text-sm">
         <thead>
           <tr className="border-b border-border text-left text-[10px] uppercase text-subtle-foreground">
             <th className="pb-1.5 font-semibold">Category</th>
@@ -58,16 +58,21 @@ function ParticipantTable({ series }: { series: ParticipantSeries }) {
         <tbody>
           {series.rows.map((r) => (
             <tr key={r.category} className="border-b border-border last:border-b-0">
-              <td className="py-1.5 font-semibold text-foreground">{r.category}</td>
-              <td className="py-1.5 text-right text-muted-foreground">{fmt(r.totalLong)}</td>
-              <td className="py-1.5 text-right text-muted-foreground">{fmt(r.totalShort)}</td>
-              <td className={cn("py-1.5 text-right font-semibold", r.netOi >= 0 ? "text-bullish" : "text-bearish")}>
+              <td className="whitespace-nowrap py-1.5 font-semibold text-foreground">{r.category}</td>
+              <td className="whitespace-nowrap py-1.5 text-right text-muted-foreground">{fmt(r.totalLong)}</td>
+              <td className="whitespace-nowrap py-1.5 text-right text-muted-foreground">{fmt(r.totalShort)}</td>
+              <td
+                className={cn(
+                  "whitespace-nowrap py-1.5 text-right font-semibold",
+                  r.netOi >= 0 ? "text-bullish" : "text-bearish",
+                )}
+              >
                 {r.netOi >= 0 ? "+" : ""}
                 {fmt(r.netOi)}
               </td>
               <td
                 className={cn(
-                  "py-1.5 text-right font-semibold",
+                  "whitespace-nowrap py-1.5 text-right font-semibold",
                   r.netOiChange === null ? "text-subtle-foreground" : r.netOiChange >= 0 ? "text-bullish" : "text-bearish",
                 )}
               >
@@ -141,7 +146,7 @@ function OptionChainCard({ chain }: { chain: OptionChainSummary }) {
 function DealsTable({ rows }: { rows: DealRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[560px] text-sm">
         <thead>
           <tr className="border-b border-border text-left text-[10px] uppercase text-subtle-foreground">
             <th className="pb-1.5 font-semibold">Date</th>
@@ -158,13 +163,15 @@ function DealsTable({ rows }: { rows: DealRow[] }) {
               <td className="whitespace-nowrap py-1.5 pr-3 text-xs text-subtle-foreground">{r.date}</td>
               <td className="max-w-[160px] truncate py-1.5 font-semibold text-foreground">{r.company}</td>
               <td className="max-w-[180px] truncate py-1.5 text-xs text-muted-foreground">{r.client}</td>
-              <td className="py-1.5 text-center">
+              <td className="whitespace-nowrap py-1.5 text-center">
                 <span className={cn("text-xs font-bold", r.buySell === "BUY" ? "text-bullish" : "text-bearish")}>
                   {r.buySell}
                 </span>
               </td>
-              <td className="py-1.5 text-right text-muted-foreground">{fmt(r.quantity)}</td>
-              <td className="py-1.5 text-right text-muted-foreground">₹{r.price.toLocaleString("en-IN")}</td>
+              <td className="whitespace-nowrap py-1.5 text-right text-muted-foreground">{fmt(r.quantity)}</td>
+              <td className="whitespace-nowrap py-1.5 text-right text-muted-foreground">
+                ₹{r.price.toLocaleString("en-IN")}
+              </td>
             </tr>
           ))}
         </tbody>

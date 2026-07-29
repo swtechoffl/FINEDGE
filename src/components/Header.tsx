@@ -31,7 +31,7 @@ function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="animate-scale-in absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-96 origin-top-right overflow-y-auto rounded-xl border border-border bg-surface shadow-lg">
+          <div className="animate-scale-in fixed inset-x-3 top-16 z-50 mx-auto max-h-[70vh] w-auto max-w-96 origin-top-right overflow-y-auto rounded-xl border border-border bg-surface shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96">
             <div className="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-4 py-3">
               <span className="text-sm font-bold text-foreground">Notifications</span>
               {unreadCount > 0 && (
@@ -103,17 +103,32 @@ export function Header({
 }) {
   const { theme, toggleTheme } = useTheme();
 
+  const themeToggle = (
+    <Button variant="outline" size="icon" onClick={toggleTheme} className="shrink-0 text-muted-foreground">
+      {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+    </Button>
+  );
+
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-border bg-app/85 px-6 py-4 backdrop-blur-md">
-      <div className="flex shrink-0 items-center gap-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight text-foreground">
-          {title}
-          <span className="text-accent">.</span>
-        </h1>
-        {meta && <span className="text-xs font-medium text-subtle-foreground">{meta}</span>}
+    <header className="sticky top-0 z-30 flex flex-col gap-3 border-b border-border bg-app/85 px-4 py-3 backdrop-blur-md sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h1 className="truncate text-xl font-extrabold tracking-tight text-foreground sm:text-[26px]">
+            {title}
+            <span className="text-accent">.</span>
+          </h1>
+          {meta && <span className="hidden shrink-0 text-xs font-medium text-subtle-foreground sm:inline">{meta}</span>}
+        </div>
+
+        {/* Actions inline with the title on mobile; moved to the far right at lg+ */}
+        <div className="flex shrink-0 items-center gap-2 lg:hidden">
+          {extra}
+          <NotificationBell />
+          {themeToggle}
+        </div>
       </div>
 
-      <div className="mx-auto flex max-w-xl flex-1 items-center">
+      <div className="flex items-center lg:order-2 lg:mx-auto lg:max-w-xl lg:flex-1">
         <div className="focus-within:ring-ring/50 flex w-full items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 shadow-xs transition-shadow duration-150 focus-within:ring-4">
           <Search size={16} className="shrink-0 text-subtle-foreground" />
           <input
@@ -134,12 +149,10 @@ export function Header({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="hidden shrink-0 items-center gap-2 lg:order-3 lg:flex">
         {extra}
         <NotificationBell />
-        <Button variant="outline" size="icon" onClick={toggleTheme} className="text-muted-foreground">
-          {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
-        </Button>
+        {themeToggle}
       </div>
     </header>
   );

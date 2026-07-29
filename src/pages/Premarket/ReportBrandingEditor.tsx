@@ -80,7 +80,9 @@ export function ReportBrandingEditor({
     <div className="relative">
       <Button variant="outline" size="sm" onClick={openEditor}>
         <UserCog size={14} />
-        {branding.name || branding.logoDataUrl ? "Edit Branding" : "Add Name & Logo"}
+        <span className="hidden sm:inline">
+          {branding.name || branding.logoDataUrl ? "Edit Branding" : "Add Name & Logo"}
+        </span>
       </Button>
 
       {open && (

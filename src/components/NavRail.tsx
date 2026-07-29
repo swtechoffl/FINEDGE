@@ -3,7 +3,7 @@ import { Newspaper, Sunrise, Sunset, CalendarClock, Layers, LogOut } from "lucid
 import { BrandMark } from "./BrandMark";
 import { cn } from "../lib/utils";
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { to: "/news", label: "Market Pulse", icon: Newspaper },
   { to: "/premarket", label: "Premarket Report", icon: Sunrise },
   { to: "/postmarket", label: "Post Market Report", icon: Sunset },
@@ -20,7 +20,7 @@ function navLinkClass({ isActive }: { isActive: boolean }) {
 
 export function NavRail() {
   return (
-    <nav className="group fixed left-0 top-0 z-40 flex h-full w-16 flex-col overflow-hidden border-r border-border bg-surface shadow-sm transition-[width] duration-300 ease-[var(--ease-out-expo)] hover:w-72">
+    <nav className="group fixed left-0 top-0 z-40 hidden h-full w-16 flex-col overflow-hidden border-r border-border bg-surface shadow-sm transition-[width] duration-300 ease-[var(--ease-out-expo)] hover:w-72 lg:flex">
       {/* Logo */}
       <NavLink to="/" className="focus-ring flex shrink-0 items-center gap-3 px-4 py-5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent-hover text-accent-foreground shadow-sm">

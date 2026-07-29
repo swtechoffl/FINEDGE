@@ -2,10 +2,24 @@
 
 Every live data point in stoqtrade.ai, where it actually comes from, and how often it refreshes. This is a reference for the running code (`server/*.js`), not a wishlist — every endpoint below has been verified against the live source directly.
 
-None of these need an API key. Two access patterns are used:
+None of these need an API key. Three access patterns are used:
 
 - **Yahoo Finance** (`query1.finance.yahoo.com`) — public, unauthenticated, called directly.
 - **NSE India** (`nseindia.com`) — needs a session cookie first (a plain GET to the homepage, then reuse the `Set-Cookie` on the actual API call — same as a browser would get just by loading the site first). Implemented once in `server/nse.js` (`fetchNseJson`) and reused everywhere. A few NSE datasets are static daily CSV files on `nsearchives.nseindia.com` instead, which need no cookie at all.
+- **Groq** (`api.groq.com`) — the one source here that *does* need a key (`GROQ_API_KEY` in `.env`, gitignored, never committed). Free tier, no card required: https://console.groq.com/keys. Used for real AI interpretation — see "AI interpretation" below.
+
+---
+
+## AI interpretation (Groq)
+
+Everywhere else in this app is deliberately non-LLM (heuristic keyword classification, computed pivots/barometer/PCR/max-pain — all explained in their own sections below). This is the one place real AI is used, via Groq's free tier (`llama-3.3-70b-versatile`, `server/groq.js`).
+
+| Feature | Where | Caching / rate-limit handling |
+|---|---|---|
+| Per-article "why this matters" analysis | Market Pulse news drawer, replacing the heuristic blurb — only for `impact: "high"` articles | `server/index.js`. Generated once per article id, cached forever (an article's content never changes). Runs as a **paced background task**, deliberately not awaited by the request path — Groq's free tier caps at 30 requests/min, and a cold cache can have 40-50 high-impact articles needing their first analysis at once; awaiting that inline would make a page load wait over a minute. Capped at 25 new articles per 3-min refresh cycle, one call every ~2.2s. Articles not yet processed keep the instant heuristic blurb (which self-labels as heuristic in its own text) until their turn comes up, possibly over a couple of refresh cycles on a cold cache. |
+| Report summary paragraph | Top of Premarket Report and Post Market Report | `server/premarket.js` / `server/marketMovers.js`. One Groq call per refresh cycle (5 min / 10 min respectively) — well within rate limits since it's a single call, not per-article. Keeps the last successful summary if a given cycle's call fails, rather than blanking it out. |
+
+Frontend: `NewsItem.aiAnalysisSource` is `"ai"` or `"heuristic"` — the news drawer shows a small "Live AI" badge only when it's real, so the distinction is never hidden from the user. If `GROQ_API_KEY` isn't set at all, every one of these features silently falls back to what existed before (heuristic blurbs, no summary paragraph) — nothing breaks.
 
 ---
 

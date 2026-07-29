@@ -60,6 +60,7 @@ export interface PremarketData {
   fiiDii: FiiDiiData | null;
   niftyPivots: NiftyPivotData | null;
   barometer: BarometerData | null;
+  aiSummary: string | null;
 }
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -71,6 +72,7 @@ const EMPTY: PremarketData = {
   fiiDii: null,
   niftyPivots: null,
   barometer: null,
+  aiSummary: null,
 };
 
 export function usePremarket() {

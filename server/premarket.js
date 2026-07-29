@@ -1,5 +1,6 @@
 import { fetchYahooQuote, fetchYahooDailyOHLC, mapWithConcurrency, YAHOO_BROWSER_UA } from "./yahoo.js";
 import { fetchNseJson } from "./nse.js";
+import { generateReportSummary } from "./groq.js";
 
 const CONCURRENCY = 6;
 // Global cues move continuously through the day (unlike the tracked-stock
@@ -157,7 +158,48 @@ function computeBarometer({ giftNifty, groups }) {
   return { score: +score.toFixed(2), label, cues: roundedCues };
 }
 
-let cache = { fetchedAt: 0, giftNifty: null, groups: {}, fiiDii: null, niftyPivots: null, barometer: null, failedCount: 0 };
+// Same "generate once per refresh, keep the last good one on failure"
+// pattern as the AI news analysis — a fresh call every 5-min refresh cycle
+// is well within Groq's free-tier limits, and a transient failure shouldn't
+// blank out a summary that was fine a moment ago.
+function describePremarketForAi({ giftNifty, fiiDii, barometer, groups }) {
+  const fmtPct = (n) => `${n >= 0 ? "+" : ""}${n}%`;
+  const fmtQuotes = (list) => (list || []).map((q) => `${q.label} ${fmtPct(q.changePct)}`).join(", ");
+  const lines = [];
+  if (giftNifty) {
+    lines.push(
+      `GIFT Nifty: ${giftNifty.price} (${giftNifty.changePct !== null ? fmtPct(giftNifty.changePct) : "n/a"}), ` +
+        `implied Nifty gap ${giftNifty.gapPoints ?? "n/a"} pts`,
+    );
+  }
+  if (barometer) lines.push(`Composite premarket barometer: score ${barometer.score}, reads "${barometer.label}"`);
+  if (fiiDii?.fii) lines.push(`FII net: Rs ${fiiDii.fii.netValue} Cr`);
+  if (fiiDii?.dii) lines.push(`DII net: Rs ${fiiDii.dii.netValue} Cr`);
+  const us = fmtQuotes(groups.us);
+  if (us) lines.push(`US markets overnight: ${us}`);
+  const europe = fmtQuotes(groups.europe);
+  if (europe) lines.push(`Europe: ${europe}`);
+  const asia = fmtQuotes(groups.asia);
+  if (asia) lines.push(`Asia: ${asia}`);
+  const commodities = fmtQuotes(groups.commodities);
+  if (commodities) lines.push(`Commodities: ${commodities}`);
+  const currency = fmtQuotes(groups.currency);
+  if (currency) lines.push(`Currency: ${currency}`);
+  const domestic = fmtQuotes(groups.domestic);
+  if (domestic) lines.push(`Domestic: ${domestic}`);
+  return lines.join("\n");
+}
+
+let cache = {
+  fetchedAt: 0,
+  giftNifty: null,
+  groups: {},
+  fiiDii: null,
+  niftyPivots: null,
+  barometer: null,
+  aiSummary: null,
+  failedCount: 0,
+};
 let inFlight = null;
 
 async function refreshPremarket() {
@@ -187,14 +229,26 @@ async function refreshPremarket() {
   }
 
   const giftNifty = giftResult && !giftResult.error ? giftResult : null;
+  const fiiDii = fiiDiiResult && !fiiDiiResult.error ? fiiDiiResult : null;
+  const barometer = computeBarometer({ giftNifty, groups });
+
+  let aiSummary = cache.aiSummary; // keep the last good one if this cycle's call fails
+  if (process.env.GROQ_API_KEY) {
+    try {
+      aiSummary = await generateReportSummary(describePremarketForAi({ giftNifty, fiiDii, barometer, groups }));
+    } catch (err) {
+      console.error("[premarket] AI summary failed:", err.message);
+    }
+  }
 
   cache = {
     fetchedAt: Date.now(),
     giftNifty,
     groups,
-    fiiDii: fiiDiiResult && !fiiDiiResult.error ? fiiDiiResult : null,
+    fiiDii,
     niftyPivots: pivotsResult && !pivotsResult.error ? pivotsResult : null,
-    barometer: computeBarometer({ giftNifty, groups }),
+    barometer,
+    aiSummary,
     failedCount,
   };
   return cache;

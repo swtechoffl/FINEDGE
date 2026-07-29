@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Loader2, Sparkles } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
 import { cn } from "../../lib/utils";
@@ -189,6 +189,13 @@ export function PostMarketPage() {
                   {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
                 </span>
               </div>
+
+              {data.aiSummary && (
+                <div className="mb-5 flex gap-2.5 rounded-xl border border-accent/15 bg-accent-bg p-4">
+                  <Sparkles size={16} className="mt-0.5 shrink-0 text-accent" />
+                  <p className="text-sm leading-relaxed text-foreground">{data.aiSummary}</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-4 gap-3">
                 {data.indexOi.length > 0 && (

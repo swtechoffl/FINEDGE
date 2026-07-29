@@ -1,6 +1,7 @@
 import { ALL_STOCKS } from "./sectors.js";
 import { getCachedPrice } from "./prices.js";
 import { fetchNseJson } from "./nse.js";
+import { generateReportSummary } from "./groq.js";
 
 // Market-internals data (gainers/losers, OI positioning) doesn't move as
 // fast as raw prices and NSE's own analysis endpoints are heavier to hit —
@@ -229,6 +230,24 @@ async function fetchEarningsCalendar() {
 
 const EMPTY_OI_BUILDUP = { longBuildup: [], shortBuildup: [], shortCovering: [], longUnwinding: [] };
 
+function describeMoversForAi({ gainers, losers, mostActive, oiBuildup, indexOi }) {
+  const fmtMover = (m) => `${m.symbol} ${m.changePct >= 0 ? "+" : ""}${m.changePct}%`;
+  const lines = [];
+  if (gainers.length > 0) lines.push(`Top gainers: ${gainers.slice(0, 5).map(fmtMover).join(", ")}`);
+  if (losers.length > 0) lines.push(`Top losers: ${losers.slice(0, 5).map(fmtMover).join(", ")}`);
+  if (mostActive.length > 0) lines.push(`Most active by value: ${mostActive.slice(0, 5).map((m) => m.symbol).join(", ")}`);
+  if (indexOi.length > 0) {
+    lines.push(
+      `Index futures OI change: ${indexOi.map((i) => `${i.symbol} ${i.oiChangePct >= 0 ? "+" : ""}${i.oiChangePct}%`).join(", ")}`,
+    );
+  }
+  const buildupCounts = Object.entries(oiBuildup)
+    .map(([key, list]) => `${key}=${list.length}`)
+    .join(", ");
+  lines.push(`F&O positioning counts: ${buildupCounts}`);
+  return lines.join("\n");
+}
+
 let cache = {
   fetchedAt: 0,
   gainers: [],
@@ -241,6 +260,7 @@ let cache = {
   corporateActions: [],
   corporateActionsAll: [],
   earningsCalendar: [],
+  aiSummary: null,
 };
 let inFlight = null;
 
@@ -254,18 +274,34 @@ async function refreshMovers() {
   ]);
   const week52 = compute52WeekMovers();
 
+  const gainers = glResult && !glResult.error ? glResult.gainers : [];
+  const losers = glResult && !glResult.error ? glResult.losers : [];
+  const mostActive = Array.isArray(maResult) ? maResult : [];
+  const oiBuildup = oiResult && !oiResult.error ? oiResult.oiBuildup : EMPTY_OI_BUILDUP;
+  const indexOi = oiResult && !oiResult.error ? oiResult.indexOi : [];
+
+  let aiSummary = cache.aiSummary;
+  if (process.env.GROQ_API_KEY) {
+    try {
+      aiSummary = await generateReportSummary(describeMoversForAi({ gainers, losers, mostActive, oiBuildup, indexOi }));
+    } catch (err) {
+      console.error("[market-movers] AI summary failed:", err.message);
+    }
+  }
+
   cache = {
     fetchedAt: Date.now(),
-    gainers: glResult && !glResult.error ? glResult.gainers : [],
-    losers: glResult && !glResult.error ? glResult.losers : [],
-    mostActive: Array.isArray(maResult) ? maResult : [],
-    oiBuildup: oiResult && !oiResult.error ? oiResult.oiBuildup : EMPTY_OI_BUILDUP,
-    indexOi: oiResult && !oiResult.error ? oiResult.indexOi : [],
+    gainers,
+    losers,
+    mostActive,
+    oiBuildup,
+    indexOi,
     near52WeekHigh: week52.near52WeekHigh,
     near52WeekLow: week52.near52WeekLow,
     corporateActions: Array.isArray(caResult?.curated) ? caResult.curated : [],
     corporateActionsAll: Array.isArray(caResult?.all) ? caResult.all : [],
     earningsCalendar: Array.isArray(ecResult) ? ecResult : [],
+    aiSummary,
   };
   return cache;
 }

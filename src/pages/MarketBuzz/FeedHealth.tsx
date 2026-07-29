@@ -15,19 +15,21 @@ export function FeedHealth({ feedStatus }: { feedStatus: FeedStatusEntry[] }) {
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "focus-ring flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-hover",
+          "focus-ring flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1.5 text-xs font-semibold transition-colors hover:bg-hover sm:px-3",
           allOk ? "text-bullish" : "text-neutral",
         )}
       >
         <Radio size={13} />
-        {okCount}/{feedStatus.length} feeds live
+        <span className="hidden sm:inline">
+          {okCount}/{feedStatus.length} feeds live
+        </span>
         <ChevronDown
           size={12}
-          className={cn("transition-transform duration-200 ease-[var(--ease-out-expo)]", open && "rotate-180")}
+          className={cn("hidden transition-transform duration-200 ease-[var(--ease-out-expo)] sm:block", open && "rotate-180")}
         />
       </button>
       {open && (
-        <div className="animate-scale-in absolute right-0 top-full z-20 mt-2 w-80 origin-top-right rounded-xl border border-border bg-surface p-2 shadow-lg">
+        <div className="animate-scale-in fixed inset-x-3 top-16 z-20 mx-auto max-h-[70vh] w-auto max-w-80 overflow-y-auto rounded-xl border border-border bg-surface p-2 shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 sm:max-h-none">
           {feedStatus.map((f) => (
             <div key={f.url} className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-xs">
               <span className={cn("mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full", f.ok ? "bg-bullish" : "bg-bearish")} />

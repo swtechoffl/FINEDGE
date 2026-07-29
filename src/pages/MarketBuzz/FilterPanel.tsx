@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, Search, X } from "lucide-react";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { SectorHeatMap } from "./SectorHeatMap";
 import { SECTORS, CATEGORIES, SOURCES } from "../../data/mock";
@@ -89,10 +89,14 @@ export function FilterPanel({
   filters,
   setFilters,
   allNews,
+  mobileOpen = false,
+  onMobileClose,
 }: {
   filters: FilterState;
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   allNews: NewsItem[];
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }) {
   const [stockSearch, setStockSearch] = useState("");
 
@@ -115,8 +119,32 @@ export function FilterPanel({
   };
 
   return (
-    <aside className="sticky top-[73px] flex h-[calc(100vh-73px)] w-80 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface px-4 py-4">
-      <CollapsibleSection title="Focus" accent defaultOpen>
+    <>
+      {/* Mobile-only backdrop — the panel itself is always in the DOM (so
+          desktop's `lg:` styles just override back to the normal sticky
+          sidebar), only the backdrop/slide behavior is mobile-specific. */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onMobileClose} />
+      )}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex h-full w-80 max-w-[85vw] shrink-0 flex-col overflow-y-auto border-r border-border bg-surface px-4 py-4 shadow-xl transition-transform duration-300 ease-[var(--ease-out-expo)]",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          "lg:sticky lg:top-[73px] lg:z-auto lg:h-[calc(100vh-73px)] lg:max-w-none lg:translate-x-0 lg:shadow-none",
+        )}
+      >
+        <div className="mb-2 flex items-center justify-between lg:hidden">
+          <span className="text-sm font-bold text-foreground">Filters</span>
+          <button
+            onClick={onMobileClose}
+            className="focus-ring rounded-full p-1.5 text-subtle-foreground hover:bg-hover hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <CollapsibleSection title="Focus" accent defaultOpen>
         <div className="flex flex-col gap-4">
           {/* Stocks */}
           <div>
@@ -262,6 +290,7 @@ export function FilterPanel({
       <div className="pt-3">
         <SectorHeatMap allNews={allNews} />
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

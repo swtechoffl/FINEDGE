@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Clock, AlertCircle, Loader2 } from "lucide-react";
+import { Clock, AlertCircle, Loader2, SlidersHorizontal } from "lucide-react";
 import { Header } from "../../components/Header";
+import { Button } from "../../components/ui/Button";
 import { BreakingTicker } from "./BreakingTicker";
 import { FilterPanel } from "./FilterPanel";
 import { NewsCard } from "./NewsCard";
@@ -19,6 +20,7 @@ export function MarketBuzzPage() {
   const [selected, setSelected] = useState<NewsItem | null>(null);
   const [sharing, setSharing] = useState<NewsItem | null>(null);
   const [search, setSearch] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const cutoff = Date.now() - TIMELINE_HOURS[filters.timeline] * 60 * 60 * 1000;
@@ -63,7 +65,14 @@ export function MarketBuzzPage() {
       <Header
         title="market pulse"
         meta={meta}
-        extra={<FeedHealth feedStatus={feedStatus} />}
+        extra={
+          <>
+            <Button variant="outline" size="icon" className="lg:hidden" onClick={() => setFilterOpen(true)}>
+              <SlidersHorizontal size={16} />
+            </Button>
+            <FeedHealth feedStatus={feedStatus} />
+          </>
+        }
         searchValue={search}
         onSearchChange={setSearch}
       />
@@ -71,7 +80,13 @@ export function MarketBuzzPage() {
       <BreakingTicker items={breaking} />
 
       <div className="flex flex-1">
-        <FilterPanel filters={filters} setFilters={setFilters} allNews={filtered} />
+        <FilterPanel
+          filters={filters}
+          setFilters={setFilters}
+          allNews={filtered}
+          mobileOpen={filterOpen}
+          onMobileClose={() => setFilterOpen(false)}
+        />
 
         <main className="min-w-0 flex-1 px-6 py-5">
           {loading ? (

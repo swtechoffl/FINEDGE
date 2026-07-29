@@ -25,6 +25,7 @@ export interface NewsItem {
   impact: Impact;
   tickers: TickerRef[];
   aiAnalysis: string;
+  aiAnalysisSource: "ai" | "heuristic";
   affectedTickers: AffectedTicker[];
   articleUrl: string;
   sector: string;

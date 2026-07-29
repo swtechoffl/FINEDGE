@@ -5,11 +5,21 @@ import { fileURLToPath } from "node:url";
 import Parser from "rss-parser";
 import { PUBLISHER_GROUPS } from "./feeds.js";
 import { classify, resolveTicker, heuristicAnalysis } from "./classify.js";
+import { generateNewsAnalysis } from "./groq.js";
 import { getPrices, startPricePolling } from "./prices.js";
 import { getPremarket, startPremarketPolling } from "./premarket.js";
 import { getMarketMovers, startMarketMoversPolling } from "./marketMovers.js";
 import { getMarketInternals, startMarketInternalsPolling } from "./marketInternals.js";
 import { getStockDetail } from "./stockDetail.js";
+
+// Local dev / a plain Node host reads GROQ_API_KEY from .env; on Vercel (or
+// any platform that injects env vars directly) there's no .env file to
+// load, which is fine — process.env is already populated by the platform.
+try {
+  process.loadEnvFile();
+} catch {
+  // no .env file present — expected in production
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 5175;
@@ -28,6 +38,61 @@ const parser = new Parser({
 
 let cache = { fetchedAt: 0, items: [], feedStatus: [] };
 let inFlight = null;
+
+// Real AI analysis (Groq) is generated once per article and cached forever
+// keyed by article id — the feed re-fetches the same 200-ish items on every
+// 3-min refresh, and an article's own content never changes, so there's no
+// reason to ever regenerate. Only high/moderate-impact articles get a real
+// call at all; low/none-impact ones keep the instant heuristic blurb (not
+// worth spending free-tier quota interpreting stories that barely matter).
+//
+// This runs as a paced background task, deliberately NOT awaited by
+// refreshCache() — Groq's free tier caps at 30 requests/min, and a cold
+// cache can have 40-50 high-impact articles needing a first analysis at
+// once. Awaiting that inline would make a user's request wait over a
+// minute; instead we return the heuristic text immediately and patch each
+// article's `aiAnalysis` in place as its real analysis finishes, one call
+// every ~2.2s (comfortably under the RPM cap) — same object references as
+// what's sitting in `cache.items`, so the change is visible immediately
+// without waiting for the next full refresh cycle.
+const aiAnalysisCache = new Map();
+const AI_ANALYSIS_MAX_PER_CYCLE = 25;
+const AI_ANALYSIS_PACE_MS = 2200;
+let aiEnrichmentRunning = false;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function enrichWithAiAnalysisInBackground(items) {
+  if (!process.env.GROQ_API_KEY || aiEnrichmentRunning) return;
+  const candidates = items
+    .filter((item) => (item.impact === "high" || item.impact === "moderate") && !aiAnalysisCache.has(item.id))
+    // High-impact articles get priority so they're never stuck behind a
+    // backlog of moderate ones on a cold cache.
+    .sort((a, b) => (a.impact === b.impact ? 0 : a.impact === "high" ? -1 : 1))
+    .slice(0, AI_ANALYSIS_MAX_PER_CYCLE);
+  if (candidates.length === 0) return;
+
+  aiEnrichmentRunning = true;
+  (async () => {
+    for (const item of candidates) {
+      try {
+        const text = await generateNewsAnalysis(item.headline, item.summary);
+        aiAnalysisCache.set(item.id, text);
+        item.aiAnalysis = text;
+        item.aiAnalysisSource = "ai";
+      } catch (err) {
+        // Rate limit or transient error — this article keeps its heuristic
+        // blurb for now; it's still uncached, so a later cycle retries it.
+        console.error(`[ai-analysis] failed for ${item.id}:`, err.message);
+      }
+      await sleep(AI_ANALYSIS_PACE_MS);
+    }
+  })().finally(() => {
+    aiEnrichmentRunning = false;
+  });
+}
 
 function stripHtml(html) {
   if (!html) return "";
@@ -79,6 +144,7 @@ function normalizeItem(source, item, sectionLabel) {
     impact,
     tickers,
     aiAnalysis: heuristicAnalysis({ signal, impact, bullHits, bearHits }),
+    aiAnalysisSource: "heuristic",
     affectedTickers,
     articleUrl: item.link || "",
     sector: matchedTickers[0]?.sector || "Uncategorized",
@@ -118,10 +184,23 @@ async function refreshCache() {
     }
   }
   items.sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp));
+  const topItems = items.slice(0, 200);
+
+  // Apply whatever's already been generated in a previous cycle's background
+  // pass immediately (instant, no API call); kick off the paced background
+  // pass for anything still new — deliberately not awaited, see above.
+  for (const item of topItems) {
+    const aiText = aiAnalysisCache.get(item.id);
+    if (aiText) {
+      item.aiAnalysis = aiText;
+      item.aiAnalysisSource = "ai";
+    }
+  }
+  enrichWithAiAnalysisInBackground(topItems);
 
   cache = {
     fetchedAt: Date.now(),
-    items: items.slice(0, 200),
+    items: topItems,
     feedStatus: results.map(({ items: _items, ...rest }) => rest),
   };
   return cache;

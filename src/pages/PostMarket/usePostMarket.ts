@@ -71,6 +71,7 @@ export interface PostMarketData {
   corporateActions: CorporateAction[];
   corporateActionsAll: CorporateAction[];
   earningsCalendar: EarningsEvent[];
+  aiSummary: string | null;
 }
 
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
@@ -87,6 +88,7 @@ const EMPTY: PostMarketData = {
   corporateActions: [],
   corporateActionsAll: [],
   earningsCalendar: [],
+  aiSummary: null,
 };
 
 export function usePostMarket() {

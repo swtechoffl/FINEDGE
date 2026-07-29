@@ -106,7 +106,7 @@ export function PremarketPage() {
             />
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting || !hasAnyData}>
               {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              {exporting ? "Exporting…" : "Export PDF"}
+              <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export PDF"}</span>
             </Button>
           </>
         }
