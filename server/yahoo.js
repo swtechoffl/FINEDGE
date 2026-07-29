@@ -61,6 +61,24 @@ export async function fetchYahooDailyOHLC(yahooSymbol, days = 10) {
   return complete[complete.length - 1];
 }
 
+// Full historical series (for charting) — same underlying endpoint as
+// fetchYahooDailyOHLC but returns every bar in range rather than just the
+// last complete one, and only close price (all a line chart needs).
+export async function fetchYahooHistoricalSeries(yahooSymbol, range = "6mo") {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=${range}&interval=1d`;
+  const res = await fetch(url, { headers: { "User-Agent": YAHOO_BROWSER_UA } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const result = data?.chart?.result?.[0];
+  if (!result) throw new Error(data?.chart?.error?.description || "no result from Yahoo Finance");
+
+  const ts = result.timestamp || [];
+  const closes = result.indicators?.quote?.[0]?.close || [];
+  return ts
+    .map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), close: closes[i] ?? null }))
+    .filter((b) => b.close !== null);
+}
+
 export async function mapWithConcurrency(items, limit, fn) {
   const results = new Array(items.length);
   let idx = 0;

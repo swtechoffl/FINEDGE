@@ -9,6 +9,7 @@ import { getPrices, startPricePolling } from "./prices.js";
 import { getPremarket, startPremarketPolling } from "./premarket.js";
 import { getMarketMovers, startMarketMoversPolling } from "./marketMovers.js";
 import { getMarketInternals, startMarketInternalsPolling } from "./marketInternals.js";
+import { getStockDetail } from "./stockDetail.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 5175;
@@ -191,6 +192,19 @@ app.get("/api/market-internals", async (req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: "Failed to load market internals", detail: String(err) });
+  }
+});
+
+app.get("/api/stock/:symbol", async (req, res) => {
+  const { symbol } = req.params;
+  if (!/^[A-Za-z0-9&-]{1,20}$/.test(symbol)) {
+    return res.status(400).json({ error: "Invalid symbol" });
+  }
+  try {
+    const data = await getStockDetail(symbol);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load stock detail", detail: String(err) });
   }
 });
 

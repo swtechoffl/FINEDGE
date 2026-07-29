@@ -289,15 +289,16 @@ function Week52Row({ item, kind }: { item: Week52Entry; kind: "high" | "low" }) 
   );
 }
 
-function CorporateActionRow({ item }: { item: CorporateAction }) {
+function CorporateActionChip({ item }: { item: CorporateAction }) {
+  const shortDate = item.exDate.replace(/-\d{4}$/, "");
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0">
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-foreground">{item.company}</div>
-        <div className="text-xs text-subtle-foreground">{item.subject}</div>
-      </div>
-      <span className="shrink-0 text-xs font-medium text-muted-foreground">{item.exDate}</span>
-    </div>
+    <span
+      title={`${item.company} — ${item.subject}`}
+      className="flex items-center justify-between gap-2 rounded-lg bg-app px-2.5 py-1.5 text-xs"
+    >
+      <span className="truncate font-bold text-foreground">{item.symbol}</span>
+      <span className="shrink-0 text-subtle-foreground">{shortDate}</span>
+    </span>
   );
 }
 
@@ -524,10 +525,10 @@ export const PremarketReportContent = forwardRef<
         )}
 
         {corporateActions.length > 0 && (
-          <BentoCard title="Upcoming Corporate Actions" className="col-span-4 lg:col-span-2">
-            <div className="flex flex-col">
-              {corporateActions.slice(0, 6).map((item) => (
-                <CorporateActionRow key={`${item.symbol}-${item.exDate}-${item.subject}`} item={item} />
+          <BentoCard title="Upcoming Corporate Actions" className="col-span-4 self-start lg:col-span-2">
+            <div className="grid grid-cols-2 gap-2">
+              {corporateActions.slice(0, 12).map((item) => (
+                <CorporateActionChip key={`${item.symbol}-${item.exDate}-${item.subject}`} item={item} />
               ))}
             </div>
           </BentoCard>

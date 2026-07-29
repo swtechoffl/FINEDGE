@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
@@ -6,6 +7,14 @@ import { cn } from "../../lib/utils";
 import { relativeTime } from "../../data/mock";
 import { useMarketInternals } from "./useMarketInternals";
 import type { ParticipantSeries, DealRow, ShortSellingRow, OptionChainSummary } from "./useMarketInternals";
+
+function SymbolLink({ symbol }: { symbol: string }) {
+  return (
+    <Link to={`/stock/${symbol}`} className="focus-ring text-sm font-semibold text-foreground hover:text-accent hover:underline">
+      {symbol}
+    </Link>
+  );
+}
 
 function BentoCard({
   title,
@@ -170,7 +179,7 @@ function ShortSellingList({ rows }: { rows: ShortSellingRow[] }) {
       {rows.map((r) => (
         <div key={r.symbol} className="flex items-center justify-between gap-2 border-b border-border py-1.5">
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-foreground">{r.symbol}</div>
+            <SymbolLink symbol={r.symbol} />
             <div className="truncate text-xs text-subtle-foreground">{r.company}</div>
           </div>
           <span className="shrink-0 text-sm font-semibold text-bearish">{fmt(r.quantity)}</span>

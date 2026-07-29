@@ -6,6 +6,13 @@ export interface MoverQuote {
   changePct: number;
 }
 
+export interface MostActiveQuote {
+  symbol: string;
+  price: number;
+  changePct: number;
+  tradedValueCr: number;
+}
+
 export interface OiBuildupEntry {
   symbol: string;
   price: number;
@@ -56,11 +63,13 @@ export interface PostMarketData {
   fetchedAt: number;
   gainers: MoverQuote[];
   losers: MoverQuote[];
+  mostActive: MostActiveQuote[];
   oiBuildup: OiBuildup;
   indexOi: IndexOiEntry[];
   near52WeekHigh: Week52Entry[];
   near52WeekLow: Week52Entry[];
   corporateActions: CorporateAction[];
+  corporateActionsAll: CorporateAction[];
   earningsCalendar: EarningsEvent[];
 }
 
@@ -70,11 +79,13 @@ const EMPTY: PostMarketData = {
   fetchedAt: 0,
   gainers: [],
   losers: [],
+  mostActive: [],
   oiBuildup: { longBuildup: [], shortBuildup: [], shortCovering: [], longUnwinding: [] },
   indexOi: [],
   near52WeekHigh: [],
   near52WeekLow: [],
   corporateActions: [],
+  corporateActionsAll: [],
   earningsCalendar: [],
 };
 

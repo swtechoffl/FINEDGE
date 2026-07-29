@@ -1,11 +1,33 @@
 import { type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
 import { cn } from "../../lib/utils";
 import { relativeTime } from "../../data/mock";
 import { usePostMarket } from "./usePostMarket";
-import type { MoverQuote, OiBuildupEntry, IndexOiEntry, Week52Entry } from "./usePostMarket";
+import type { MoverQuote, OiBuildupEntry, IndexOiEntry, Week52Entry, MostActiveQuote, CorporateAction } from "./usePostMarket";
+
+function CorporateActionChip({ item }: { item: CorporateAction }) {
+  const shortDate = item.exDate.replace(/-\d{4}$/, "");
+  return (
+    <span
+      title={`${item.company} — ${item.subject}`}
+      className="flex items-center justify-between gap-2 rounded-lg bg-app px-2.5 py-1.5 text-xs"
+    >
+      <span className="truncate font-bold text-foreground">{item.symbol}</span>
+      <span className="shrink-0 text-subtle-foreground">{shortDate}</span>
+    </span>
+  );
+}
+
+function SymbolLink({ symbol }: { symbol: string }) {
+  return (
+    <Link to={`/stock/${symbol}`} className="focus-ring text-sm font-semibold text-foreground hover:text-accent hover:underline">
+      {symbol}
+    </Link>
+  );
+}
 
 function BentoCard({
   title,
@@ -33,7 +55,7 @@ function MoverRow({ item }: { item: MoverQuote }) {
   const up = item.changePct >= 0;
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
-      <span className="text-sm font-semibold text-foreground">{item.symbol}</span>
+      <SymbolLink symbol={item.symbol} />
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">{item.price.toLocaleString("en-IN")}</span>
         <span
@@ -51,11 +73,27 @@ function MoverRow({ item }: { item: MoverQuote }) {
   );
 }
 
+function MostActiveRow({ item }: { item: MostActiveQuote }) {
+  const up = item.changePct >= 0;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <SymbolLink symbol={item.symbol} />
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-subtle-foreground">₹{item.tradedValueCr.toLocaleString("en-IN")} Cr</span>
+        <span className={cn("text-sm font-bold", up ? "text-bullish" : "text-bearish")}>
+          {up ? "+" : ""}
+          {item.changePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function BuildupRow({ item }: { item: OiBuildupEntry }) {
   const priceUp = item.changePct >= 0;
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
-      <span className="text-sm font-semibold text-foreground">{item.symbol}</span>
+      <SymbolLink symbol={item.symbol} />
       <div className="flex items-center gap-3 text-xs">
         <span className={cn("font-semibold", priceUp ? "text-bullish" : "text-bearish")}>
           {priceUp ? "+" : ""}
@@ -103,7 +141,7 @@ function Week52Row({ item, kind }: { item: Week52Entry; kind: "high" | "low" }) 
   const dist = kind === "high" ? item.distFromHighPct : item.distFromLowPct;
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
-      <span className="text-sm font-semibold text-foreground">{item.symbol}</span>
+      <SymbolLink symbol={item.symbol} />
       <div className="flex items-center gap-2 text-xs">
         <span className="text-muted-foreground">{item.price.toLocaleString("en-IN")}</span>
         <span className="font-semibold text-subtle-foreground">{dist}% away</span>
@@ -183,6 +221,16 @@ export function PostMarketPage() {
                   </BentoCard>
                 )}
 
+                {data.mostActive.length > 0 && (
+                  <BentoCard title="Most Active Equities (by value)" className="col-span-4">
+                    <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+                      {data.mostActive.map((item) => (
+                        <MostActiveRow key={item.symbol} item={item} />
+                      ))}
+                    </div>
+                  </BentoCard>
+                )}
+
                 {buildupKeys.some((k) => data.oiBuildup[k].length > 0) && (
                   <BentoCard title="OI Buildup (F&O)" className="col-span-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -236,20 +284,11 @@ export function PostMarketPage() {
                   </BentoCard>
                 )}
 
-                {data.corporateActions.length > 0 && (
+                {data.corporateActionsAll.length > 0 && (
                   <BentoCard title="Upcoming Corporate Actions" className="col-span-4">
-                    <div className="flex flex-col">
-                      {data.corporateActions.map((ca) => (
-                        <div
-                          key={`${ca.symbol}-${ca.exDate}-${ca.subject}`}
-                          className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0"
-                        >
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-foreground">{ca.company}</div>
-                            <div className="text-xs text-subtle-foreground">{ca.subject}</div>
-                          </div>
-                          <span className="shrink-0 text-xs font-medium text-muted-foreground">{ca.exDate}</span>
-                        </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                      {data.corporateActionsAll.slice(0, 20).map((ca) => (
+                        <CorporateActionChip key={`${ca.symbol}-${ca.exDate}-${ca.subject}`} item={ca} />
                       ))}
                     </div>
                   </BentoCard>

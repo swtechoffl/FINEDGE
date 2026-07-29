@@ -22,11 +22,11 @@ export function CorporateActionsPage() {
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return data.corporateActions;
-    return data.corporateActions.filter((a) =>
+    if (!query) return data.corporateActionsAll;
+    return data.corporateActionsAll.filter((a) =>
       [a.symbol, a.company, a.subject].join(" ").toLowerCase().includes(query),
     );
-  }, [data.corporateActions, search]);
+  }, [data.corporateActionsAll, search]);
 
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
   const meta = data.fetchedAt > 0 ? `Updated ${relativeTime(new Date(data.fetchedAt).toISOString())}` : undefined;
@@ -42,7 +42,7 @@ export function CorporateActionsPage() {
       />
 
       <div className="mx-auto w-full max-w-3xl px-6 py-6">
-        {loading && data.corporateActions.length === 0 ? (
+        {loading && data.corporateActionsAll.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
             <Loader2 size={24} className="animate-spin text-accent" />
             <p className="text-sm font-medium text-muted-foreground">Fetching corporate actions from NSE…</p>

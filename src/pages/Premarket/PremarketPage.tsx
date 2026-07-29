@@ -153,7 +153,7 @@ export function PremarketPage() {
                 onResetNews={handleResetNews}
                 near52WeekHigh={moversData.near52WeekHigh}
                 near52WeekLow={moversData.near52WeekLow}
-                corporateActions={moversData.corporateActions}
+                corporateActions={moversData.corporateActionsAll}
                 earningsCalendar={moversData.earningsCalendar}
               />
             </Card>

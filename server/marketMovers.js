@@ -34,6 +34,19 @@ async function fetchGainersLosers() {
   return { gainers, losers };
 }
 
+async function fetchMostActive() {
+  const rows = await fetchNseJson(
+    "/api/live-analysis-most-active-securities?index=value",
+    "https://www.nseindia.com/market-data/most-active-underlying",
+  );
+  return (rows?.data || []).slice(0, 15).map((r) => ({
+    symbol: r.symbol,
+    price: r.lastPrice,
+    changePct: r.pChange,
+    tradedValueCr: +(r.totalTradedValue / 1e7).toFixed(2), // rupees -> ₹ crore
+  }));
+}
+
 // Standard F&O positioning read: combine today's price direction with
 // today's futures/options OI direction for the same underlying.
 //   price up + OI up     -> Long Buildup    (new longs being added)
@@ -146,25 +159,50 @@ function parseNseDate(d) {
   return isNaN(+parsed) ? null : parsed;
 }
 
+function toDdMmYyyy(date) {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  return `${dd}-${mm}-${date.getFullYear()}`;
+}
+
+const CORPORATE_ACTIONS_LOOKAHEAD_DAYS = 30;
+
+// Returns two views of the same feed:
+//   - `curated`: only our tracked 109-stock universe — what the Premarket
+//     Report embed shows (a compact briefing scoped to stocks we actually
+//     cover elsewhere in the app).
+//   - `all`: the full market-wide list, same breadth as NSE's own
+//     corporate-filings-actions page — what the dedicated Corporate Actions
+//     page shows. Filtering this down to `curated` everywhere was the bug:
+//     NSE's page lists hundreds of companies, ours only ever showed the tiny
+//     handful that happened to also be in our curated stock list.
 async function fetchCorporateActions() {
+  // Without an explicit from/to range, NSE's own default window for this
+  // endpoint is tiny (~20 items market-wide, spanning only 1-2 days) — verified
+  // live. Passing an explicit range (as the reference NseIndiaApi library
+  // does) returns the full month ahead instead (150+ items).
+  const from = new Date();
+  const to = new Date();
+  to.setDate(to.getDate() + CORPORATE_ACTIONS_LOOKAHEAD_DAYS);
   const rows = await fetchNseJson(
-    "/api/corporates-corporateActions?index=equities",
+    `/api/corporates-corporateActions?index=equities&from_date=${toDdMmYyyy(from)}&to_date=${toDdMmYyyy(to)}`,
     "https://www.nseindia.com/companies-listing/corporate-filings-actions",
   );
-  if (!Array.isArray(rows)) return [];
+  if (!Array.isArray(rows)) return { all: [], curated: [] };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  return rows
-    .filter((r) => STOCK_SYMBOLS.has(r.symbol))
+  const upcoming = rows
     .map((r) => ({ ...r, _exDate: parseNseDate(r.exDate) }))
     .filter((r) => r._exDate && r._exDate >= today)
     .sort((a, b) => +a._exDate - +b._exDate)
-    // Capped generously — the dedicated Corporate Actions page shows the
-    // full list; the Premarket Report embed further trims to its own top 6.
-    .slice(0, 50)
     .map((r) => ({ symbol: r.symbol, company: r.comp, exDate: r.exDate, subject: r.subject }));
+
+  return {
+    all: upcoming.slice(0, 150),
+    curated: upcoming.filter((r) => STOCK_SYMBOLS.has(r.symbol)).slice(0, 50),
+  };
 }
 
 // NSE's board-meeting event calendar — "purpose" covers several kinds of
@@ -195,21 +233,24 @@ let cache = {
   fetchedAt: 0,
   gainers: [],
   losers: [],
+  mostActive: [],
   oiBuildup: EMPTY_OI_BUILDUP,
   indexOi: [],
   near52WeekHigh: [],
   near52WeekLow: [],
   corporateActions: [],
+  corporateActionsAll: [],
   earningsCalendar: [],
 };
 let inFlight = null;
 
 async function refreshMovers() {
-  const [glResult, oiResult, caResult, ecResult] = await Promise.all([
+  const [glResult, oiResult, caResult, ecResult, maResult] = await Promise.all([
     fetchGainersLosers().catch((err) => ({ error: err.message })),
     fetchOiSpurts().catch((err) => ({ error: err.message })),
-    fetchCorporateActions().catch(() => []),
+    fetchCorporateActions().catch(() => ({ all: [], curated: [] })),
     fetchEarningsCalendar().catch(() => []),
+    fetchMostActive().catch(() => []),
   ]);
   const week52 = compute52WeekMovers();
 
@@ -217,11 +258,13 @@ async function refreshMovers() {
     fetchedAt: Date.now(),
     gainers: glResult && !glResult.error ? glResult.gainers : [],
     losers: glResult && !glResult.error ? glResult.losers : [],
+    mostActive: Array.isArray(maResult) ? maResult : [],
     oiBuildup: oiResult && !oiResult.error ? oiResult.oiBuildup : EMPTY_OI_BUILDUP,
     indexOi: oiResult && !oiResult.error ? oiResult.indexOi : [],
     near52WeekHigh: week52.near52WeekHigh,
     near52WeekLow: week52.near52WeekLow,
-    corporateActions: Array.isArray(caResult) ? caResult : [],
+    corporateActions: Array.isArray(caResult?.curated) ? caResult.curated : [],
+    corporateActionsAll: Array.isArray(caResult?.all) ? caResult.all : [],
     earningsCalendar: Array.isArray(ecResult) ? ecResult : [],
   };
   return cache;
@@ -242,9 +285,9 @@ function summarize(c) {
     .map(([k, v]) => `${k}=${v.length}`)
     .join(", ");
   return (
-    `${c.gainers.length} gainers, ${c.losers.length} losers, oi buildup: ${oi}, ` +
+    `${c.gainers.length} gainers, ${c.losers.length} losers, mostActive=${c.mostActive.length}, oi buildup: ${oi}, ` +
     `indexOi=${c.indexOi.length}, 52wHigh=${c.near52WeekHigh.length}, 52wLow=${c.near52WeekLow.length}, ` +
-    `corpActions=${c.corporateActions.length}, earnings=${c.earningsCalendar.length}`
+    `corpActions=${c.corporateActions.length}/${c.corporateActionsAll.length}, earnings=${c.earningsCalendar.length}`
   );
 }
 
