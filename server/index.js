@@ -43,13 +43,13 @@ function makeId(source, item) {
   return `news-${h}`;
 }
 
-function normalizeItem(source, item) {
+function normalizeItem(source, item, sectionLabel) {
   const headline = (item.title || "").trim();
   const rawSummary = item.contentSnippet || item.summary || item.content || "";
   const summary = truncate(stripHtml(rawSummary));
   const text = `${headline} ${summary}`;
 
-  const { signal, impact, category, matchedTickers, bullHits, bearHits } = classify(text);
+  const { signal, impact, category, matchedTickers, bullHits, bearHits } = classify(text, { sectionLabel });
 
   const tickers = matchedTickers.map((t) => {
     const p = resolveTicker(t.symbol);
@@ -85,7 +85,7 @@ function normalizeItem(source, item) {
 async function fetchFeed(group, feed) {
   try {
     const parsed = await parser.parseURL(feed.url);
-    const items = (parsed.items || []).map((item) => normalizeItem(group.name, item));
+    const items = (parsed.items || []).map((item) => normalizeItem(group.name, item, feed.label));
     return { source: group.name, label: feed.label, url: feed.url, status: feed.status, ok: true, count: items.length, items };
   } catch (err) {
     return {

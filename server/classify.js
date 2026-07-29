@@ -15,6 +15,14 @@ const MARKET_KEYWORDS = [
   "fiscal deficit", "union budget", "finance ministry", "rupee", "forex reserves",
   "current account deficit", "trade deficit", "gdp growth",
   "index of industrial production", "core sector", "gst",
+  // Global markets/macro — these feeds carry plenty of Wall Street/overseas
+  // coverage that's relevant to Indian markets (GIFT Nifty, sentiment) but
+  // never names an Indian ticker or RBI/SEBI specifically.
+  "wall street", "federal reserve", "fed rate", "fed policy", "treasury yield",
+  "central bank", "interest rate", "rate hike", "rate cut", "semiconductor",
+  "emerging market", "emerging-market", "bourse", "equities", "stock trade",
+  "dow jones", "nasdaq", "s&p", "ftse", "nikkei", "hang seng", "kospi",
+  "shanghai composite", "tsx", "dax", "cac 40",
 ];
 
 const INDUSTRY_KEYWORDS = [
@@ -172,7 +180,19 @@ function stripBseExchangeReferences(text) {
   return cleaned;
 }
 
-export function classify(text) {
+// Feed sections that are broad/general-purpose rather than a dedicated
+// markets/companies/business desk — these are the only ones that still need
+// the keyword/ticker relevance check below (that's what correctly caught a
+// FIFA sports story that came through NDTV Profit's "Latest" firehose).
+// Every other section in feeds.js (Markets, Companies, Business, Stocks,
+// Mutual Funds, etc.) is already a human-edited finance section, so a story
+// landing there is relevant by definition — even sparse wire copy like
+// "TSX hits record high" or "Coursera backs new AI education firm" that
+// doesn't happen to mention an Indian ticker or match a keyword.
+const GENERIC_SECTION_LABELS = new Set(["world", "latest"]);
+
+export function classify(text, { sectionLabel } = {}) {
+  const trustedSection = Boolean(sectionLabel) && !GENERIC_SECTION_LABELS.has(sectionLabel.toLowerCase());
   const lower = text.toLowerCase();
   const bullHits = countHits(lower, BULLISH_WORDS);
   const bearHits = countHits(lower, BEARISH_WORDS);
@@ -204,7 +224,7 @@ export function classify(text) {
   // broad-topic RSS feeds) gets no market impact at all, regardless of how
   // its bullish/bearish word score happens to land.
   const hasIndustryRelevance = matchesKeywordList(lower, MARKET_KEYWORDS) || matchesKeywordList(lower, INDUSTRY_KEYWORDS);
-  const isRelevant = matchedTickers.length > 0 || hasIndustryRelevance;
+  const isRelevant = trustedSection || matchedTickers.length > 0 || hasIndustryRelevance;
 
   if (category === "General News" && matchedTickers.length === 0) {
     category = hasIndustryRelevance ? "Macro Sector" : "General News";
