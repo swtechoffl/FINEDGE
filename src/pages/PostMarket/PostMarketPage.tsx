@@ -1,0 +1,264 @@
+import { type ReactNode } from "react";
+import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { Header } from "../../components/Header";
+import { Card } from "../../components/ui/Card";
+import { cn } from "../../lib/utils";
+import { relativeTime } from "../../data/mock";
+import { usePostMarket } from "./usePostMarket";
+import type { MoverQuote, OiBuildupEntry, IndexOiEntry, Week52Entry } from "./usePostMarket";
+
+function BentoCard({
+  title,
+  meta,
+  className,
+  children,
+}: {
+  title: string;
+  meta?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("flex flex-col rounded-2xl border border-border bg-app p-4", className)}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle-foreground">{title}</span>
+        {meta && <span className="text-[10px] text-subtle-foreground">{meta}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function MoverRow({ item }: { item: MoverQuote }) {
+  const up = item.changePct >= 0;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <span className="text-sm font-semibold text-foreground">{item.symbol}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">{item.price.toLocaleString("en-IN")}</span>
+        <span
+          className={cn(
+            "flex min-w-[64px] items-center justify-end gap-0.5 text-sm font-bold",
+            up ? "text-bullish" : "text-bearish",
+          )}
+        >
+          {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          {up ? "+" : ""}
+          {item.changePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function BuildupRow({ item }: { item: OiBuildupEntry }) {
+  const priceUp = item.changePct >= 0;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <span className="text-sm font-semibold text-foreground">{item.symbol}</span>
+      <div className="flex items-center gap-3 text-xs">
+        <span className={cn("font-semibold", priceUp ? "text-bullish" : "text-bearish")}>
+          {priceUp ? "+" : ""}
+          {item.changePct}%
+        </span>
+        <span className="text-subtle-foreground">
+          OI {item.oiChangePct >= 0 ? "+" : ""}
+          {item.oiChangePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+const OI_BUILDUP_META: Record<string, { label: string; color: string; hint: string }> = {
+  longBuildup: { label: "Long Buildup", color: "var(--bullish)", hint: "Price up, OI up" },
+  shortBuildup: { label: "Short Buildup", color: "var(--bearish)", hint: "Price down, OI up" },
+  shortCovering: { label: "Short Covering", color: "var(--bullish)", hint: "Price up, OI down" },
+  longUnwinding: { label: "Long Unwinding", color: "var(--bearish)", hint: "Price down, OI down" },
+};
+
+function IndexOiBar({ item, maxChange }: { item: IndexOiEntry; maxChange: number }) {
+  const up = item.changeInOI >= 0;
+  const pct = maxChange > 0 ? (Math.abs(item.changeInOI) / maxChange) * 100 : 0;
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-foreground">{item.symbol}</span>
+        <span className={cn("font-semibold", up ? "text-bullish" : "text-bearish")}>
+          {up ? "+" : ""}
+          {item.oiChangePct}% OI
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-chip">
+        <div
+          className={cn("h-full rounded-full", up ? "bg-bullish" : "bg-bearish")}
+          style={{ width: `${Math.max(pct, 3)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Week52Row({ item, kind }: { item: Week52Entry; kind: "high" | "low" }) {
+  const dist = kind === "high" ? item.distFromHighPct : item.distFromLowPct;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <span className="text-sm font-semibold text-foreground">{item.symbol}</span>
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground">{item.price.toLocaleString("en-IN")}</span>
+        <span className="font-semibold text-subtle-foreground">{dist}% away</span>
+      </div>
+    </div>
+  );
+}
+
+export function PostMarketPage() {
+  const { data, loading } = usePostMarket();
+  const hasAnyData =
+    data.gainers.length > 0 ||
+    data.losers.length > 0 ||
+    data.indexOi.length > 0 ||
+    data.corporateActions.length > 0;
+
+  const meta = data.fetchedAt > 0 ? `Updated ${relativeTime(new Date(data.fetchedAt).toISOString())}` : undefined;
+  const maxIndexOiChange = Math.max(...data.indexOi.map((i) => Math.abs(i.changeInOI)), 1);
+  const buildupKeys = ["longBuildup", "shortBuildup", "shortCovering", "longUnwinding"] as const;
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header title="post market report" meta={meta} />
+
+      <div className="mx-auto w-full max-w-5xl px-6 py-6">
+        {loading && !hasAnyData ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
+            <Loader2 size={24} className="animate-spin text-accent" />
+            <p className="text-sm font-medium text-muted-foreground">Fetching market internals from NSE…</p>
+          </div>
+        ) : !hasAnyData ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-32 text-center">
+            <p className="text-sm font-medium text-muted-foreground">
+              Couldn't load market movers data. Make sure the API server is running.
+            </p>
+          </div>
+        ) : (
+          <Card className="overflow-hidden">
+            <div className="bg-surface p-6">
+              <div className="mb-5 border-b border-border pb-4">
+                <h2 className="text-lg font-extrabold tracking-tight text-foreground">
+                  Post Market Report<span className="text-accent">.</span>
+                </h2>
+                <span className="text-xs text-subtle-foreground">
+                  {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3">
+                {data.indexOi.length > 0 && (
+                  <BentoCard title="Index Futures — OI Change" className="col-span-4">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+                      {data.indexOi.map((idx) => (
+                        <IndexOiBar key={idx.symbol} item={idx} maxChange={maxIndexOiChange} />
+                      ))}
+                    </div>
+                  </BentoCard>
+                )}
+
+                {data.gainers.length > 0 && (
+                  <BentoCard title="Top Gainers" className="col-span-4 lg:col-span-2">
+                    <div className="flex flex-col">
+                      {data.gainers.slice(0, 8).map((item) => (
+                        <MoverRow key={item.symbol} item={item} />
+                      ))}
+                    </div>
+                  </BentoCard>
+                )}
+
+                {data.losers.length > 0 && (
+                  <BentoCard title="Top Losers" className="col-span-4 lg:col-span-2">
+                    <div className="flex flex-col">
+                      {data.losers.slice(0, 8).map((item) => (
+                        <MoverRow key={item.symbol} item={item} />
+                      ))}
+                    </div>
+                  </BentoCard>
+                )}
+
+                {buildupKeys.some((k) => data.oiBuildup[k].length > 0) && (
+                  <BentoCard title="OI Buildup (F&O)" className="col-span-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      {buildupKeys.map((key) => {
+                        const meta = OI_BUILDUP_META[key];
+                        const items = data.oiBuildup[key];
+                        if (items.length === 0) return null;
+                        return (
+                          <div key={key}>
+                            <div className="mb-1.5 flex items-center gap-1.5">
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+                              <span className="text-xs font-bold text-foreground">{meta.label}</span>
+                            </div>
+                            <div className="mb-2 text-[10px] text-subtle-foreground">{meta.hint}</div>
+                            <div className="flex flex-col">
+                              {items.slice(0, 5).map((item) => (
+                                <BuildupRow key={item.symbol} item={item} />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </BentoCard>
+                )}
+
+                {(data.near52WeekHigh.length > 0 || data.near52WeekLow.length > 0) && (
+                  <BentoCard title="52-Week High / Low Watch" className="col-span-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      {data.near52WeekHigh.length > 0 && (
+                        <div>
+                          <div className="mb-1.5 text-xs font-bold text-bullish">Near 52-Week High</div>
+                          <div className="flex flex-col">
+                            {data.near52WeekHigh.map((item) => (
+                              <Week52Row key={item.symbol} item={item} kind="high" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {data.near52WeekLow.length > 0 && (
+                        <div>
+                          <div className="mb-1.5 text-xs font-bold text-bearish">Near 52-Week Low</div>
+                          <div className="flex flex-col">
+                            {data.near52WeekLow.map((item) => (
+                              <Week52Row key={item.symbol} item={item} kind="low" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </BentoCard>
+                )}
+
+                {data.corporateActions.length > 0 && (
+                  <BentoCard title="Upcoming Corporate Actions" className="col-span-4">
+                    <div className="flex flex-col">
+                      {data.corporateActions.map((ca) => (
+                        <div
+                          key={`${ca.symbol}-${ca.exDate}-${ca.subject}`}
+                          className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-foreground">{ca.company}</div>
+                            <div className="text-xs text-subtle-foreground">{ca.subject}</div>
+                          </div>
+                          <span className="shrink-0 text-xs font-medium text-muted-foreground">{ca.exDate}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </BentoCard>
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}

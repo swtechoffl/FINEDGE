@@ -29,6 +29,8 @@ export async function fetchYahooQuote(yahooSymbol) {
     price: +price.toFixed(2),
     changePct: +changePct.toFixed(2),
     name: meta.longName || meta.shortName || null,
+    fiftyTwoWeekHigh: typeof meta.fiftyTwoWeekHigh === "number" ? meta.fiftyTwoWeekHigh : null,
+    fiftyTwoWeekLow: typeof meta.fiftyTwoWeekLow === "number" ? meta.fiftyTwoWeekLow : null,
   };
 }
 

@@ -30,8 +30,14 @@ async function refreshPrices() {
   const stocks = {};
   let failedCount = 0;
   stockResults.forEach((r, i) => {
-    if (r && !r.error) stocks[stockSymbols[i]] = { price: r.price, changePct: r.changePct };
-    else failedCount += 1;
+    if (r && !r.error) {
+      stocks[stockSymbols[i]] = {
+        price: r.price,
+        changePct: r.changePct,
+        fiftyTwoWeekHigh: r.fiftyTwoWeekHigh,
+        fiftyTwoWeekLow: r.fiftyTwoWeekLow,
+      };
+    } else failedCount += 1;
   });
 
   const indices = {};
@@ -59,13 +65,21 @@ export function getCachedPrice(symbol) {
   return cache.stocks[symbol] || null;
 }
 
+// Returns the initial warm-up promise so callers that depend on the price
+// cache being populated (e.g. market movers' OI-buildup/52-week classification,
+// which reads getCachedPrice() synchronously) can wait for it before running
+// their own first pass, rather than racing it on cold start.
 export function startPricePolling() {
-  refreshPrices()
-    .then((c) => console.log(`[prices] warm cache loaded: ${Object.keys(c.stocks).length} stocks, ${Object.keys(c.indices).length} indices (${c.failedCount} failed)`))
+  const initial = refreshPrices()
+    .then((c) => {
+      console.log(`[prices] warm cache loaded: ${Object.keys(c.stocks).length} stocks, ${Object.keys(c.indices).length} indices (${c.failedCount} failed)`);
+      return c;
+    })
     .catch((err) => console.error("[prices] initial fetch failed:", err.message));
   setInterval(() => {
     refreshPrices()
       .then((c) => console.log(`[prices] refreshed: ${Object.keys(c.stocks).length} stocks, ${c.failedCount} failed`))
       .catch((err) => console.error("[prices] refresh failed:", err.message));
   }, REFRESH_INTERVAL_MS);
+  return initial;
 }

@@ -1,4 +1,5 @@
 import { fetchYahooQuote, fetchYahooDailyOHLC, mapWithConcurrency, YAHOO_BROWSER_UA } from "./yahoo.js";
+import { fetchNseJson } from "./nse.js";
 
 const CONCURRENCY = 6;
 // Global cues move continuously through the day (unlike the tracked-stock
@@ -73,34 +74,9 @@ async function fetchGiftNifty() {
   };
 }
 
-// NSE's own official FII/FPI & DII trading-activity API. Calling it cold
-// (no session) returns a generic "Resource not found" — verified directly —
-// it needs a cookie from a normal page visit first, same as a browser would
-// get just by loading nseindia.com before the report page's script calls
-// its own API.
+// NSE's own official FII/FPI & DII trading-activity API.
 async function fetchFiiDii() {
-  const homeRes = await fetch("https://www.nseindia.com/", {
-    headers: { "User-Agent": YAHOO_BROWSER_UA, Accept: "text/html" },
-  });
-  const cookies =
-    typeof homeRes.headers.getSetCookie === "function"
-      ? homeRes.headers.getSetCookie()
-      : homeRes.headers.get("set-cookie")
-        ? [homeRes.headers.get("set-cookie")]
-        : [];
-  const cookieHeader = cookies.map((c) => c.split(";")[0]).join("; ");
-  if (!cookieHeader) throw new Error("no session cookie from nseindia.com");
-
-  const res = await fetch("https://www.nseindia.com/api/fiidiiTradeReact", {
-    headers: {
-      "User-Agent": YAHOO_BROWSER_UA,
-      Accept: "application/json",
-      Referer: "https://www.nseindia.com/reports/fii-dii",
-      Cookie: cookieHeader,
-    },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
+  const data = await fetchNseJson("/api/fiidiiTradeReact", "https://www.nseindia.com/reports/fii-dii");
   if (!Array.isArray(data) || data.length === 0) throw new Error("unexpected FII/DII response shape");
 
   const toNum = (v) => (v === undefined || v === null ? null : parseFloat(v));

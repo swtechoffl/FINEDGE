@@ -2,6 +2,9 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { MarketBuzzPage } from "./pages/MarketBuzz/MarketBuzzPage";
 import { PremarketPage } from "./pages/Premarket/PremarketPage";
+import { PostMarketPage } from "./pages/PostMarket/PostMarketPage";
+import { CorporateActionsPage } from "./pages/CorporateActions/CorporateActionsPage";
+import { MarketInternalsPage } from "./pages/MarketInternals/MarketInternalsPage";
 import { DisclosurePage } from "./pages/Disclosure/DisclosurePage";
 
 function App() {
@@ -11,6 +14,9 @@ function App() {
         <Route path="/" element={<Navigate to="/news" replace />} />
         <Route path="/news" element={<MarketBuzzPage />} />
         <Route path="/premarket" element={<PremarketPage />} />
+        <Route path="/postmarket" element={<PostMarketPage />} />
+        <Route path="/corporate-actions" element={<CorporateActionsPage />} />
+        <Route path="/market-internals" element={<MarketInternalsPage />} />
         <Route path="/disclosure" element={<DisclosurePage />} />
         <Route path="*" element={<Navigate to="/news" replace />} />
       </Routes>

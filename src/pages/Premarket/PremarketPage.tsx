@@ -9,6 +9,7 @@ import { ReportBrandingEditor } from "./ReportBrandingEditor";
 import { PremarketReportContent } from "./PremarketReportContent";
 import { DisclaimerReportPage } from "./DisclaimerReportPage";
 import { useNewsFeed } from "../MarketBuzz/useNewsFeed";
+import { usePostMarket } from "../PostMarket/usePostMarket";
 import { relativeTime } from "../../data/mock";
 import { exportNodesToPdf } from "../../lib/exportPdf";
 
@@ -17,6 +18,7 @@ const IMPACT_RANK: Record<string, number> = { high: 3, moderate: 2, low: 1, none
 
 export function PremarketPage() {
   const { data, loading } = usePremarket();
+  const { data: moversData } = usePostMarket();
   const { items: newsItems } = useNewsFeed();
   const { branding, setName, setLogoDataUrl, clear } = useReportBranding();
   const reportRef = useRef<HTMLDivElement>(null);
@@ -149,6 +151,10 @@ export function PremarketPage() {
                 onAddNews={handleAddNews}
                 onRemoveNews={handleRemoveNews}
                 onResetNews={handleResetNews}
+                near52WeekHigh={moversData.near52WeekHigh}
+                near52WeekLow={moversData.near52WeekLow}
+                corporateActions={moversData.corporateActions}
+                earningsCalendar={moversData.earningsCalendar}
               />
             </Card>
 

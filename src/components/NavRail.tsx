@@ -1,11 +1,14 @@
 import { NavLink } from "react-router-dom";
-import { Newspaper, Sunrise, LogOut } from "lucide-react";
+import { Newspaper, Sunrise, Sunset, CalendarClock, Layers, LogOut } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { cn } from "../lib/utils";
 
 const NAV_ITEMS = [
   { to: "/news", label: "Market Pulse", icon: Newspaper },
   { to: "/premarket", label: "Premarket Report", icon: Sunrise },
+  { to: "/postmarket", label: "Post Market Report", icon: Sunset },
+  { to: "/corporate-actions", label: "Corporate Actions", icon: CalendarClock },
+  { to: "/market-internals", label: "Market Internals", icon: Layers },
 ];
 
 function navLinkClass({ isActive }: { isActive: boolean }) {

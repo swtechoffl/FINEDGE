@@ -7,6 +7,8 @@ import { PUBLISHER_GROUPS } from "./feeds.js";
 import { classify, resolveTicker, heuristicAnalysis } from "./classify.js";
 import { getPrices, startPricePolling } from "./prices.js";
 import { getPremarket, startPremarketPolling } from "./premarket.js";
+import { getMarketMovers, startMarketMoversPolling } from "./marketMovers.js";
+import { getMarketInternals, startMarketInternalsPolling } from "./marketInternals.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 5175;
@@ -174,6 +176,24 @@ app.get("/api/premarket", async (req, res) => {
   }
 });
 
+app.get("/api/market-movers", async (req, res) => {
+  try {
+    const data = await getMarketMovers();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load market movers", detail: String(err) });
+  }
+});
+
+app.get("/api/market-internals", async (req, res) => {
+  try {
+    const data = await getMarketInternals();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load market internals", detail: String(err) });
+  }
+});
+
 const distDir = path.join(__dirname, "..", "dist");
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
@@ -193,13 +213,18 @@ if (fs.existsSync(distDir)) {
 // app works correctly without the background pollers; they're just a
 // same-process latency optimization that's unavailable in that model.
 if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
+  app.listen(PORT, async () => {
     console.log(`[stoqtrade.ai] news API listening on http://localhost:${PORT}`);
     refreshCache()
       .then((c) => console.log(`[stoqtrade.ai] warm cache loaded: ${c.items.length} items`))
       .catch((err) => console.error("[stoqtrade.ai] initial cache warm failed:", err.message));
-    startPricePolling();
     startPremarketPolling();
+    // Market movers' OI-buildup/52-week classification reads the price cache
+    // synchronously — wait for its first warm-up so the initial pass isn't
+    // silently empty.
+    await startPricePolling();
+    startMarketMoversPolling();
+    startMarketInternalsPolling();
   });
 }
 

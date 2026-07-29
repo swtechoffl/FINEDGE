@@ -2,6 +2,7 @@ import { forwardRef, type ReactNode } from "react";
 import { TrendingUp, TrendingDown, X } from "lucide-react";
 import type { PremarketData, FiiDiiSide, PremarketQuote, BarometerData, NiftyPivotData } from "./usePremarket";
 import type { ReportBranding } from "./useReportBranding";
+import type { Week52Entry, CorporateAction, EarningsEvent } from "../PostMarket/usePostMarket";
 import type { NewsItem } from "../../types";
 import { signalColor } from "../../components/SignalGauge";
 import { Badge } from "../../components/ui/Badge";
@@ -275,6 +276,43 @@ function NiftyPivotCard({ data }: { data: NiftyPivotData }) {
   );
 }
 
+function Week52Row({ item, kind }: { item: Week52Entry; kind: "high" | "low" }) {
+  const dist = kind === "high" ? item.distFromHighPct : item.distFromLowPct;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <span className="text-sm font-semibold text-foreground">{item.symbol}</span>
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground">{item.price.toLocaleString("en-IN")}</span>
+        <span className="font-semibold text-subtle-foreground">{dist}% away</span>
+      </div>
+    </div>
+  );
+}
+
+function CorporateActionRow({ item }: { item: CorporateAction }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-foreground">{item.company}</div>
+        <div className="text-xs text-subtle-foreground">{item.subject}</div>
+      </div>
+      <span className="shrink-0 text-xs font-medium text-muted-foreground">{item.exDate}</span>
+    </div>
+  );
+}
+
+function EarningsRow({ item }: { item: EarningsEvent }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-b-0">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-foreground">{item.company}</div>
+        <div className="text-xs text-subtle-foreground">{item.symbol}</div>
+      </div>
+      <span className="shrink-0 text-xs font-medium text-muted-foreground">{item.date}</span>
+    </div>
+  );
+}
+
 function NewsRow({
   item,
   hideSource,
@@ -320,8 +358,30 @@ export const PremarketReportContent = forwardRef<
     onAddNews?: (id: string) => void;
     onRemoveNews?: (id: string) => void;
     onResetNews?: () => void;
+    near52WeekHigh?: Week52Entry[];
+    near52WeekLow?: Week52Entry[];
+    corporateActions?: CorporateAction[];
+    earningsCalendar?: EarningsEvent[];
   }
->(({ data, branding, highImpactNews, exportMode, candidateNews, isCustomized, onAddNews, onRemoveNews, onResetNews }, ref) => {
+>(
+  (
+    {
+      data,
+      branding,
+      highImpactNews,
+      exportMode,
+      candidateNews,
+      isCustomized,
+      onAddNews,
+      onRemoveNews,
+      onResetNews,
+      near52WeekHigh = [],
+      near52WeekLow = [],
+      corporateActions = [],
+      earningsCalendar = [],
+    },
+    ref,
+  ) => {
   const hasFiiDii = data.fiiDii && (data.fiiDii.fii || data.fiiDii.dii);
   const today = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 
@@ -425,6 +485,53 @@ export const PremarketReportContent = forwardRef<
             </BentoCard>
           );
         })}
+
+        {(near52WeekHigh.length > 0 || near52WeekLow.length > 0) && (
+          <BentoCard title="52-Week High / Low Watch" className="col-span-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {near52WeekHigh.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-xs font-bold text-bullish">Near 52-Week High</div>
+                  <div className="flex flex-col">
+                    {near52WeekHigh.map((item) => (
+                      <Week52Row key={item.symbol} item={item} kind="high" />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {near52WeekLow.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-xs font-bold text-bearish">Near 52-Week Low</div>
+                  <div className="flex flex-col">
+                    {near52WeekLow.map((item) => (
+                      <Week52Row key={item.symbol} item={item} kind="low" />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </BentoCard>
+        )}
+
+        {earningsCalendar.length > 0 && (
+          <BentoCard title="Upcoming Earnings / Results" className="col-span-4 lg:col-span-2">
+            <div className="flex flex-col">
+              {earningsCalendar.slice(0, 6).map((item) => (
+                <EarningsRow key={`${item.symbol}-${item.date}`} item={item} />
+              ))}
+            </div>
+          </BentoCard>
+        )}
+
+        {corporateActions.length > 0 && (
+          <BentoCard title="Upcoming Corporate Actions" className="col-span-4 lg:col-span-2">
+            <div className="flex flex-col">
+              {corporateActions.slice(0, 6).map((item) => (
+                <CorporateActionRow key={`${item.symbol}-${item.exDate}-${item.subject}`} item={item} />
+              ))}
+            </div>
+          </BentoCard>
+        )}
 
         {(highImpactNews.length > 0 || (onAddNews && !exportMode)) && (
           <BentoCard
