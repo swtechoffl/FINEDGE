@@ -5,6 +5,7 @@ import { PremarketPage } from "./pages/Premarket/PremarketPage";
 import { PostMarketPage } from "./pages/PostMarket/PostMarketPage";
 import { CorporateActionsPage } from "./pages/CorporateActions/CorporateActionsPage";
 import { MarketInternalsPage } from "./pages/MarketInternals/MarketInternalsPage";
+import { PostersPage } from "./pages/Posters/PostersPage";
 import { StockDetailPage } from "./pages/StockDetail/StockDetailPage";
 import { DisclosurePage } from "./pages/Disclosure/DisclosurePage";
 
@@ -18,6 +19,7 @@ function App() {
         <Route path="/postmarket" element={<PostMarketPage />} />
         <Route path="/corporate-actions" element={<CorporateActionsPage />} />
         <Route path="/market-internals" element={<MarketInternalsPage />} />
+        <Route path="/posters" element={<PostersPage />} />
         <Route path="/stock/:symbol" element={<StockDetailPage />} />
         <Route path="/disclosure" element={<DisclosurePage />} />
         <Route path="*" element={<Navigate to="/news" replace />} />

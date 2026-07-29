@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AtSign, X } from "lucide-react";
-import type { SocialLinks } from "./useSocialLinks";
+import { SOCIAL_META, type SocialLinks } from "./useSocialLinks";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 
@@ -49,16 +49,23 @@ export function SocialLinksEditor({
             </p>
 
             <div className="flex flex-col gap-3">
-              {FIELDS.map((f) => (
-                <div key={f.key}>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{f.label}</label>
-                  <Input
-                    value={links[f.key]}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                    placeholder={f.placeholder}
-                  />
-                </div>
-              ))}
+              {FIELDS.map((f) => {
+                const Icon = SOCIAL_META[f.key].icon;
+                return (
+                  <div key={f.key}>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{f.label}</label>
+                    <div className="relative">
+                      <Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle-foreground" />
+                      <Input
+                        value={links[f.key]}
+                        onChange={(e) => setField(f.key, e.target.value)}
+                        placeholder={f.placeholder}
+                        className="pl-8"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="mt-4 flex items-center justify-between gap-2">

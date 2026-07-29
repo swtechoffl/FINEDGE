@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
+import { AtSign, Send, Globe, type LucideIcon } from "lucide-react";
 
 const STORAGE_KEY = "stoqtrade-report-social-links";
+// Same-tab instances (e.g. the poster editor and the nav rail) don't see each
+// other's writes via the native `storage` event, which only fires cross-tab —
+// so writers also broadcast this custom event for local listeners to pick up.
+const SYNC_EVENT = "stoqtrade-social-links-sync";
 
 export interface SocialLinks {
   instagram: string;
@@ -8,6 +13,13 @@ export interface SocialLinks {
   telegram: string;
   website: string;
 }
+
+export const SOCIAL_META: Record<keyof SocialLinks, { icon: LucideIcon; tag: string }> = {
+  instagram: { icon: AtSign, tag: "IG" },
+  twitter: { icon: AtSign, tag: "X" },
+  telegram: { icon: Send, tag: "TG" },
+  website: { icon: Globe, tag: "" },
+};
 
 const EMPTY: SocialLinks = { instagram: "", twitter: "", telegram: "", website: "" };
 
@@ -56,6 +68,7 @@ export function useSocialLinks() {
     } catch {
       // localStorage unavailable — links just won't persist
     }
+    window.dispatchEvent(new CustomEvent<SocialLinks>(SYNC_EVENT, { detail: links }));
   }, [links]);
 
   function setField(field: keyof SocialLinks, value: string) {
@@ -67,4 +80,22 @@ export function useSocialLinks() {
   }
 
   return { links, setField, clear };
+}
+
+// Read-only variant for components that just display the configured links
+// (e.g. the nav rail) without owning an editor — never writes back, so it
+// can safely listen for the sync event without risking a dispatch loop.
+export function useSocialLinksReadOnly(): SocialLinks {
+  const [links, setLinks] = useState<SocialLinks>(readInitial);
+
+  useEffect(() => {
+    function onSync(e: Event) {
+      const detail = (e as CustomEvent<SocialLinks>).detail;
+      if (detail) setLinks(detail);
+    }
+    window.addEventListener(SYNC_EVENT, onSync);
+    return () => window.removeEventListener(SYNC_EVENT, onSync);
+  }, []);
+
+  return links;
 }

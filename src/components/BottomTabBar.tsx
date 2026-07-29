@@ -2,14 +2,15 @@ import { NavLink } from "react-router-dom";
 import { cn } from "../lib/utils";
 import { NAV_ITEMS } from "./NavRail";
 
-// Short enough to sit under a small icon in a ~72px-wide tab without
-// wrapping on the smallest common phone widths (~360px / 5 tabs).
+// Short enough to sit under a small icon in a ~60px-wide tab without
+// wrapping on the smallest common phone widths (~360px / 6 tabs).
 const SHORT_LABELS: Record<string, string> = {
   "/news": "Finedge",
   "/premarket": "Pre-Mkt",
   "/postmarket": "Post-Mkt",
   "/corporate-actions": "Actions",
   "/market-internals": "Internals",
+  "/posters": "Posters",
 };
 
 // Modern-app bottom tab bar — the mobile/tablet equivalent of NavRail

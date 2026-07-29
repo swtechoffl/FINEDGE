@@ -3,7 +3,6 @@ import { X, Copy, Check, Download, Share2, Camera, MessageCircle } from "lucide-
 import { toBlob } from "html-to-image";
 import type { NewsItem } from "../../types";
 import { signalColor } from "../../components/SignalGauge";
-import { BrandMark } from "../../components/BrandMark";
 import { Badge } from "../../components/ui/Badge";
 import { cn } from "../../lib/utils";
 
@@ -127,12 +126,7 @@ export function ShareSheet({ item, onClose }: { item: NewsItem; onClose: () => v
                 style={{ borderTop: `4px solid ${color}` }}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-accent to-accent-hover text-accent-foreground">
-                      <BrandMark className="h-3 w-3" />
-                    </div>
-                    <span className="text-xs font-bold tracking-tight text-foreground">stoqtrade.ai</span>
-                  </div>
+                  <img src="/logo.png" alt="Finedge" className="h-4 w-auto" />
                   <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color }}>
                     {item.signal}
                   </span>

@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
-import { Newspaper, Sunrise, Sunset, CalendarClock, Layers, LogOut } from "lucide-react";
+import { Newspaper, Sunrise, Sunset, CalendarClock, Layers, Images, LogOut } from "lucide-react";
 import { BrandMark } from "./BrandMark";
+import { useSocialLinksReadOnly, socialHref, socialDisplay, SOCIAL_META, type SocialLinks } from "../pages/Premarket/useSocialLinks";
 import { cn } from "../lib/utils";
 
 export const NAV_ITEMS = [
@@ -9,6 +10,7 @@ export const NAV_ITEMS = [
   { to: "/postmarket", label: "Post Market Report", icon: Sunset },
   { to: "/corporate-actions", label: "Corporate Actions", icon: CalendarClock },
   { to: "/market-internals", label: "Market Internals", icon: Layers },
+  { to: "/posters", label: "Posters", icon: Images },
 ];
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
@@ -18,7 +20,34 @@ function navLinkClass({ isActive }: { isActive: boolean }) {
   );
 }
 
+function FollowUsLinks({ links }: { links: SocialLinks }) {
+  const entries = (Object.keys(links) as (keyof SocialLinks)[]).filter((k) => links[k].trim());
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="flex shrink-0 flex-col gap-0.5 border-t border-border px-3 py-3">
+      {entries.map((k) => {
+        const { icon: Icon } = SOCIAL_META[k];
+        return (
+          <a
+            key={k}
+            href={socialHref(k, links[k])}
+            target="_blank"
+            rel="noreferrer"
+            className="focus-ring flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-hover hover:text-foreground"
+          >
+            <Icon size={18} className="shrink-0" />
+            <span className="hidden truncate whitespace-nowrap group-hover:inline">{socialDisplay(k, links[k])}</span>
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 export function NavRail() {
+  const socialLinks = useSocialLinksReadOnly();
+
   return (
     <nav className="group fixed left-0 top-0 z-40 hidden h-full w-16 flex-col overflow-hidden border-r border-border bg-surface shadow-sm transition-[width] duration-300 ease-[var(--ease-out-expo)] hover:w-72 lg:flex">
       {/* Logo */}
@@ -27,10 +56,8 @@ export function NavRail() {
           <BrandMark className="h-[18px] w-[18px]" />
         </div>
         <div className="hidden whitespace-nowrap group-hover:block">
-          <div className="text-[15px] font-bold leading-tight tracking-tight text-foreground">
-            stoqtrade<span className="text-accent">.ai</span>
-          </div>
-          <div className="text-[10px] font-medium uppercase tracking-wider text-subtle-foreground">
+          <img src="/logo.png" alt="Finedge" className="h-6 w-auto" />
+          <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-subtle-foreground">
             AI Trading Intelligence
           </div>
         </div>
@@ -47,6 +74,8 @@ export function NavRail() {
       </div>
 
       <div className="flex-1" />
+
+      <FollowUsLinks links={socialLinks} />
 
       {/* Bottom utility links */}
       <div className="flex shrink-0 flex-col gap-0.5 border-t border-border px-3 py-3">
