@@ -94,9 +94,36 @@ function enrichWithAiAnalysisInBackground(items) {
   });
 }
 
+const HTML_ENTITIES = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  "#39": "'",
+  nbsp: " ",
+  ndash: "–",
+  mdash: "—",
+  rsquo: "’",
+  lsquo: "‘",
+  rdquo: "”",
+  ldquo: "“",
+};
+
+// Some source feeds double-escape ampersands (e.g. "&amp;amp;"), which
+// XML parsing only unwraps once — leaving a literal "&amp;" in the title.
+// Re-run entity decoding on the parsed text to clean up any leftovers.
+function decodeEntities(text) {
+  if (!text) return text;
+  return text
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&([a-zA-Z]+\d*);/g, (m, name) => HTML_ENTITIES[name] ?? m);
+}
+
 function stripHtml(html) {
   if (!html) return "";
-  return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+  return decodeEntities(html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim());
 }
 
 function truncate(text, max = 320) {
@@ -112,7 +139,7 @@ function makeId(source, item) {
 }
 
 function normalizeItem(source, item, sectionLabel) {
-  const headline = (item.title || "").trim();
+  const headline = decodeEntities((item.title || "").trim());
   const rawSummary = item.contentSnippet || item.summary || item.content || "";
   const summary = truncate(stripHtml(rawSummary));
   const text = `${headline} ${summary}`;
