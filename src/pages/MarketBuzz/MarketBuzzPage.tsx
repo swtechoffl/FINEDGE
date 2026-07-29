@@ -35,7 +35,6 @@ export function MarketBuzzPage() {
       if (filters.sources.length > 0 && !filters.sources.includes(n.source)) return false;
       if (filters.stocks.length > 0 && !n.tickers.some((t) => filters.stocks.includes(t.symbol)))
         return false;
-      // playgroundOnly has no real watchlist backing yet — treated as a no-op pass-through
       if (query) {
         const haystack = [
           n.headline,

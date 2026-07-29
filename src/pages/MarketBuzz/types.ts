@@ -6,7 +6,6 @@ export interface FilterState {
   stocks: string[];
   categories: string[];
   sources: string[];
-  playgroundOnly: boolean;
   signal: Signal | "all";
   minImpactIndex: number; // 0 = none (show all), 1 = low+, 2 = moderate+, 3 = high only
   timeline: TimelineWindow;
@@ -26,7 +25,6 @@ export const DEFAULT_FILTERS: FilterState = {
   stocks: [],
   categories: [],
   sources: [],
-  playgroundOnly: false,
   signal: "all",
   minImpactIndex: 1, // hides "none" (not tied to any stock/industry) by default
   timeline: "24H",

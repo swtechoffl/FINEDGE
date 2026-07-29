@@ -15,7 +15,7 @@ import { cn } from "../../lib/utils";
 const GROUP_CONFIG: Record<string, { label: string; cardSpan: string; innerCols: string }> = {
   domestic: { label: "Domestic", cardSpan: "col-span-4 sm:col-span-2 lg:col-span-1", innerCols: "grid-cols-1" },
   currency: { label: "Currency", cardSpan: "col-span-4 sm:col-span-2 lg:col-span-1", innerCols: "grid-cols-2" },
-  commodities: { label: "Commodities", cardSpan: "col-span-4 lg:col-span-2", innerCols: "grid-cols-3" },
+  commodities: { label: "Commodities", cardSpan: "col-span-4 lg:col-span-2", innerCols: "grid-cols-2 sm:grid-cols-3" },
   us: { label: "US Markets", cardSpan: "col-span-4 sm:col-span-2 lg:col-span-2", innerCols: "grid-cols-2 sm:grid-cols-4" },
   europe: { label: "Europe", cardSpan: "col-span-4 sm:col-span-2 lg:col-span-2", innerCols: "grid-cols-3" },
   asia: { label: "Asia", cardSpan: "col-span-4", innerCols: "grid-cols-2 sm:grid-cols-4" },
@@ -58,18 +58,18 @@ function BentoCard({
       )}
     >
       {(title || meta) && (
-        <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
           {title && (
             <span
               className={cn(
-                "text-[11px] font-semibold uppercase tracking-wider",
+                "shrink-0 whitespace-nowrap text-[11px] font-semibold uppercase tracking-wider",
                 accent ? "text-accent" : "text-subtle-foreground",
               )}
             >
               {title}
             </span>
           )}
-          {meta && <div className="text-[10px] text-subtle-foreground">{meta}</div>}
+          {meta && <div className="min-w-0 text-[10px] text-subtle-foreground">{meta}</div>}
         </div>
       )}
       {children}

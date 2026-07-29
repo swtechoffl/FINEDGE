@@ -7,7 +7,6 @@ import type { NewsItem, Signal } from "../../types";
 import { IMPACT_LEVELS, type FilterState, type TimelineWindow } from "./types";
 import { cn } from "../../lib/utils";
 import { Checkbox as CheckboxUI } from "../../components/ui/Checkbox";
-import { Switch } from "../../components/ui/Switch";
 import { Badge } from "../../components/ui/Badge";
 
 const SIGNAL_SWATCH: { key: Signal; label: string; className: string }[] = [
@@ -201,15 +200,6 @@ export function FilterPanel({
           </div>
         </div>
       </CollapsibleSection>
-
-      {/* My Playground Stocks */}
-      <div className="flex items-center justify-between border-b border-border py-3">
-        <span className="text-sm font-bold text-foreground">My Playground Stocks</span>
-        <Switch
-          checked={filters.playgroundOnly}
-          onCheckedChange={(checked) => setFilters((f) => ({ ...f, playgroundOnly: checked }))}
-        />
-      </div>
 
       {/* Signal Filter */}
       <CollapsibleSection title="Signal Filter" defaultOpen>
