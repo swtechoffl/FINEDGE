@@ -4,7 +4,7 @@ import { BrandMark } from "./BrandMark";
 import { cn } from "../lib/utils";
 
 export const NAV_ITEMS = [
-  { to: "/news", label: "Market Pulse", icon: Newspaper },
+  { to: "/news", label: "Finedge", icon: Newspaper },
   { to: "/premarket", label: "Premarket Report", icon: Sunrise },
   { to: "/postmarket", label: "Post Market Report", icon: Sunset },
   { to: "/corporate-actions", label: "Corporate Actions", icon: CalendarClock },

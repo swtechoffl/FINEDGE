@@ -1,4 +1,4 @@
-import { MessageCircle, Share2 } from "lucide-react";
+import { Clapperboard, MessageCircle, Share2 } from "lucide-react";
 import type { NewsItem } from "../../types";
 import { relativeTime } from "../../data/mock";
 import { SignalGauge, signalColor } from "../../components/SignalGauge";
@@ -15,10 +15,12 @@ export function NewsCard({
   item,
   onClick,
   onShare,
+  onOpenShorts,
 }: {
   item: NewsItem;
   onClick: () => void;
   onShare: (item: NewsItem) => void;
+  onOpenShorts?: () => void;
 }) {
   const color = signalColor(item.signal);
 
@@ -51,7 +53,7 @@ export function NewsCard({
         <p className="mb-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{item.summary}</p>
 
         <div className="flex items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             {item.tickers.map((t) => (
               <span
                 key={t.symbol}
@@ -69,15 +71,29 @@ export function NewsCard({
               </span>
             ))}
           </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare(item);
-            }}
-            className="focus-ring shrink-0 rounded-full p-1.5 text-subtle-foreground opacity-0 transition-opacity duration-150 hover:bg-hover hover:text-foreground group-hover:opacity-100"
-          >
-            <Share2 size={15} />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {onOpenShorts && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenShorts();
+                }}
+                title="View as shorts"
+                className="focus-ring rounded-full p-1.5 text-subtle-foreground opacity-100 transition-opacity duration-150 hover:bg-hover hover:text-foreground lg:opacity-0 lg:group-hover:opacity-100"
+              >
+                <Clapperboard size={15} />
+              </button>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShare(item);
+              }}
+              className="focus-ring rounded-full p-1.5 text-subtle-foreground opacity-100 transition-opacity duration-150 hover:bg-hover hover:text-foreground lg:opacity-0 lg:group-hover:opacity-100"
+            >
+              <Share2 size={15} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

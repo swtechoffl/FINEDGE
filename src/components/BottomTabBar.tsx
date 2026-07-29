@@ -5,7 +5,7 @@ import { NAV_ITEMS } from "./NavRail";
 // Short enough to sit under a small icon in a ~72px-wide tab without
 // wrapping on the smallest common phone widths (~360px / 5 tabs).
 const SHORT_LABELS: Record<string, string> = {
-  "/news": "Pulse",
+  "/news": "Finedge",
   "/premarket": "Pre-Mkt",
   "/postmarket": "Post-Mkt",
   "/corporate-actions": "Actions",

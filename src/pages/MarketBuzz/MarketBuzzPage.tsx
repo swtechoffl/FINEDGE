@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { Clock, AlertCircle, Loader2, SlidersHorizontal } from "lucide-react";
+import { Clock, AlertCircle, Clapperboard, Loader2, SlidersHorizontal } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Button } from "../../components/ui/Button";
 import { BreakingTicker } from "./BreakingTicker";
 import { FilterPanel } from "./FilterPanel";
 import { NewsCard } from "./NewsCard";
 import { NewsDrawer } from "./NewsDrawer";
+import { NewsShorts } from "./NewsShorts";
 import { FeedHealth } from "./FeedHealth";
 import { IndicesBar } from "./IndicesBar";
 import { ShareSheet } from "./ShareSheet";
@@ -21,6 +22,7 @@ export function MarketBuzzPage() {
   const [sharing, setSharing] = useState<NewsItem | null>(null);
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [shorts, setShorts] = useState<{ items: NewsItem[]; startIndex: number } | null>(null);
 
   const filtered = useMemo(() => {
     const cutoff = Date.now() - TIMELINE_HOURS[filters.timeline] * 60 * 60 * 1000;
@@ -53,6 +55,11 @@ export function MarketBuzzPage() {
 
   const breaking = useMemo(() => items.filter((n) => n.impact === "high").slice(0, 8), [items]);
 
+  function openShorts(itemId?: string) {
+    const startIndex = itemId ? Math.max(0, filtered.findIndex((n) => n.id === itemId)) : 0;
+    setShorts({ items: filtered, startIndex });
+  }
+
   const todayItems = filtered.filter((n) => isToday(n.timestamp));
   const earlierItems = filtered.filter((n) => !isToday(n.timestamp));
 
@@ -63,12 +70,22 @@ export function MarketBuzzPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header
-        title="market pulse"
+        title="Finedge"
         meta={meta}
         extra={
           <>
             <Button variant="outline" size="icon" className="lg:hidden" onClick={() => setFilterOpen(true)}>
               <SlidersHorizontal size={16} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="lg:hidden"
+              title="View as shorts"
+              onClick={() => openShorts()}
+              disabled={filtered.length === 0}
+            >
+              <Clapperboard size={16} />
             </Button>
             <FeedHealth feedStatus={feedStatus} />
           </>
@@ -128,6 +145,7 @@ export function MarketBuzzPage() {
                         item={item}
                         onClick={() => setSelected(item)}
                         onShare={setSharing}
+                        onOpenShorts={() => openShorts(item.id)}
                       />
                     ))}
                   </div>
@@ -148,6 +166,7 @@ export function MarketBuzzPage() {
                         item={item}
                         onClick={() => setSelected(item)}
                         onShare={setSharing}
+                        onOpenShorts={() => openShorts(item.id)}
                       />
                     ))}
                   </div>
@@ -160,6 +179,14 @@ export function MarketBuzzPage() {
 
       {selected && <NewsDrawer item={selected} onClose={() => setSelected(null)} onShare={setSharing} />}
       {sharing && <ShareSheet item={sharing} onClose={() => setSharing(null)} />}
+      {shorts && (
+        <NewsShorts
+          items={shorts.items}
+          startIndex={shorts.startIndex}
+          onClose={() => setShorts(null)}
+          onShare={setSharing}
+        />
+      )}
     </div>
   );
 }
