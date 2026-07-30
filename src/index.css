@@ -229,7 +229,7 @@ body {
   }
 }
 .animate-marquee {
-  animation: marquee 42s linear infinite;
+  animation: marquee 60s linear infinite;
 }
 
 @keyframes pulse-dot {
