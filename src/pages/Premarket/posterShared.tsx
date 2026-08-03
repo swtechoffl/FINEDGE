@@ -1,7 +1,7 @@
 import { forwardRef, useState, type ReactNode } from "react";
 import { Download, Share2 } from "lucide-react";
 import type { ReportBranding } from "./useReportBranding";
-import { socialDisplay, SOCIAL_META, DEFAULT_FOLLOW_LINKS, type SocialLinks } from "./useSocialLinks";
+import { socialDisplay, SOCIAL_META, type SocialLinks } from "./useSocialLinks";
 import { nodeToImageFile, downloadFile, shareImageFile } from "../../lib/shareImage";
 
 export const POSTER_WIDTH = 234;
@@ -11,13 +11,9 @@ function todayLabel() {
 }
 
 function BrandFooter({ branding, links }: { branding: ReportBranding; links: SocialLinks }) {
-  // Sharewealth's own handles are only a whole-set fallback for a viewer who
-  // hasn't set up any Follow-Us links at all — filling in just one of their
-  // own (e.g. Instagram) shows only that, not a mix padded out with
-  // Sharewealth's unrelated defaults for the rest.
-  const hasCustomLinks = Object.values(links).some((v) => v.trim());
-  const effectiveLinks: SocialLinks = hasCustomLinks ? links : DEFAULT_FOLLOW_LINKS;
-  const entries = (Object.keys(effectiveLinks) as (keyof SocialLinks)[]).filter((k) => effectiveLinks[k].trim());
+  // Only ever shows handles the user actually typed in — no built-in
+  // Sharewealth default handles mixed in or falled back to.
+  const entries = (Object.keys(links) as (keyof SocialLinks)[]).filter((k) => links[k].trim());
   return (
     <div className="flex items-center gap-2 border-t border-white/25 pt-2.5">
       {branding.logoDataUrl ? (
@@ -40,14 +36,14 @@ function BrandFooter({ branding, links }: { branding: ReportBranding; links: Soc
               return (
                 <div key={k} className="flex items-center gap-0.5 text-[8px] font-semibold text-white/85">
                   <Icon size={8} className="shrink-0 text-white/70" />
-                  <span className="truncate">{socialDisplay(k, effectiveLinks[k])}</span>
+                  <span className="truncate">{socialDisplay(k, links[k])}</span>
                 </div>
               );
             })}
           </div>
-        ) : (
-          <div className="truncate text-[9px] font-semibold text-white/70">{branding.name || "sharewealth"}</div>
-        )}
+        ) : branding.name ? (
+          <div className="truncate text-[9px] font-semibold text-white/70">{branding.name}</div>
+        ) : null}
       </div>
     </div>
   );

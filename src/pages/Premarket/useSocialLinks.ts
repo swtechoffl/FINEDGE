@@ -28,20 +28,6 @@ export const SOCIAL_META: Record<keyof SocialLinks, { icon: SocialIcon }> = {
 
 const EMPTY: SocialLinks = { instagram: "", twitter: "", telegram: "", youtube: "", website: "" };
 
-// Shown on the poster footer whenever the viewer hasn't set their own
-// Follow-Us links (e.g. the automated Telegram posters, or a first-time
-// visitor's exports) — Sharewealth's own handles, as a fallback rather than
-// an editable field.
-// TODO: placeholder handles — swap for the real Sharewealth Instagram/X/
-// YouTube handles once provided.
-export const DEFAULT_FOLLOW_LINKS: SocialLinks = {
-  instagram: "sharewealth",
-  twitter: "sharewealth",
-  telegram: "",
-  youtube: "sharewealth",
-  website: "",
-};
-
 function readInitial(): SocialLinks {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
