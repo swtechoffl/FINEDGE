@@ -272,7 +272,7 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
           variant={BackgroundVariant.Lines}
           gap={GRID_SIZE}
           lineWidth={1}
-          color={theme === "dark" ? "#3f3f46" : "#d4d4d8"}
+          color={theme === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)"}
           className="flowchart-bg"
         />
         <MiniMap pannable zoomable className="flowchart-minimap" />
