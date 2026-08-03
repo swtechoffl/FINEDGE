@@ -11,16 +11,12 @@ function todayLabel() {
 }
 
 function BrandFooter({ branding, links }: { branding: ReportBranding; links: SocialLinks }) {
-  // Falls back to Sharewealth's own handles per-field so a viewer who's only
-  // filled in, say, Instagram still gets the rest of the default set rather
-  // than an empty gap.
-  const effectiveLinks: SocialLinks = {
-    instagram: links.instagram || DEFAULT_FOLLOW_LINKS.instagram,
-    twitter: links.twitter || DEFAULT_FOLLOW_LINKS.twitter,
-    telegram: links.telegram || DEFAULT_FOLLOW_LINKS.telegram,
-    youtube: links.youtube || DEFAULT_FOLLOW_LINKS.youtube,
-    website: links.website || DEFAULT_FOLLOW_LINKS.website,
-  };
+  // Sharewealth's own handles are only a whole-set fallback for a viewer who
+  // hasn't set up any Follow-Us links at all — filling in just one of their
+  // own (e.g. Instagram) shows only that, not a mix padded out with
+  // Sharewealth's unrelated defaults for the rest.
+  const hasCustomLinks = Object.values(links).some((v) => v.trim());
+  const effectiveLinks: SocialLinks = hasCustomLinks ? links : DEFAULT_FOLLOW_LINKS;
   const entries = (Object.keys(effectiveLinks) as (keyof SocialLinks)[]).filter((k) => effectiveLinks[k].trim());
   return (
     <div className="flex items-center gap-2 border-t border-white/25 pt-2.5">
