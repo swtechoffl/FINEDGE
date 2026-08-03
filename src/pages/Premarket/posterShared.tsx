@@ -27,7 +27,14 @@ function BrandFooter({ branding, links }: { branding: ReportBranding; links: Soc
       {branding.logoDataUrl ? (
         <img src={branding.logoDataUrl} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" />
       ) : (
-        <img src="/sharewealth-logo.png" alt="Sharewealth" className="h-5 w-5 shrink-0 rounded-full object-cover" />
+        // The fallback mark is a "squircle" app-icon asset with its own
+        // baked-in rounded corners — clipping it to a circle as-is combines
+        // two different corner curves into an octagon-ish shape rather than
+        // a clean circle. Scaling the image up inside a fixed circular clip
+        // pushes those corners outside the frame so only the circle shows.
+        <div className="h-5 w-5 shrink-0 overflow-hidden rounded-full">
+          <img src="/sharewealth-logo.png" alt="Sharewealth" className="h-full w-full scale-125 object-cover" />
+        </div>
       )}
       <div className="min-w-0 flex-1">
         {entries.length > 0 ? (
