@@ -9,7 +9,7 @@ import {
   type Node,
 } from "@xyflow/react";
 import { boardStorageKey } from "./boards";
-import { DEFAULT_FONT_SIZE, type ShapeKind, type ShapeNodeData } from "./types";
+import { DEFAULT_FONT_SIZE, LINE_STYLE_EDGE_TYPE, DEFAULT_LINE_STYLE, type ShapeKind, type ShapeNodeData } from "./types";
 
 export type FlowNode = Node<ShapeNodeData>;
 
@@ -56,6 +56,10 @@ function loadBoard(boardId: string): { nodes: FlowNode[]; edges: Edge[] } {
   return { nodes: defaultNodesFor(), edges: [] };
 }
 
+type Snapshot = { nodes: FlowNode[]; edges: Edge[] };
+const MAX_HISTORY = 50;
+const HISTORY_DEBOUNCE_MS = 400;
+
 export function useFlowchart(boardId: string) {
   const initial = useRef(loadBoard(boardId)).current;
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
@@ -71,14 +75,99 @@ export function useFlowchart(boardId: string) {
     return () => clearTimeout(timer);
   }, [boardId, nodes, edges]);
 
+  // Undo/redo: rather than hooking every action site individually, a
+  // checkpoint is captured from whatever `nodes`/`edges` looked like right
+  // before a burst of changes that's been quiet for HISTORY_DEBOUNCE_MS —
+  // this groups an entire drag (which fires onNodesChange continuously) or a
+  // rapid multi-click into a single undo step instead of one per pixel.
+  const lastCommittedRef = useRef<Snapshot>({ nodes: initial.nodes, edges: initial.edges });
+  const historyRef = useRef<Snapshot[]>([]);
+  const redoStackRef = useRef<Snapshot[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [, setHistoryTick] = useState(0);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const before = lastCommittedRef.current;
+      if (before.nodes !== nodes || before.edges !== edges) {
+        historyRef.current.push(before);
+        if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
+        redoStackRef.current = [];
+        lastCommittedRef.current = { nodes, edges };
+        setHistoryTick((t) => t + 1);
+      }
+    }, HISTORY_DEBOUNCE_MS);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [nodes, edges]);
+
+  const undo = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    // Flush any not-yet-committed burst first, so undo steps back to right
+    // before it rather than skipping past it.
+    if (lastCommittedRef.current.nodes !== nodes || lastCommittedRef.current.edges !== edges) {
+      historyRef.current.push(lastCommittedRef.current);
+      lastCommittedRef.current = { nodes, edges };
+    }
+    const prev = historyRef.current.pop();
+    if (!prev) return;
+    redoStackRef.current.push(lastCommittedRef.current);
+    lastCommittedRef.current = prev;
+    setNodes(prev.nodes);
+    setEdges(prev.edges);
+    setHistoryTick((t) => t + 1);
+  }, [nodes, edges, setNodes, setEdges]);
+
+  const redo = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    const next = redoStackRef.current.pop();
+    if (!next) return;
+    historyRef.current.push(lastCommittedRef.current);
+    lastCommittedRef.current = next;
+    setNodes(next.nodes);
+    setEdges(next.edges);
+    setHistoryTick((t) => t + 1);
+  }, [setNodes, setEdges]);
+
+  // Re-read on every render — `setHistoryTick` above only exists to trigger
+  // that render when the underlying ref-based stacks change.
+  const canUndo = historyRef.current.length > 0;
+  const canRedo = redoStackRef.current.length > 0;
+
+  // Tracks the connector style new connections should use — a ref so
+  // changing it (via the toolbar) doesn't need to recreate onConnect.
+  const defaultEdgeTypeRef = useRef<string>(LINE_STYLE_EDGE_TYPE[DEFAULT_LINE_STYLE]);
+  const setDefaultEdgeType = useCallback((edgeType: string) => {
+    defaultEdgeTypeRef.current = edgeType;
+  }, []);
+
   const onConnect = useCallback(
     (connection: Connection) =>
       setEdges((eds) =>
         addEdge(
-          { ...connection, type: "smoothstep", markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 } },
+          {
+            ...connection,
+            type: defaultEdgeTypeRef.current,
+            markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
+          },
           eds,
         ),
       ),
+    [setEdges],
+  );
+
+  const restyleSelectedEdges = useCallback(
+    (edgeType: string) => {
+      setEdges((eds) => eds.map((e) => (e.selected ? { ...e, type: edgeType } : e)));
+    },
     [setEdges],
   );
 
@@ -166,7 +255,13 @@ export function useFlowchart(boardId: string) {
     pasteNodes,
     selectNode,
     updateSelected,
+    setDefaultEdgeType,
+    restyleSelectedEdges,
     clearCanvas,
     replaceState,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 }

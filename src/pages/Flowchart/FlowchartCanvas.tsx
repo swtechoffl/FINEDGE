@@ -15,17 +15,22 @@ import "@xyflow/react/dist/style.css";
 import {
   Bold,
   Check,
+  CornerDownRight,
   Diamond,
   Download,
   FileText,
   FolderOpen,
   Loader2,
+  Minus,
+  Redo2,
   Save,
+  Spline,
   Square,
   StickyNote,
   Trash2,
   Circle,
   Type,
+  Undo2,
 } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { Button } from "../../components/ui/Button";
@@ -33,7 +38,17 @@ import { downloadFile } from "../../lib/shareImage";
 import { useTheme } from "../../theme/ThemeContext";
 import { ShapeNode } from "./ShapeNode";
 import { useFlowchart, type FlowNode } from "./useFlowchart";
-import { DEFAULT_FONT_SIZE, FONT_SIZES, SHAPE_COLORS, SHAPE_LABELS, type ShapeKind } from "./types";
+import {
+  DEFAULT_FONT_SIZE,
+  DEFAULT_LINE_STYLE,
+  FONT_SIZES,
+  LINE_STYLE_EDGE_TYPE,
+  LINE_STYLES,
+  SHAPE_COLORS,
+  SHAPE_LABELS,
+  type LineStyle,
+  type ShapeKind,
+} from "./types";
 import "./flowchart.css";
 
 const nodeTypes: NodeTypes = { shape: ShapeNode };
@@ -45,6 +60,18 @@ const SHAPE_BUTTONS: { shape: ShapeKind; icon: typeof Square }[] = [
   { shape: "note", icon: StickyNote },
   { shape: "text", icon: Type },
 ];
+
+const LINE_STYLE_ICONS: Record<LineStyle, typeof Minus> = {
+  straight: Minus,
+  curved: Spline,
+  elbow: CornerDownRight,
+};
+
+const LINE_STYLE_LABELS: Record<LineStyle, string> = {
+  straight: "Straight",
+  curved: "Curved",
+  elbow: "Elbow",
+};
 
 const GRID_SIZE = 20;
 
@@ -61,8 +88,14 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
     pasteNodes,
     selectNode,
     updateSelected,
+    setDefaultEdgeType,
+    restyleSelectedEdges,
     clearCanvas,
     replaceState,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useFlowchart(boardId);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,11 +103,22 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
   const [activeColor, setActiveColor] = useState(SHAPE_COLORS[0]);
   const [activeFontSize, setActiveFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   const [activeBold, setActiveBold] = useState(true);
+  const [activeLineStyle, setActiveLineStyle] = useState<LineStyle>(DEFAULT_LINE_STYLE);
   // Cascades successive additions like Miro/FigJam so new shapes don't land
   // stacked exactly on top of the last one.
   const addCountRef = useRef(0);
 
   const hasSelection = useMemo(() => nodes.some((n) => n.selected), [nodes]);
+  const hasEdgeSelection = useMemo(() => edges.some((e) => e.selected), [edges]);
+
+  const handleLineStylePick = useCallback(
+    (style: LineStyle) => {
+      setActiveLineStyle(style);
+      setDefaultEdgeType(LINE_STYLE_EDGE_TYPE[style]);
+      if (hasEdgeSelection) restyleSelectedEdges(LINE_STYLE_EDGE_TYPE[style]);
+    },
+    [hasEdgeSelection, setDefaultEdgeType, restyleSelectedEdges],
+  );
 
   // Copy/paste via Ctrl/Cmd+C and Ctrl/Cmd+V. Refs keep the window-level
   // listener (attached once) reading current nodes/edges without going
@@ -90,6 +134,16 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
   const clipboardRef = useRef<{ nodes: FlowNode[]; edges: Edge[] } | null>(null);
   const pasteCountRef = useRef(0);
 
+  // undo/redo's identity changes with nodes/edges (they need the latest
+  // value to flush an in-progress debounce burst) — keep them in a ref so
+  // the keydown listener below isn't torn down and re-added on every change.
+  const undoRef = useRef(() => {});
+  const redoRef = useRef(() => {});
+  useEffect(() => {
+    undoRef.current = undo;
+    redoRef.current = redo;
+  }, [undo, redo]);
+
   useEffect(() => {
     function isEditableTarget(target: EventTarget | null) {
       if (!(target instanceof HTMLElement)) return false;
@@ -98,7 +152,7 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
 
     function handleKeyDown(e: KeyboardEvent) {
       // Renaming a shape uses a real textarea — let the browser's native
-      // text copy/paste handle that instead of hijacking it here.
+      // text copy/paste/undo handle that instead of hijacking it here.
       if (isEditableTarget(e.target)) return;
       if (!(e.ctrlKey || e.metaKey)) return;
 
@@ -117,6 +171,13 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
         e.preventDefault();
         pasteCountRef.current += 1;
         pasteNodes(clipboardRef.current.nodes, clipboardRef.current.edges, pasteCountRef.current * 40);
+      } else if (e.key === "z" || e.key === "Z") {
+        e.preventDefault();
+        if (e.shiftKey) redoRef.current();
+        else undoRef.current();
+      } else if (e.key === "y" || e.key === "Y") {
+        e.preventDefault();
+        redoRef.current();
       }
     }
 
@@ -389,6 +450,40 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
           >
             <Bold size={13} />
           </button>
+        </div>
+
+        <div className="flex items-center gap-1 border-t border-border pt-2">
+          {LINE_STYLES.map((style) => {
+            const Icon = LINE_STYLE_ICONS[style];
+            return (
+              <button
+                key={style}
+                type="button"
+                title={
+                  hasEdgeSelection
+                    ? `Set selected connector to ${LINE_STYLE_LABELS[style]}`
+                    : `Set new connectors to ${LINE_STYLE_LABELS[style]}`
+                }
+                onClick={() => handleLineStylePick(style)}
+                className={`flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${
+                  style === activeLineStyle
+                    ? "border-accent bg-accent-bg text-accent"
+                    : "border-border-strong text-muted-foreground hover:bg-hover"
+                }`}
+              >
+                <Icon size={14} />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-1 border-t border-border pt-2">
+          <Button variant="outline" size="icon" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)">
+            <Undo2 size={16} />
+          </Button>
+          <Button variant="outline" size="icon" onClick={redo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)">
+            <Redo2 size={16} />
+          </Button>
         </div>
 
         <div className="flex gap-1 border-t border-border pt-2">
