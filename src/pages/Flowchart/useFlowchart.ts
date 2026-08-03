@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addEdge,
   MarkerType,
@@ -26,7 +26,8 @@ const DEFAULT_NODES: FlowNode[] = [
     type: "shape",
     position: { x: 340, y: 60 },
     data: {
-      label: "Double-click a shape to rename it. Drag from its edge to connect. Use the toolbar to add more shapes.",
+      label:
+        "Double-click a shape to rename it. Drag from its edge to connect. Click-drag on empty canvas to box-select. Right-click-drag (or middle-click-drag) to pan.",
       shape: "note",
       color: "#d97706",
     },
@@ -52,10 +53,13 @@ export function useFlowchart() {
   const initial = useRef(loadInitial()).current;
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
 
   useEffect(() => {
+    setSaveStatus("saving");
     const timer = setTimeout(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges }));
+      setSaveStatus("saved");
     }, 300);
     return () => clearTimeout(timer);
   }, [nodes, edges]);
@@ -100,9 +104,18 @@ export function useFlowchart() {
     setEdges([]);
   }, [setNodes, setEdges]);
 
+  const replaceState = useCallback(
+    (data: { nodes: FlowNode[]; edges: Edge[] }) => {
+      setNodes(data.nodes);
+      setEdges(data.edges);
+    },
+    [setNodes, setEdges],
+  );
+
   return {
     nodes,
     edges,
+    saveStatus,
     onNodesChange,
     onEdgesChange,
     onConnect,
@@ -110,5 +123,6 @@ export function useFlowchart() {
     selectNode,
     recolorSelected,
     clearCanvas,
+    replaceState,
   };
 }

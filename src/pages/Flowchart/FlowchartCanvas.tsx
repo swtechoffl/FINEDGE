@@ -5,12 +5,26 @@ import {
   Controls,
   MiniMap,
   ReactFlow,
+  SelectionMode,
   getViewportForBounds,
   type NodeTypes,
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Diamond, Download, Square, StickyNote, Trash2, Circle } from "lucide-react";
+import {
+  Check,
+  Diamond,
+  Download,
+  FileText,
+  FolderOpen,
+  Loader2,
+  Save,
+  Square,
+  StickyNote,
+  Trash2,
+  Circle,
+} from "lucide-react";
+import type { ChangeEvent } from "react";
 import { Button } from "../../components/ui/Button";
 import { downloadFile } from "../../lib/shareImage";
 import { useTheme } from "../../theme/ThemeContext";
@@ -30,9 +44,21 @@ const SHAPE_BUTTONS: { shape: ShapeKind; icon: typeof Square }[] = [
 
 export function FlowchartCanvas() {
   const { theme } = useTheme();
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, addShape, selectNode, recolorSelected, clearCanvas } =
-    useFlowchart();
+  const {
+    nodes,
+    edges,
+    saveStatus,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    addShape,
+    selectNode,
+    recolorSelected,
+    clearCanvas,
+    replaceState,
+  } = useFlowchart();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance<FlowNode> | null>(null);
   const [activeColor, setActiveColor] = useState(SHAPE_COLORS[0]);
   // Cascades successive additions like Miro/FigJam so new shapes don't land
@@ -74,32 +100,81 @@ export function FlowchartCanvas() {
     if (window.confirm("Clear the whole canvas? This can't be undone.")) clearCanvas();
   }, [clearCanvas, nodes.length, edges.length]);
 
-  const handleExport = useCallback(async () => {
-    if (!rfInstance) return;
+  // Board state already autosaves to this browser (see saveStatus below) —
+  // this saves a portable .json file that can be reopened later or handed
+  // to someone else, since localStorage doesn't leave the device.
+  const handleSaveToFile = useCallback(() => {
+    const json = JSON.stringify({ nodes, edges }, null, 2);
+    downloadFile(new File([json], "flowchart.json", { type: "application/json" }));
+  }, [nodes, edges]);
+
+  const handleOpenClick = useCallback(() => fileInputRef.current?.click(), []);
+
+  const handleFileSelected = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      try {
+        const parsed = JSON.parse(await file.text());
+        if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) throw new Error("Invalid file");
+        if (window.confirm("Load this flowchart? It will replace what's currently on the canvas.")) {
+          replaceState(parsed);
+        }
+      } catch {
+        window.alert("Couldn't read that file — pick a flowchart .json file saved from this tool.");
+      }
+    },
+    [replaceState],
+  );
+
+  // Exports the current selection if anything is selected, otherwise the
+  // whole board — matching the common "export selection" convention.
+  const prepareCapture = useCallback(() => {
+    if (!rfInstance) return null;
     const all = rfInstance.getNodes();
-    if (all.length === 0) return;
-    const bounds = rfInstance.getNodesBounds(all);
+    if (all.length === 0) return null;
+    const selected = all.filter((n) => n.selected);
+    const targets = selected.length > 0 ? selected : all;
+
+    const bounds = rfInstance.getNodesBounds(targets);
     const width = Math.max(bounds.width + 160, 640);
     const height = Math.max(bounds.height + 160, 480);
     const viewport = getViewportForBounds(bounds, width, height, 0.5, 2, 0.15);
     const viewportEl = wrapperRef.current?.querySelector(".react-flow__viewport") as HTMLElement | null;
-    if (!viewportEl) return;
+    if (!viewportEl) return null;
 
-    const { toBlob } = await import("html-to-image");
-    const blob = await toBlob(viewportEl, {
-      backgroundColor: theme === "dark" ? "#09090b" : "#ffffff",
-      width,
-      height,
-      pixelRatio: 2,
-      style: {
-        width: `${width}px`,
-        height: `${height}px`,
-        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+    return {
+      viewportEl,
+      toBlobOptions: {
+        backgroundColor: theme === "dark" ? "#09090b" : "#ffffff",
+        width,
+        height,
+        pixelRatio: 2,
+        style: {
+          width: `${width}px`,
+          height: `${height}px`,
+          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+        },
       },
-    });
+    };
+  }, [rfInstance, theme]);
+
+  const handleExportPng = useCallback(async () => {
+    const prepared = prepareCapture();
+    if (!prepared) return;
+    const { toBlob } = await import("html-to-image");
+    const blob = await toBlob(prepared.viewportEl, prepared.toBlobOptions);
     if (!blob) return;
     downloadFile(new File([blob], "flowchart.png", { type: "image/png" }));
-  }, [rfInstance, theme]);
+  }, [prepareCapture]);
+
+  const handleExportPdf = useCallback(async () => {
+    const prepared = prepareCapture();
+    if (!prepared) return;
+    const { exportNodeToPdf } = await import("../../lib/exportPdf");
+    await exportNodeToPdf(prepared.viewportEl, "flowchart.pdf", prepared.toBlobOptions);
+  }, [prepareCapture]);
 
   return (
     <div ref={wrapperRef} className="relative h-full w-full flowchart-canvas">
@@ -115,6 +190,9 @@ export function FlowchartCanvas() {
         fitView
         colorMode={theme}
         proOptions={{ hideAttribution: true }}
+        selectionOnDrag
+        selectionMode={SelectionMode.Partial}
+        panOnDrag={[1, 2]}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} className="flowchart-bg" />
         <MiniMap pannable zoomable className="flowchart-minimap" />
@@ -154,13 +232,56 @@ export function FlowchartCanvas() {
         </div>
 
         <div className="flex gap-1 border-t border-border pt-2">
-          <Button variant="outline" size="sm" onClick={handleExport} title="Export as PNG">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleSaveToFile}
+            title="Save board as a .json file"
+          >
+            <Save size={16} />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleOpenClick} title="Open a saved .json file">
+            <FolderOpen size={16} />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleClear} title="Clear canvas">
+            <Trash2 size={16} />
+          </Button>
+          <input ref={fileInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleFileSelected} />
+        </div>
+
+        <div className="flex gap-1 border-t border-border pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPng}
+            title={hasSelection ? "Export selection as PNG" : "Export board as PNG"}
+          >
             <Download size={14} />
-            <span>Export</span>
+            <span>PNG</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={handleClear} title="Clear canvas">
-            <Trash2 size={14} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            title={hasSelection ? "Export selection as PDF" : "Export board as PDF"}
+          >
+            <FileText size={14} />
+            <span>PDF</span>
           </Button>
+        </div>
+
+        <div className="flex items-center gap-1.5 border-t border-border pt-2 text-[11px] font-medium text-subtle-foreground">
+          {saveStatus === "saving" ? (
+            <>
+              <Loader2 size={12} className="animate-spin" />
+              <span>Saving…</span>
+            </>
+          ) : (
+            <>
+              <Check size={12} className="text-bullish" />
+              <span>Saved to this browser</span>
+            </>
+          )}
         </div>
       </div>
     </div>
