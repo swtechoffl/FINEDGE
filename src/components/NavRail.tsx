@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Newspaper, Sunrise, Sunset, CalendarClock, Layers, Images, LogOut } from "lucide-react";
+import { Newspaper, Sunrise, Sunset, CalendarClock, Layers, Images, Workflow, LogOut } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { useSocialLinksReadOnly, socialHref, socialDisplay, SOCIAL_META, type SocialLinks } from "../pages/Premarket/useSocialLinks";
 import { cn } from "../lib/utils";
@@ -11,6 +11,7 @@ export const NAV_ITEMS = [
   { to: "/corporate-actions", label: "Corporate Actions", icon: CalendarClock },
   { to: "/market-internals", label: "Market Internals", icon: Layers },
   { to: "/posters", label: "Posters", icon: Images },
+  { to: "/flowchart", label: "Flowchart", icon: Workflow },
 ];
 
 function navLinkClass({ isActive }: { isActive: boolean }) {

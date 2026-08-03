@@ -11,6 +11,7 @@ const SHORT_LABELS: Record<string, string> = {
   "/corporate-actions": "Actions",
   "/market-internals": "Internals",
   "/posters": "Posters",
+  "/flowchart": "Flowchart",
 };
 
 // Modern-app bottom tab bar — the mobile/tablet equivalent of NavRail
