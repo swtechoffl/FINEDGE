@@ -12,6 +12,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
+  Bold,
   Check,
   Diamond,
   Download,
@@ -23,6 +24,7 @@ import {
   StickyNote,
   Trash2,
   Circle,
+  Type,
 } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { Button } from "../../components/ui/Button";
@@ -30,7 +32,7 @@ import { downloadFile } from "../../lib/shareImage";
 import { useTheme } from "../../theme/ThemeContext";
 import { ShapeNode } from "./ShapeNode";
 import { useFlowchart, type FlowNode } from "./useFlowchart";
-import { SHAPE_COLORS, SHAPE_LABELS, type ShapeKind } from "./types";
+import { DEFAULT_FONT_SIZE, FONT_SIZES, SHAPE_COLORS, SHAPE_LABELS, type ShapeKind } from "./types";
 import "./flowchart.css";
 
 const nodeTypes: NodeTypes = { shape: ShapeNode };
@@ -40,9 +42,12 @@ const SHAPE_BUTTONS: { shape: ShapeKind; icon: typeof Square }[] = [
   { shape: "diamond", icon: Diamond },
   { shape: "ellipse", icon: Circle },
   { shape: "note", icon: StickyNote },
+  { shape: "text", icon: Type },
 ];
 
-export function FlowchartCanvas() {
+const GRID_SIZE = 20;
+
+export function FlowchartCanvas({ boardId }: { boardId: string }) {
   const { theme } = useTheme();
   const {
     nodes,
@@ -53,14 +58,16 @@ export function FlowchartCanvas() {
     onConnect,
     addShape,
     selectNode,
-    recolorSelected,
+    updateSelected,
     clearCanvas,
     replaceState,
-  } = useFlowchart();
+  } = useFlowchart(boardId);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance<FlowNode> | null>(null);
   const [activeColor, setActiveColor] = useState(SHAPE_COLORS[0]);
+  const [activeFontSize, setActiveFontSize] = useState<number>(DEFAULT_FONT_SIZE);
+  const [activeBold, setActiveBold] = useState(true);
   // Cascades successive additions like Miro/FigJam so new shapes don't land
   // stacked exactly on top of the last one.
   const addCountRef = useRef(0);
@@ -81,19 +88,34 @@ export function FlowchartCanvas() {
         y: bounds.top + bounds.height / 2,
       });
       const position = { x: center.x + cascade, y: center.y + cascade };
-      const id = addShape(shape, position, activeColor, SHAPE_LABELS[shape]);
+      const label = shape === "text" ? "Text" : SHAPE_LABELS[shape];
+      const id = addShape(shape, position, activeColor, label, activeFontSize, activeBold);
       selectNode(id);
     },
-    [rfInstance, addShape, selectNode, activeColor],
+    [rfInstance, addShape, selectNode, activeColor, activeFontSize, activeBold],
   );
 
   const handleColorPick = useCallback(
     (color: string) => {
       setActiveColor(color);
-      if (hasSelection) recolorSelected(color);
+      if (hasSelection) updateSelected({ color });
     },
-    [hasSelection, recolorSelected],
+    [hasSelection, updateSelected],
   );
+
+  const handleFontSizePick = useCallback(
+    (fontSize: number) => {
+      setActiveFontSize(fontSize);
+      if (hasSelection) updateSelected({ fontSize });
+    },
+    [hasSelection, updateSelected],
+  );
+
+  const handleBoldToggle = useCallback(() => {
+    const next = !activeBold;
+    setActiveBold(next);
+    if (hasSelection) updateSelected({ bold: next });
+  }, [activeBold, hasSelection, updateSelected]);
 
   const handleClear = useCallback(() => {
     if (nodes.length === 0 && edges.length === 0) return;
@@ -128,25 +150,72 @@ export function FlowchartCanvas() {
     [replaceState],
   );
 
-  // Exports the current selection if anything is selected, otherwise the
-  // whole board — matching the common "export selection" convention.
-  const prepareCapture = useCallback(() => {
-    if (!rfInstance) return null;
-    const all = rfInstance.getNodes();
-    if (all.length === 0) return null;
-    const selected = all.filter((n) => n.selected);
-    const targets = selected.length > 0 ? selected : all;
+  // Exports only export a "selection" when 2+ shapes are deliberately
+  // selected (e.g. via box-select) — a single selected shape is usually just
+  // whatever was last clicked/added, not an intentional export target, and
+  // scoping to it silently crops out everything else (including edges).
+  const doExport = useCallback(
+    async (kind: "png" | "pdf") => {
+      if (!rfInstance) return;
+      const all = rfInstance.getNodes();
+      if (all.length === 0) return;
+      const selectedIds = all.filter((n) => n.selected).map((n) => n.id);
+      const targets = selectedIds.length > 1 ? all.filter((n) => selectedIds.includes(n.id)) : all;
 
-    const bounds = rfInstance.getNodesBounds(targets);
-    const width = Math.max(bounds.width + 160, 640);
-    const height = Math.max(bounds.height + 160, 480);
-    const viewport = getViewportForBounds(bounds, width, height, 0.5, 2, 0.15);
-    const viewportEl = wrapperRef.current?.querySelector(".react-flow__viewport") as HTMLElement | null;
-    if (!viewportEl) return null;
+      const bounds = rfInstance.getNodesBounds(targets);
+      const width = Math.max(bounds.width + 160, 640);
+      const height = Math.max(bounds.height + 160, 480);
+      const viewport = getViewportForBounds(bounds, width, height, 0.5, 2, 0.15);
+      const viewportEl = wrapperRef.current?.querySelector(".react-flow__viewport") as HTMLElement | null;
+      if (!viewportEl) return;
 
-    return {
-      viewportEl,
-      toBlobOptions: {
+      // Rasterizing the live viewport node directly is a race: html-to-image
+      // reads computed styles from the *live* DOM over several async steps,
+      // so toggling selection off on the real nodes and back on afterwards
+      // can still leak the selection outline/handles/delete button into the
+      // image if React restores them before html-to-image finishes reading.
+      // A detached, hand-stripped clone has no live state to race against.
+      const clone = viewportEl.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll(".flowchart-shape--selected").forEach((el) => el.classList.remove("flowchart-shape--selected"));
+      clone.querySelectorAll(".flowchart-shape__delete").forEach((el) => el.remove());
+      // Edge color/width come from CSS custom properties (e.g.
+      // --xy-edge-stroke-default) scoped to the .react-flow class, which
+      // this clone doesn't carry since we only cloned .react-flow__viewport
+      // — without it, `stroke` falls back to its CSS-initial value of
+      // `none` and every edge silently disappears. Carrying the class (and
+      // "dark" alongside it) restores that variable scope.
+      const liveContainer = viewportEl.closest(".react-flow");
+      if (liveContainer) liveContainer.classList.forEach((c) => clone.classList.add(c));
+      // The edge <svg> elements also get their *size* from `width/height:
+      // 100%` cascading up through ancestors we didn't clone. Detached, that
+      // collapses to 0×0 — and since an SVG's default overflow is hidden,
+      // every edge path would be clipped away regardless of stroke color.
+      // Force a large fixed canvas so nothing gets clipped; the outer
+      // html-to-image capture frame still crops the final image correctly.
+      clone.querySelectorAll("svg").forEach((svg) => {
+        svg.setAttribute("width", "20000");
+        svg.setAttribute("height", "20000");
+        (svg as unknown as HTMLElement).style.overflow = "visible";
+      });
+      const holder = document.createElement("div");
+      holder.style.cssText = "position:fixed; left:-99999px; top:0; pointer-events:none;";
+      holder.appendChild(clone);
+      document.body.appendChild(holder);
+
+      // html-to-image doesn't reliably serialize SVG stroke/fill that only
+      // come from a CSS class (as opposed to a presentation attribute or
+      // inline style) — the edge path's color above resolves correctly via
+      // getComputedStyle right here, yet still renders invisible once
+      // rasterized. Baking the resolved values on as explicit attributes
+      // sidesteps that entirely.
+      clone.querySelectorAll(".react-flow__edges svg *").forEach((el) => {
+        const cs = getComputedStyle(el);
+        if (cs.stroke && cs.stroke !== "none") el.setAttribute("stroke", cs.stroke);
+        if (cs.fill && cs.fill !== "none") el.setAttribute("fill", cs.fill);
+        if (cs.strokeWidth) el.setAttribute("stroke-width", cs.strokeWidth);
+      });
+
+      const toBlobOptions = {
         backgroundColor: theme === "dark" ? "#09090b" : "#ffffff",
         width,
         height,
@@ -156,25 +225,28 @@ export function FlowchartCanvas() {
           height: `${height}px`,
           transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
         },
-      },
-    };
-  }, [rfInstance, theme]);
+      };
 
-  const handleExportPng = useCallback(async () => {
-    const prepared = prepareCapture();
-    if (!prepared) return;
-    const { toBlob } = await import("html-to-image");
-    const blob = await toBlob(prepared.viewportEl, prepared.toBlobOptions);
-    if (!blob) return;
-    downloadFile(new File([blob], "flowchart.png", { type: "image/png" }));
-  }, [prepareCapture]);
+      try {
+        if (kind === "png") {
+          const { toBlob } = await import("html-to-image");
+          const blob = await toBlob(clone, toBlobOptions);
+          if (blob) downloadFile(new File([blob], "flowchart.png", { type: "image/png" }));
+        } else {
+          const { exportNodeToPdf } = await import("../../lib/exportPdf");
+          await exportNodeToPdf(clone, "flowchart.pdf", toBlobOptions);
+        }
+      } finally {
+        holder.remove();
+      }
+    },
+    [rfInstance, theme],
+  );
 
-  const handleExportPdf = useCallback(async () => {
-    const prepared = prepareCapture();
-    if (!prepared) return;
-    const { exportNodeToPdf } = await import("../../lib/exportPdf");
-    await exportNodeToPdf(prepared.viewportEl, "flowchart.pdf", prepared.toBlobOptions);
-  }, [prepareCapture]);
+  const exportScopeLabel = useMemo(() => {
+    const selectedCount = nodes.filter((n) => n.selected).length;
+    return selectedCount > 1 ? `${selectedCount} selected shapes` : "whole board";
+  }, [nodes]);
 
   return (
     <div ref={wrapperRef} className="relative h-full w-full flowchart-canvas">
@@ -193,8 +265,16 @@ export function FlowchartCanvas() {
         selectionOnDrag
         selectionMode={SelectionMode.Partial}
         panOnDrag={[1, 2]}
+        snapToGrid
+        snapGrid={[GRID_SIZE, GRID_SIZE]}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} className="flowchart-bg" />
+        <Background
+          variant={BackgroundVariant.Lines}
+          gap={GRID_SIZE}
+          lineWidth={1}
+          color={theme === "dark" ? "#3f3f46" : "#d4d4d8"}
+          className="flowchart-bg"
+        />
         <MiniMap pannable zoomable className="flowchart-minimap" />
         <Controls className="flowchart-controls" showInteractive={false} />
       </ReactFlow>
@@ -231,13 +311,38 @@ export function FlowchartCanvas() {
           ))}
         </div>
 
-        <div className="flex gap-1 border-t border-border pt-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleSaveToFile}
-            title="Save board as a .json file"
+        <div className="flex items-center gap-1 border-t border-border pt-2">
+          {FONT_SIZES.map((size) => (
+            <button
+              key={size}
+              type="button"
+              title={hasSelection ? `Set selected text to ${size}px` : `Set new-shape text to ${size}px`}
+              onClick={() => handleFontSizePick(size)}
+              className={`flex h-7 min-w-7 items-center justify-center rounded-md border px-1.5 text-[11px] font-semibold transition-colors ${
+                size === activeFontSize
+                  ? "border-accent bg-accent-bg text-accent"
+                  : "border-border-strong text-muted-foreground hover:bg-hover"
+              }`}
+            >
+              {size}
+            </button>
+          ))}
+          <button
+            type="button"
+            title={hasSelection ? "Toggle bold on selection" : "Toggle bold for new shapes"}
+            onClick={handleBoldToggle}
+            className={`flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${
+              activeBold
+                ? "border-accent bg-accent-bg text-accent"
+                : "border-border-strong text-muted-foreground hover:bg-hover"
+            }`}
           >
+            <Bold size={13} />
+          </button>
+        </div>
+
+        <div className="flex gap-1 border-t border-border pt-2">
+          <Button variant="outline" size="icon" onClick={handleSaveToFile} title="Save board as a .json file">
             <Save size={16} />
           </Button>
           <Button variant="outline" size="icon" onClick={handleOpenClick} title="Open a saved .json file">
@@ -246,15 +351,21 @@ export function FlowchartCanvas() {
           <Button variant="outline" size="icon" onClick={handleClear} title="Clear canvas">
             <Trash2 size={16} />
           </Button>
-          <input ref={fileInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleFileSelected} />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={handleFileSelected}
+          />
         </div>
 
         <div className="flex gap-1 border-t border-border pt-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportPng}
-            title={hasSelection ? "Export selection as PNG" : "Export board as PNG"}
+            onClick={() => doExport("png")}
+            title={`Export ${exportScopeLabel} as PNG`}
           >
             <Download size={14} />
             <span>PNG</span>
@@ -262,8 +373,8 @@ export function FlowchartCanvas() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportPdf}
-            title={hasSelection ? "Export selection as PDF" : "Export board as PDF"}
+            onClick={() => doExport("pdf")}
+            title={`Export ${exportScopeLabel} as PDF`}
           >
             <FileText size={14} />
             <span>PDF</span>

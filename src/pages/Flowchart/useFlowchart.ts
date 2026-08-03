@@ -8,37 +8,40 @@ import {
   type Edge,
   type Node,
 } from "@xyflow/react";
-import type { ShapeKind, ShapeNodeData } from "./types";
-
-const STORAGE_KEY = "stoqtrade-flowchart-v1";
+import { boardStorageKey } from "./boards";
+import { DEFAULT_FONT_SIZE, type ShapeKind, type ShapeNodeData } from "./types";
 
 export type FlowNode = Node<ShapeNodeData>;
 
-const DEFAULT_NODES: FlowNode[] = [
-  {
-    id: "start",
-    type: "shape",
-    position: { x: 80, y: 160 },
-    data: { label: "Start", shape: "ellipse", color: "#059669" },
-  },
-  {
-    id: "hint",
-    type: "shape",
-    position: { x: 340, y: 60 },
-    data: {
-      label:
-        "Double-click a shape to rename it. Drag from its edge to connect. Click-drag on empty canvas to box-select. Right-click-drag (or middle-click-drag) to pan.",
-      shape: "note",
-      color: "#d97706",
+function defaultNodesFor(): FlowNode[] {
+  return [
+    {
+      id: "start",
+      type: "shape",
+      // Kept clear of the floating toolbar's top-left footprint so it's
+      // never accidentally un-clickable on a fresh board.
+      position: { x: 80, y: 480 },
+      data: { label: "Start", shape: "ellipse", color: "#059669", fontSize: DEFAULT_FONT_SIZE, bold: true },
     },
-  },
-];
+    {
+      id: "hint",
+      type: "shape",
+      position: { x: 340, y: 380 },
+      data: {
+        label:
+          "Double-click a shape to rename it. Drag from its edge to connect. Click-drag on empty canvas to box-select. Right-click-drag (or middle-click-drag) to pan.",
+        shape: "note",
+        color: "#d97706",
+        fontSize: DEFAULT_FONT_SIZE - 1,
+        bold: false,
+      },
+    },
+  ];
+}
 
-const DEFAULT_EDGES: Edge[] = [];
-
-function loadInitial(): { nodes: FlowNode[]; edges: Edge[] } {
+function loadBoard(boardId: string): { nodes: FlowNode[]; edges: Edge[] } {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(boardStorageKey(boardId));
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) return parsed;
@@ -46,11 +49,11 @@ function loadInitial(): { nodes: FlowNode[]; edges: Edge[] } {
   } catch {
     // fall through to defaults
   }
-  return { nodes: DEFAULT_NODES, edges: DEFAULT_EDGES };
+  return { nodes: defaultNodesFor(), edges: [] };
 }
 
-export function useFlowchart() {
-  const initial = useRef(loadInitial()).current;
+export function useFlowchart(boardId: string) {
+  const initial = useRef(loadBoard(boardId)).current;
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
@@ -58,11 +61,11 @@ export function useFlowchart() {
   useEffect(() => {
     setSaveStatus("saving");
     const timer = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges }));
+      localStorage.setItem(boardStorageKey(boardId), JSON.stringify({ nodes, edges }));
       setSaveStatus("saved");
     }, 300);
     return () => clearTimeout(timer);
-  }, [nodes, edges]);
+  }, [boardId, nodes, edges]);
 
   const onConnect = useCallback(
     (connection: Connection) =>
@@ -76,9 +79,16 @@ export function useFlowchart() {
   );
 
   const addShape = useCallback(
-    (shape: ShapeKind, position: { x: number; y: number }, color: string, label: string) => {
+    (
+      shape: ShapeKind,
+      position: { x: number; y: number },
+      color: string,
+      label: string,
+      fontSize: number,
+      bold: boolean,
+    ) => {
       const id = `node-${Date.now()}-${Math.round(Math.random() * 1000)}`;
-      const newNode: FlowNode = { id, type: "shape", position, data: { label, shape, color } };
+      const newNode: FlowNode = { id, type: "shape", position, data: { label, shape, color, fontSize, bold } };
       setNodes((nds) => nds.concat(newNode));
       return id;
     },
@@ -92,9 +102,11 @@ export function useFlowchart() {
     [setNodes],
   );
 
-  const recolorSelected = useCallback(
-    (color: string) => {
-      setNodes((nds) => nds.map((n) => (n.selected ? { ...n, data: { ...n.data, color } } : n)));
+  // Merges a partial data patch into every selected shape — used for color,
+  // font size, and bold so they all share one code path.
+  const updateSelected = useCallback(
+    (patch: Partial<ShapeNodeData>) => {
+      setNodes((nds) => nds.map((n) => (n.selected ? { ...n, data: { ...n.data, ...patch } } : n)));
     },
     [setNodes],
   );
@@ -116,12 +128,13 @@ export function useFlowchart() {
     nodes,
     edges,
     saveStatus,
+    setNodes,
     onNodesChange,
     onEdgesChange,
     onConnect,
     addShape,
     selectNode,
-    recolorSelected,
+    updateSelected,
     clearCanvas,
     replaceState,
   };

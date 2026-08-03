@@ -11,10 +11,11 @@ import type { ShapeNodeData } from "./types";
 const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
 function ShapeNodeComponent({ id, data, selected }: NodeProps) {
-  const { label, shape, color } = data as unknown as ShapeNodeData;
+  const { label, shape, color, fontSize, bold } = data as unknown as ShapeNodeData;
   const { setNodes, deleteElements } = useReactFlow();
   const [editing, setEditing] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const textStyle: CSSProperties = { fontSize: fontSize ?? 14, fontWeight: bold === false ? 500 : 700 };
 
   useEffect(() => {
     if (!editing) return;
@@ -51,6 +52,7 @@ function ShapeNodeComponent({ id, data, selected }: NodeProps) {
             ref={inputRef}
             defaultValue={label}
             rows={2}
+            style={textStyle}
             className="flowchart-shape__input nodrag nowheel"
             onBlur={(e) => {
               commitLabel(e.target.value);
@@ -66,7 +68,9 @@ function ShapeNodeComponent({ id, data, selected }: NodeProps) {
             }}
           />
         ) : (
-          <span className="flowchart-shape__label">{label}</span>
+          <span className="flowchart-shape__label" style={textStyle}>
+            {label}
+          </span>
         )}
       </div>
 
