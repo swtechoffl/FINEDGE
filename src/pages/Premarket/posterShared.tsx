@@ -6,6 +6,32 @@ import { nodeToImageFile, downloadFile, shareImageFile } from "../../lib/shareIm
 
 export const POSTER_WIDTH = 234;
 
+// A poster's list sections (stocks to watch, earnings, corporate actions,
+// IPOs, volume gainers) have a fixed-height frame but a variable number of
+// items. Rather than hard-capping at whatever fits at one fixed size, rows
+// step down through a few density tiers as the list grows so more items fit
+// — cramped press-release density rather than a hard cutoff.
+export interface RowDensity {
+  gap: string;
+  padding: string;
+  primaryText: string;
+  secondaryText: string;
+}
+
+export function rowDensityFor(count: number): RowDensity {
+  if (count <= 6) {
+    return { gap: "gap-1.5", padding: "px-2.5 py-1.5", primaryText: "text-[10.5px]", secondaryText: "text-[9.5px]" };
+  }
+  if (count <= 8) {
+    return { gap: "gap-1", padding: "px-2.5 py-1", primaryText: "text-[9.5px]", secondaryText: "text-[8.5px]" };
+  }
+  return { gap: "gap-0.5", padding: "px-2 py-0.5", primaryText: "text-[8.5px]", secondaryText: "text-[7.5px]" };
+}
+
+// Max items a poster list section will ever show, even if more data exists
+// — keeps the smallest density tier from becoming illegibly tiny.
+export const MAX_POSTER_ROWS = 10;
+
 function todayLabel() {
   return new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }

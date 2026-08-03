@@ -6,55 +6,65 @@ import type { ReportBranding } from "./useReportBranding";
 import type { SocialLinks } from "./useSocialLinks";
 import { SocialLinksEditor } from "./SocialLinksEditor";
 import { Card } from "../../components/ui/Card";
-import { PosterFrame, PosterActions } from "./posterShared";
+import { PosterFrame, PosterActions, MAX_POSTER_ROWS, rowDensityFor, type RowDensity } from "./posterShared";
 import { cn } from "../../lib/utils";
 
-function StockRow({ item }: { item: Week52Entry }) {
+function StockRow({ item, density }: { item: Week52Entry; density: RowDensity }) {
   return (
-    <div className="flex items-center rounded-lg bg-white/10 px-2.5 py-1.5">
-      <span className="text-[11px] font-bold text-white">{item.symbol}</span>
+    <div className={cn("flex items-center rounded-lg bg-white/10", density.padding)}>
+      <span className={cn("font-bold text-white", density.primaryText)}>{item.symbol}</span>
     </div>
   );
 }
 
-function EarningsPosterRow({ item }: { item: EarningsEvent }) {
+function EarningsPosterRow({ item, density }: { item: EarningsEvent; density: RowDensity }) {
   const shortDate = item.date.replace(/-\d{4}$/, "");
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-white/10 px-2.5 py-1.5">
-      <span className="text-[10.5px] font-bold leading-tight text-white">{item.symbol}</span>
-      <span className="shrink-0 text-[9.5px] font-semibold text-white/70">{shortDate}</span>
+    <div className={cn("flex items-center justify-between gap-2 rounded-lg bg-white/10", density.padding)}>
+      <span className={cn("font-bold leading-tight text-white", density.primaryText)}>{item.symbol}</span>
+      <span className={cn("shrink-0 font-semibold text-white/70", density.secondaryText)}>{shortDate}</span>
     </div>
   );
 }
 
-function ActionChip({ item }: { item: CorporateAction }) {
+function ActionChip({ item, density }: { item: CorporateAction; density: RowDensity }) {
   const shortDate = item.exDate.replace(/-\d{4}$/, "");
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-white/10 px-2.5 py-1.5">
-      <span className="text-[10.5px] font-bold leading-tight text-white">{item.symbol}</span>
-      <span className="shrink-0 text-[9.5px] font-semibold text-white/70">{shortDate}</span>
+    <div className={cn("flex items-center justify-between gap-2 rounded-lg bg-white/10", density.padding)}>
+      <span className={cn("font-bold leading-tight text-white", density.primaryText)}>{item.symbol}</span>
+      <span className={cn("shrink-0 font-semibold text-white/70", density.secondaryText)}>{shortDate}</span>
     </div>
   );
 }
 
-function IpoPosterRow({ symbol, company, sub }: { symbol: string; company: string; sub: string }) {
+function IpoPosterRow({
+  symbol,
+  company,
+  sub,
+  density,
+}: {
+  symbol: string;
+  company: string;
+  sub: string;
+  density: RowDensity;
+}) {
   return (
-    <div className="rounded-lg bg-white/10 px-2.5 py-1.5">
+    <div className={cn("rounded-lg bg-white/10", density.padding)}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10.5px] font-bold text-white">{symbol}</span>
-        <span className="shrink-0 text-[9px] font-semibold text-white/70">{sub}</span>
+        <span className={cn("font-bold text-white", density.primaryText)}>{symbol}</span>
+        <span className={cn("shrink-0 font-semibold text-white/70", density.secondaryText)}>{sub}</span>
       </div>
-      <div className="truncate text-[8.5px] text-white/55">{company}</div>
+      <div className={cn("truncate text-white/55", density.secondaryText)}>{company}</div>
     </div>
   );
 }
 
-function VolumeGainerPosterRow({ item }: { item: VolumeGainerQuote }) {
+function VolumeGainerPosterRow({ item, density }: { item: VolumeGainerQuote; density: RowDensity }) {
   const up = item.changePct >= 0;
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-white/10 px-2.5 py-1.5">
-      <span className="text-[10.5px] font-bold leading-tight text-white">{item.symbol}</span>
-      <span className={cn("shrink-0 text-[9.5px] font-bold", up ? "text-emerald-300" : "text-red-300")}>
+    <div className={cn("flex items-center justify-between gap-2 rounded-lg bg-white/10", density.padding)}>
+      <span className={cn("font-bold leading-tight text-white", density.primaryText)}>{item.symbol}</span>
+      <span className={cn("shrink-0 font-bold", density.secondaryText, up ? "text-emerald-300" : "text-red-300")}>
         {up ? "+" : ""}
         {item.changePct}%
       </span>
@@ -90,12 +100,26 @@ export function PremarketPosters({
   const volumeRef = useRef<HTMLDivElement>(null);
 
   const dateStr = new Date().toISOString().slice(0, 10);
-  const hasStocks = near52WeekHigh.length > 0;
-  const hasEarnings = earningsCalendar.length > 0;
-  const hasActions = corporateActions.length > 0;
-  const ipoItems = [...ipos.current, ...ipos.upcoming].slice(0, 6);
-  const hasIpos = ipoItems.length > 0;
-  const hasVolumeGainers = volumeGainers.length > 0;
+  const stockItems = near52WeekHigh.slice(0, MAX_POSTER_ROWS);
+  const stockDensity = rowDensityFor(stockItems.length);
+  const hasStocks = stockItems.length > 0;
+
+  const earningsItems = earningsCalendar.slice(0, MAX_POSTER_ROWS);
+  const earningsDensity = rowDensityFor(earningsItems.length);
+  const hasEarnings = earningsItems.length > 0;
+
+  const actionItems = corporateActions.slice(0, MAX_POSTER_ROWS);
+  const actionsDensity = rowDensityFor(actionItems.length);
+  const hasActions = actionItems.length > 0;
+
+  const ipoCurrentItems = ipos.current.slice(0, MAX_POSTER_ROWS);
+  const ipoUpcomingItems = ipos.upcoming.slice(0, Math.max(0, MAX_POSTER_ROWS - ipoCurrentItems.length));
+  const ipoDensity = rowDensityFor(ipoCurrentItems.length + ipoUpcomingItems.length);
+  const hasIpos = ipoCurrentItems.length + ipoUpcomingItems.length > 0;
+
+  const volumeItems = volumeGainers.slice(0, MAX_POSTER_ROWS);
+  const volumeDensity = rowDensityFor(volumeItems.length);
+  const hasVolumeGainers = volumeItems.length > 0;
 
   if (!hasStocks && !hasEarnings && !hasActions && !hasIpos && !hasVolumeGainers) return null;
 
@@ -126,9 +150,11 @@ export function PremarketPosters({
                   branding={branding}
                   links={links}
                 >
-                  {near52WeekHigh.slice(0, 6).map((item) => (
-                    <StockRow key={item.symbol} item={item} />
-                  ))}
+                  <div className={cn("flex flex-col", stockDensity.gap)}>
+                    {stockItems.map((item) => (
+                      <StockRow key={item.symbol} item={item} density={stockDensity} />
+                    ))}
+                  </div>
                 </PosterFrame>
               </div>
               <PosterActions
@@ -152,9 +178,11 @@ export function PremarketPosters({
                   branding={branding}
                   links={links}
                 >
-                  {earningsCalendar.slice(0, 6).map((item) => (
-                    <EarningsPosterRow key={`${item.symbol}-${item.date}`} item={item} />
-                  ))}
+                  <div className={cn("flex flex-col", earningsDensity.gap)}>
+                    {earningsItems.map((item) => (
+                      <EarningsPosterRow key={`${item.symbol}-${item.date}`} item={item} density={earningsDensity} />
+                    ))}
+                  </div>
                 </PosterFrame>
               </div>
               <PosterActions
@@ -178,9 +206,13 @@ export function PremarketPosters({
                   branding={branding}
                   links={links}
                 >
-                  <div className="flex flex-col gap-1.5">
-                    {corporateActions.slice(0, 6).map((item) => (
-                      <ActionChip key={`${item.symbol}-${item.exDate}-${item.subject}`} item={item} />
+                  <div className={cn("flex flex-col", actionsDensity.gap)}>
+                    {actionItems.map((item) => (
+                      <ActionChip
+                        key={`${item.symbol}-${item.exDate}-${item.subject}`}
+                        item={item}
+                        density={actionsDensity}
+                      />
                     ))}
                   </div>
                 </PosterFrame>
@@ -206,22 +238,26 @@ export function PremarketPosters({
                   branding={branding}
                   links={links}
                 >
-                  {ipos.current.slice(0, 4).map((item) => (
-                    <IpoPosterRow
-                      key={item.symbol}
-                      symbol={item.symbol}
-                      company={item.company}
-                      sub={`Open till ${item.endDate.replace(/-\d{4}$/, "")}`}
-                    />
-                  ))}
-                  {ipos.upcoming.slice(0, 6 - ipos.current.length).map((item) => (
-                    <IpoPosterRow
-                      key={item.symbol}
-                      symbol={item.symbol}
-                      company={item.company}
-                      sub={item.startDate.replace(/-\d{4}$/, "")}
-                    />
-                  ))}
+                  <div className={cn("flex flex-col", ipoDensity.gap)}>
+                    {ipoCurrentItems.map((item) => (
+                      <IpoPosterRow
+                        key={item.symbol}
+                        symbol={item.symbol}
+                        company={item.company}
+                        sub={`Open till ${item.endDate.replace(/-\d{4}$/, "")}`}
+                        density={ipoDensity}
+                      />
+                    ))}
+                    {ipoUpcomingItems.map((item) => (
+                      <IpoPosterRow
+                        key={item.symbol}
+                        symbol={item.symbol}
+                        company={item.company}
+                        sub={item.startDate.replace(/-\d{4}$/, "")}
+                        density={ipoDensity}
+                      />
+                    ))}
+                  </div>
                 </PosterFrame>
               </div>
               <PosterActions
@@ -245,9 +281,11 @@ export function PremarketPosters({
                   branding={branding}
                   links={links}
                 >
-                  {volumeGainers.slice(0, 6).map((item) => (
-                    <VolumeGainerPosterRow key={item.symbol} item={item} />
-                  ))}
+                  <div className={cn("flex flex-col", volumeDensity.gap)}>
+                    {volumeItems.map((item) => (
+                      <VolumeGainerPosterRow key={item.symbol} item={item} density={volumeDensity} />
+                    ))}
+                  </div>
                 </PosterFrame>
               </div>
               <PosterActions
