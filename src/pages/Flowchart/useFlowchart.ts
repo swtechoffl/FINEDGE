@@ -13,6 +13,10 @@ import { DEFAULT_FONT_SIZE, type ShapeKind, type ShapeNodeData } from "./types";
 
 export type FlowNode = Node<ShapeNodeData>;
 
+function makeId(prefix: string) {
+  return `${prefix}-${crypto.randomUUID()}`;
+}
+
 function defaultNodesFor(): FlowNode[] {
   return [
     {
@@ -29,7 +33,7 @@ function defaultNodesFor(): FlowNode[] {
       position: { x: 340, y: 380 },
       data: {
         label:
-          "Double-click a shape to rename it. Drag from its edge to connect. Click-drag on empty canvas to box-select. Right-click-drag (or middle-click-drag) to pan.",
+          "Double-click a shape to rename it. Drag from its edge to connect. Click-drag on empty canvas to box-select. Right-click-drag (or middle-click-drag) to pan. Ctrl/Cmd+C and Ctrl/Cmd+V to copy-paste.",
         shape: "note",
         color: "#d97706",
         fontSize: DEFAULT_FONT_SIZE - 1,
@@ -87,12 +91,38 @@ export function useFlowchart(boardId: string) {
       fontSize: number,
       bold: boolean,
     ) => {
-      const id = `node-${Date.now()}-${Math.round(Math.random() * 1000)}`;
+      const id = makeId("node");
       const newNode: FlowNode = { id, type: "shape", position, data: { label, shape, color, fontSize, bold } };
       setNodes((nds) => nds.concat(newNode));
       return id;
     },
     [setNodes],
+  );
+
+  // Pastes a previously copied set of nodes (+ any edges between them) as
+  // fresh copies, offset so repeated pastes cascade instead of stacking.
+  const pasteNodes = useCallback(
+    (copiedNodes: FlowNode[], copiedEdges: Edge[], offset: number) => {
+      const idMap = new Map<string, string>();
+      const newNodes: FlowNode[] = copiedNodes.map((n) => {
+        const id = makeId("node");
+        idMap.set(n.id, id);
+        return {
+          ...n,
+          id,
+          position: { x: n.position.x + offset, y: n.position.y + offset },
+          selected: true,
+          data: { ...n.data },
+        };
+      });
+      const newEdges: Edge[] = copiedEdges
+        .filter((e) => idMap.has(e.source) && idMap.has(e.target))
+        .map((e) => ({ ...e, id: makeId("edge"), source: idMap.get(e.source)!, target: idMap.get(e.target)! }));
+
+      setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), ...newNodes]);
+      setEdges((eds) => [...eds, ...newEdges]);
+    },
+    [setNodes, setEdges],
   );
 
   const selectNode = useCallback(
@@ -133,6 +163,7 @@ export function useFlowchart(boardId: string) {
     onEdgesChange,
     onConnect,
     addShape,
+    pasteNodes,
     selectNode,
     updateSelected,
     clearCanvas,

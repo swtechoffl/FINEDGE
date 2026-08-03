@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -7,6 +7,7 @@ import {
   ReactFlow,
   SelectionMode,
   getViewportForBounds,
+  type Edge,
   type NodeTypes,
   type ReactFlowInstance,
 } from "@xyflow/react";
@@ -57,6 +58,7 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
     onEdgesChange,
     onConnect,
     addShape,
+    pasteNodes,
     selectNode,
     updateSelected,
     clearCanvas,
@@ -73,6 +75,54 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
   const addCountRef = useRef(0);
 
   const hasSelection = useMemo(() => nodes.some((n) => n.selected), [nodes]);
+
+  // Copy/paste via Ctrl/Cmd+C and Ctrl/Cmd+V. Refs keep the window-level
+  // listener (attached once) reading current nodes/edges without going
+  // stale, and without re-attaching the listener on every keystroke.
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
+  const clipboardRef = useRef<{ nodes: FlowNode[]; edges: Edge[] } | null>(null);
+  const pasteCountRef = useRef(0);
+
+  useEffect(() => {
+    function isEditableTarget(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) return false;
+      return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      // Renaming a shape uses a real textarea — let the browser's native
+      // text copy/paste handle that instead of hijacking it here.
+      if (isEditableTarget(e.target)) return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+
+      if (e.key === "c" || e.key === "C") {
+        const selected = nodesRef.current.filter((n) => n.selected);
+        if (selected.length === 0) return;
+        const selectedIds = new Set(selected.map((n) => n.id));
+        const relatedEdges = edgesRef.current.filter((ed) => selectedIds.has(ed.source) && selectedIds.has(ed.target));
+        clipboardRef.current = {
+          nodes: selected.map((n) => ({ ...n, data: { ...n.data } })),
+          edges: relatedEdges.map((ed) => ({ ...ed })),
+        };
+        pasteCountRef.current = 0;
+      } else if (e.key === "v" || e.key === "V") {
+        if (!clipboardRef.current) return;
+        e.preventDefault();
+        pasteCountRef.current += 1;
+        pasteNodes(clipboardRef.current.nodes, clipboardRef.current.edges, pasteCountRef.current * 40);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pasteNodes]);
 
   const handleAddShape = useCallback(
     (shape: ShapeKind) => {
