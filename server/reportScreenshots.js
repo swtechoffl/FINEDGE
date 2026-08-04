@@ -25,12 +25,14 @@ const USABLE_HEIGHT_PT = A4_HEIGHT_PT - PAGE_MARGIN_PT * 2;
 // Walks down the content in target increments of `pageHeight`, snapping
 // each cut to the latest safe break (a card/section/paragraph edge) at or
 // before that target — unless doing so would leave a page mostly empty (no
-// safe break within SLACK of the target), in which case it just cuts at the
-// raw target instead. The final page always runs straight to the true end
-// of the content rather than snapping to an earlier safe break, so a small
-// tail (e.g. a disclaimer's closing note) doesn't get split into its own
-// near-empty extra page.
-function paginate(safeBreaks, contentHeight, pageHeight) {
+// safe break within SLACK of the target), in which case it falls back to
+// the nearest text-line boundary (layout.lineBreaks) so it still never cuts
+// through the middle of a line, and only cuts at the raw target if even
+// that isn't available. The final page always runs straight to the true
+// end of the content rather than snapping to an earlier safe break, so a
+// small tail (e.g. a disclaimer's closing note) doesn't get split into its
+// own near-empty extra page.
+function paginate(safeBreaks, lineBreaks, contentHeight, pageHeight) {
   const SLACK = pageHeight * 0.35;
   const slices = [];
   let cursor = 0;
@@ -41,7 +43,12 @@ function paginate(safeBreaks, contentHeight, pageHeight) {
     let cut = target;
     if (!isFinalPage) {
       const candidates = safeBreaks.filter((y) => y > cursor + 1 && y <= target && target - y <= SLACK);
-      if (candidates.length > 0) cut = candidates[candidates.length - 1];
+      if (candidates.length > 0) {
+        cut = candidates[candidates.length - 1];
+      } else {
+        const lineCandidates = lineBreaks.filter((y) => y > cursor + 1 && y <= target);
+        if (lineCandidates.length > 0) cut = lineCandidates[lineCandidates.length - 1];
+      }
     }
     slices.push([cursor, Math.min(cut, contentHeight)]);
     cursor = slices[slices.length - 1][1];
@@ -73,7 +80,29 @@ async function measureLayout(page, selector) {
       const safeBreaks = Array.from(candidates)
         .filter((y) => y > 0)
         .sort((a, b) => a - b);
-      return { x: rect.left, y: rect.top, width: rect.width, height: rect.height, safeBreaks };
+
+      // Fallback candidates for when no card/row-level safe break above is
+      // close enough to a page target — the top of every individual
+      // wrapped text line in root (one rect per visual line via
+      // Range.getClientRects(), not per DOM node). Free-text blocks like a
+      // manually typed commentary paragraph aren't broken into per-item
+      // safe breaks, so without this a long one could force a raw,
+      // unsnapped cut that lands mid-line and slices letters in half.
+      const lineCandidates = new Set();
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => (node.textContent && node.textContent.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+      });
+      const range = document.createRange();
+      let node;
+      while ((node = walker.nextNode())) {
+        range.selectNodeContents(node);
+        Array.from(range.getClientRects()).forEach((r) => lineCandidates.add(r.top - rect.top));
+      }
+      const lineBreaks = Array.from(lineCandidates)
+        .filter((y) => y > 0)
+        .sort((a, b) => a - b);
+
+      return { x: rect.left, y: rect.top, width: rect.width, height: rect.height, safeBreaks, lineBreaks };
     },
     selector,
     MIN_LIST_ITEMS_FOR_SAFE_BREAK,
@@ -91,7 +120,7 @@ async function addPaginatedNodeToPdf(page, pdfDoc, selector) {
   if (!layout) return;
 
   const pageHeightPx = USABLE_HEIGHT_PT * (layout.width / USABLE_WIDTH_PT);
-  const slices = paginate(layout.safeBreaks, layout.height, pageHeightPx);
+  const slices = paginate(layout.safeBreaks, layout.lineBreaks, layout.height, pageHeightPx);
 
   for (const [startPx, endPx] of slices) {
     const sliceHeightPx = endPx - startPx;

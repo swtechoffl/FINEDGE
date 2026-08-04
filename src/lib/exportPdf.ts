@@ -77,14 +77,46 @@ function findSafeBreaks(root: HTMLElement): number[] {
     .sort((a, b) => a - b);
 }
 
+// Fallback candidates for when no card/row-level safe break (findSafeBreaks)
+// is close enough to the target — the top edge of every individual wrapped
+// text line in `root` (via Range.getClientRects(), which reports one rect
+// per visual line, not per DOM node). Free-text blocks like a manually
+// typed commentary paragraph aren't broken into per-item safe breaks, so
+// without this, a long one could force a raw, unsnapped cut that lands mid
+// line and slices letters in half. Line tops are a much denser set than the
+// card-level breaks, so they're only consulted as a fallback — see paginate.
+function findLineBreaks(root: HTMLElement): number[] {
+  const rootTop = root.getBoundingClientRect().top;
+  const candidates = new Set<number>();
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => (node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+  });
+  const range = document.createRange();
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    range.selectNodeContents(node);
+    Array.from(range.getClientRects()).forEach((rect) => candidates.add(rect.top - rootTop));
+  }
+  return Array.from(candidates)
+    .filter((y) => y > 0)
+    .sort((a, b) => a - b);
+}
+
 // Walks down the content in target increments of `pageHeight`, snapping
 // each cut to the latest safe break at or before that target — unless doing
 // so would leave a page mostly empty (no safe break within `SLACK` of the
-// target), in which case it just cuts at the raw target instead. The final
+// target), in which case it falls back to the nearest text-line boundary
+// (see findLineBreaks) so it still never cuts through the middle of a line,
+// and only cuts at the raw target if even that isn't available. The final
 // page always runs straight to the true end of the content rather than
 // snapping to an earlier safe break, so a small tail (e.g. a disclaimer's
 // closing note) doesn't get split into its own near-empty extra page.
-function paginate(safeBreaks: number[], contentHeight: number, pageHeight: number): Array<[number, number]> {
+function paginate(
+  safeBreaks: number[],
+  lineBreaks: number[],
+  contentHeight: number,
+  pageHeight: number,
+): Array<[number, number]> {
   const SLACK = pageHeight * 0.35;
   const slices: Array<[number, number]> = [];
   let cursor = 0;
@@ -95,7 +127,12 @@ function paginate(safeBreaks: number[], contentHeight: number, pageHeight: numbe
     let cut = target;
     if (!isFinalPage) {
       const candidates = safeBreaks.filter((y) => y > cursor + 1 && y <= target && target - y <= SLACK);
-      if (candidates.length > 0) cut = candidates[candidates.length - 1];
+      if (candidates.length > 0) {
+        cut = candidates[candidates.length - 1];
+      } else {
+        const lineCandidates = lineBreaks.filter((y) => y > cursor + 1 && y <= target);
+        if (lineCandidates.length > 0) cut = lineCandidates[lineCandidates.length - 1];
+      }
     }
     slices.push([cursor, Math.min(cut, contentHeight)]);
     cursor = slices[slices.length - 1][1];
@@ -174,8 +211,9 @@ export async function exportReportToPdf(sections: ReportSection[], filename: str
     const contentRect = node.getBoundingClientRect();
 
     const safeBreaksPx = findSafeBreaks(node);
+    const lineBreaksPx = findLineBreaks(node);
     const pageHeightPx = USABLE_HEIGHT_PT * (contentRect.width / USABLE_WIDTH_PT);
-    const slices = paginate(safeBreaksPx, contentRect.height, pageHeightPx);
+    const slices = paginate(safeBreaksPx, lineBreaksPx, contentRect.height, pageHeightPx);
 
     for (const [startPx, endPx] of slices) {
       const sliceHeightPx = endPx - startPx;
