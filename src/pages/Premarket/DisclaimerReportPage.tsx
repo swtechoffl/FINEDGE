@@ -2,12 +2,15 @@ import { forwardRef } from "react";
 import { ShieldCheck, Mail, Phone, MapPin } from "lucide-react";
 import type { DisclaimerSettings } from "../Disclosure/useDisclaimerSettings";
 
-// Page 2 of the exported Premarket Report PDF — same content as the
-// standalone Disclosure & Disclaimer page, restyled to match the report's
-// letterhead so it reads as a continuation of the same document rather than
-// a bolted-on page. Content comes from useDisclaimerSettings (editable via
-// DisclaimerSettingsEditor) rather than the static defaults directly, so an
-// edit made from any report shows up on every report's disclaimer page.
+// The trailing disclaimer section of the exported report PDF — same content
+// as the standalone Disclosure & Disclaimer page, restyled to match the
+// report's letterhead so it reads as a continuation of the same document
+// rather than a bolted-on page. Content comes from useDisclaimerSettings
+// (editable via DisclaimerSettingsEditor) rather than the static defaults
+// directly, so an edit made from any report shows up on every report's
+// disclaimer page. Its actual PDF page number (which varies with how many
+// pages the report itself needed) is stamped as a real page-number footer
+// at export time — see drawPageNumbers in exportPdf.ts — not shown here.
 export const DisclaimerReportPage = forwardRef<HTMLDivElement, { settings: DisclaimerSettings }>(
   ({ settings }, ref) => {
   return (
@@ -17,7 +20,6 @@ export const DisclaimerReportPage = forwardRef<HTMLDivElement, { settings: Discl
           <h2 className="text-lg font-extrabold tracking-tight text-foreground">
             Disclosure &amp; Disclaimer<span className="text-accent">.</span>
           </h2>
-          <span className="text-xs text-subtle-foreground">Page 2</span>
         </div>
       </div>
 
