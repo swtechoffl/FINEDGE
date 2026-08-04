@@ -373,29 +373,55 @@ app.post("/api/telegram/send-now", async (req, res) => {
 
 // Renders the full Premarket or Post Market report (2-page PDF: report +
 // disclaimer, same as the interactive "Export PDF" button) in a headless
-// browser and sends it to Telegram as a document. Meant to be called by an
-// external scheduler (e.g. an n8n workflow's HTTP Request node) rather than
-// Vercel's own Cron, so it requires the same CRON_SECRET bearer token as
-// /api/cron/telegram-posters — this one sends a real document to a real
-// Telegram chat and shouldn't be triggerable by just knowing the URL.
+// browser and sends it to Telegram as a document. Shared by the scheduled
+// route (n8n) and the manual "Send Now" route below.
+async function deliverReportToTelegram(origin, reportKey, captionSuffix) {
+  const config = REPORT_CAPTURE_CONFIG[reportKey];
+  if (!config) throw new Error(`Unknown report "${reportKey}" — use "premarket" or "postmarket"`);
+  const { buffer, filenamePrefix, title } = await captureReportPdf(origin, reportKey);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const dateLabel = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  await sendTelegramDocument(buffer, `${filenamePrefix}-${dateStr}.pdf`, `${title} — ${dateLabel}${captionSuffix ?? ""}`);
+  return { sent: true, report: reportKey };
+}
+
+// Meant to be called by an external scheduler (e.g. an n8n workflow's HTTP
+// Request node) rather than Vercel's own Cron, so it requires the same
+// CRON_SECRET bearer token as /api/cron/telegram-posters — this one sends a
+// real document to a real Telegram chat and shouldn't be triggerable by
+// just knowing the URL.
 // Usage: POST /api/telegram/send-report?report=premarket|postmarket
 app.post("/api/telegram/send-report", async (req, res) => {
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  const reportKey = req.query.report;
-  if (!REPORT_CAPTURE_CONFIG[reportKey]) {
-    return res.status(400).json({ error: `Unknown report "${reportKey}" — use "premarket" or "postmarket"` });
+  if (!REPORT_CAPTURE_CONFIG[req.query.report]) {
+    return res.status(400).json({ error: `Unknown report "${req.query.report}" — use "premarket" or "postmarket"` });
   }
   try {
     const origin = `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`;
-    const { buffer, filenamePrefix, title } = await captureReportPdf(origin, reportKey);
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const dateLabel = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-    await sendTelegramDocument(buffer, `${filenamePrefix}-${dateStr}.pdf`, `${title} — ${dateLabel}`);
-    res.json({ sent: true, report: reportKey });
+    res.json(await deliverReportToTelegram(origin, req.query.report));
   } catch (err) {
-    console.error(`[stoqtrade.ai] report telegram delivery failed (${reportKey}):`, err);
+    console.error(`[stoqtrade.ai] report telegram delivery failed (${req.query.report}):`, err);
+    res.status(500).json({ error: "Failed to deliver report", detail: String(err.message || err) });
+  }
+});
+
+// Manual "Send Now" trigger from the report pages — same delivery as the
+// scheduled route above, just operator-initiated instead of scheduled. No
+// CRON_SECRET check: this is reachable by anyone who can load the
+// (already-public, unauthed) report page, same exposure as
+// /api/telegram/send-now for posters.
+// Usage: POST /api/telegram/send-report-now?report=premarket|postmarket
+app.post("/api/telegram/send-report-now", async (req, res) => {
+  if (!REPORT_CAPTURE_CONFIG[req.query.report]) {
+    return res.status(400).json({ error: `Unknown report "${req.query.report}" — use "premarket" or "postmarket"` });
+  }
+  try {
+    const origin = `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`;
+    res.json(await deliverReportToTelegram(origin, req.query.report, " (sent manually)"));
+  } catch (err) {
+    console.error(`[stoqtrade.ai] manual report telegram send failed (${req.query.report}):`, err);
     res.status(500).json({ error: "Failed to deliver report", detail: String(err.message || err) });
   }
 });

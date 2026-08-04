@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, Loader2, RefreshCw } from "lucide-react";
+import { Download, Loader2, RefreshCw, Send } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -17,6 +17,7 @@ import { exportReportToPdf } from "../../lib/exportPdf";
 
 const MAX_HIGH_IMPACT_NEWS = 6;
 const IMPACT_RANK: Record<string, number> = { high: 3, moderate: 2, low: 1, none: 0 };
+type SendState = "idle" | "sending" | "sent" | "error";
 
 export function PremarketPage() {
   const { data, loading, refreshing, refresh } = usePremarket();
@@ -29,6 +30,7 @@ export function PremarketPage() {
   const [exporting, setExporting] = useState(false);
   const [exportMode, setExportMode] = useState(false);
   const [customNewsIds, setCustomNewsIds] = useState<string[] | null>(null);
+  const [sendState, setSendState] = useState<SendState>("idle");
 
   // ?export=1 drives an automated headless-browser capture for Telegram
   // delivery (see server/reportScreenshots.js) — forces a live refresh and
@@ -126,6 +128,20 @@ export function PremarketPage() {
     }
   }
 
+  async function handleSendTelegram() {
+    setSendState("sending");
+    try {
+      const res = await fetch("/api/telegram/send-report-now?report=premarket", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.detail || json.error || "Send failed");
+      setSendState("sent");
+    } catch {
+      setSendState("error");
+    } finally {
+      setTimeout(() => setSendState("idle"), 4000);
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header
@@ -150,6 +166,22 @@ export function PremarketPage() {
               clear={clear}
             />
             <DisclaimerSettingsEditor {...disclaimerSettings} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSendTelegram}
+              disabled={sendState === "sending" || !hasAnyData}
+              title="Send today's report to Telegram now"
+            >
+              {sendState === "sending" ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Send size={14} className={sendState === "sent" ? "text-bullish" : undefined} />
+              )}
+              <span className="hidden sm:inline">
+                {sendState === "sending" ? "Sending…" : sendState === "sent" ? "Sent!" : sendState === "error" ? "Failed" : "Send Now"}
+              </span>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting || !hasAnyData}>
               {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
               <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export PDF"}</span>
