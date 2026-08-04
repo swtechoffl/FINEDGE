@@ -233,10 +233,11 @@ export function useFlowchart(boardId: string) {
   );
 
   // A drag started from a source dot and released back over its own node
-  // (see FlowchartCanvas.tsx's onConnectEnd) reads as "clicked the dot" —
-  // spawns a fresh copy of that same shape a step off in the handle's
-  // direction and wires them together, instead of requiring a drag onto an
-  // existing shape every time.
+  // reads as "just clicked the dot" (see FlowchartCanvas.tsx's onConnectEnd
+  // — self-connections are blocked via isValidConnection specifically so
+  // this case reports isValid:false and is distinguishable from a real
+  // connection). Spawns a fresh copy of that same shape a step off in the
+  // handle's direction and wires them together.
   const spawnConnectedShape = useCallback(
     (sourceNodeId: string, sourceHandlePosition: Position) => {
       const sourceNode = nodes.find((n) => n.id === sourceNodeId);

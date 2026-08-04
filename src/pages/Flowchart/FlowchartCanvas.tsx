@@ -7,6 +7,7 @@ import {
   ReactFlow,
   SelectionMode,
   getViewportForBounds,
+  type Connection,
   type Edge,
   type FinalConnectionState,
   type NodeTypes,
@@ -227,10 +228,28 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
     [lastShape, insertNodeOnEdge, activeColor, activeFontSize, activeBold, selectNode],
   );
 
-  // A connection dragged from a source dot and released back over its own
-  // shape (rather than dropped on a different node or on empty canvas) reads
-  // as "just clicked the dot" — spawn a same-shape copy and wire it up
-  // instead of requiring a drag onto an existing shape every time.
+  // edgeTypes must stay referentially stable (recreating it forces xyflow to
+  // remount every edge) — the ref indirection lets the edge components
+  // always call the latest handleInsertOnEdge without that.
+  const insertOnEdgeRef = useRef<InsertOnEdgeHandler>(() => {});
+  useEffect(() => {
+    insertOnEdgeRef.current = handleInsertOnEdge;
+  }, [handleInsertOnEdge]);
+  const edgeTypes = useMemo(() => createShapeEdgeTypes(insertOnEdgeRef), []);
+
+  // A shape can't usefully connect to itself, so this is disallowed outright
+  // — which doubles as the signal handleConnectEnd below needs: dragging a
+  // source dot and releasing back over your own shape (xyflow's default
+  // Strict mode would otherwise call that a *valid* self-connection, since
+  // it only checks handle-type compatibility, not distinct nodes) now
+  // reliably reports isValid:false instead, so it reads as "just clicked
+  // the dot" rather than silently creating a self-loop edge.
+  const isValidConnection = useCallback((conn: Edge | Connection) => conn.source !== conn.target, []);
+
+  // Dragging a source dot and releasing it back over the same shape (i.e.
+  // "clicked the dot" rather than dragging out to a different one) spawns a
+  // copy of that same shape and wires them together, instead of requiring a
+  // deliberate drag onto an existing shape every time.
   const handleConnectEnd = useCallback(
     (_event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
       if (connectionState.isValid) return;
@@ -242,15 +261,6 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
     },
     [spawnConnectedShape, selectNode],
   );
-
-  // edgeTypes must stay referentially stable (recreating it forces xyflow to
-  // remount every edge) — the ref indirection lets the edge components
-  // always call the latest handleInsertOnEdge without that.
-  const insertOnEdgeRef = useRef<InsertOnEdgeHandler>(() => {});
-  useEffect(() => {
-    insertOnEdgeRef.current = handleInsertOnEdge;
-  }, [handleInsertOnEdge]);
-  const edgeTypes = useMemo(() => createShapeEdgeTypes(insertOnEdgeRef), []);
 
   const handleColorPick = useCallback(
     (color: string) => {
@@ -414,6 +424,8 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onConnectEnd={handleConnectEnd}
+        isValidConnection={isValidConnection}
+        connectionDragThreshold={0}
         onInit={setRfInstance}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
