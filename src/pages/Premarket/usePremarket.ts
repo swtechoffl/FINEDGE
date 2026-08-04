@@ -90,6 +90,7 @@ export interface PremarketData {
   groups: Record<string, PremarketQuote[]>;
   fiiDii: FiiDiiData | null;
   niftyPivots: NiftyPivotData | null;
+  bankNiftyPivots: NiftyPivotData | null;
   barometer: BarometerData | null;
   ipos: IpoListings;
   aiSummary: string | null;
@@ -103,6 +104,7 @@ const EMPTY: PremarketData = {
   groups: {},
   fiiDii: null,
   niftyPivots: null,
+  bankNiftyPivots: null,
   barometer: null,
   ipos: { current: [], upcoming: [], past: [] },
   aiSummary: null,

@@ -116,6 +116,14 @@ async function fetchNiftyPivots() {
   };
 }
 
+async function fetchBankNiftyPivots() {
+  const bar = await fetchYahooDailyOHLC("^NSEBANK");
+  return {
+    basis: { date: bar.date, high: bar.high, low: bar.low, close: bar.close },
+    levels: computeFloorPivots(bar),
+  };
+}
+
 function parseNseIpoDate(d) {
   // NSE's IPO endpoints mix casing across feeds — "29-Jul-2026" (current/
   // upcoming) vs "27-JUL-2026" (past) — both parse fine once hyphens become
@@ -274,6 +282,7 @@ let cache = {
   groups: {},
   fiiDii: null,
   niftyPivots: null,
+  bankNiftyPivots: null,
   barometer: null,
   ipos: { current: [], upcoming: [], past: [] },
   aiSummary: null,
@@ -286,7 +295,7 @@ async function refreshPremarket() {
     list.map((item) => ({ groupKey, ...item })),
   );
 
-  const [symbolResults, giftResult, fiiDiiResult, pivotsResult, iposResult] = await Promise.all([
+  const [symbolResults, giftResult, fiiDiiResult, pivotsResult, bankPivotsResult, iposResult] = await Promise.all([
     mapWithConcurrency(allSymbols, CONCURRENCY, async (item) => {
       const quote = await fetchYahooQuote(item.symbol);
       return { ...item, ...quote };
@@ -294,6 +303,7 @@ async function refreshPremarket() {
     fetchGiftNifty().catch((err) => ({ error: err.message })),
     fetchFiiDii().catch((err) => ({ error: err.message })),
     fetchNiftyPivots().catch((err) => ({ error: err.message })),
+    fetchBankNiftyPivots().catch((err) => ({ error: err.message })),
     fetchIpoListings().catch((err) => ({ error: err.message })),
   ]);
 
@@ -327,6 +337,7 @@ async function refreshPremarket() {
     groups,
     fiiDii,
     niftyPivots: pivotsResult && !pivotsResult.error ? pivotsResult : null,
+    bankNiftyPivots: bankPivotsResult && !bankPivotsResult.error ? bankPivotsResult : null,
     barometer,
     ipos: iposResult && !iposResult.error ? iposResult : cache.ipos,
     aiSummary,
@@ -347,7 +358,7 @@ export async function getPremarket() {
 
 function summarize(c) {
   return (
-    `gift=${!!c.giftNifty}, fiiDii=${!!c.fiiDii}, pivots=${!!c.niftyPivots}, barometer=${c.barometer?.label ?? "n/a"}, ` +
+    `gift=${!!c.giftNifty}, fiiDii=${!!c.fiiDii}, pivots=${!!c.niftyPivots}, bankPivots=${!!c.bankNiftyPivots}, barometer=${c.barometer?.label ?? "n/a"}, ` +
     `ipos=${c.ipos.current.length}/${c.ipos.upcoming.length}/${c.ipos.past.length}, ${c.failedCount} symbols failed`
   );
 }

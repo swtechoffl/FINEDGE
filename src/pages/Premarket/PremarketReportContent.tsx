@@ -543,6 +543,12 @@ export const PremarketReportContent = forwardRef<
           </BentoCard>
         )}
 
+        {data.bankNiftyPivots && (
+          <BentoCard title="BANK NIFTY Pivot Levels" className="col-span-4">
+            <NiftyPivotCard data={data.bankNiftyPivots} />
+          </BentoCard>
+        )}
+
         {GROUP_ORDER.map((key) => {
           const items = data.groups[key];
           const config = GROUP_CONFIG[key];
