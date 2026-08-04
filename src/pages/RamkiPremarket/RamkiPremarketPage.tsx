@@ -11,7 +11,7 @@ import { useDisclaimerSettings } from "../Disclosure/useDisclaimerSettings";
 import { DisclaimerSettingsEditor } from "../Disclosure/DisclaimerSettingsEditor";
 import { usePostMarket } from "../PostMarket/usePostMarket";
 import { relativeTime } from "../../data/mock";
-import { exportNodesToPdf } from "../../lib/exportPdf";
+import { exportReportToPdf } from "../../lib/exportPdf";
 import { RamkiPremarketReportContent } from "./RamkiPremarketReportContent";
 import { useManualNews } from "./useManualNews";
 
@@ -47,7 +47,7 @@ export function RamkiPremarketPage() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     try {
       const dateStr = new Date().toISOString().slice(0, 10);
-      await exportNodesToPdf(
+      await exportReportToPdf(
         [reportRef.current, disclaimerRef.current],
         `stoqtrade-ramki-premarket-report-${dateStr}.pdf`,
       );

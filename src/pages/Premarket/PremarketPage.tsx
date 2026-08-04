@@ -13,7 +13,7 @@ import { DisclaimerSettingsEditor } from "../Disclosure/DisclaimerSettingsEditor
 import { useNewsFeed } from "../MarketBuzz/useNewsFeed";
 import { usePostMarket } from "../PostMarket/usePostMarket";
 import { relativeTime } from "../../data/mock";
-import { exportNodesToPdf } from "../../lib/exportPdf";
+import { exportReportToPdf } from "../../lib/exportPdf";
 
 const MAX_HIGH_IMPACT_NEWS = 6;
 const IMPACT_RANK: Record<string, number> = { high: 3, moderate: 2, low: 1, none: 0 };
@@ -114,7 +114,7 @@ export function PremarketPage() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     try {
       const dateStr = new Date().toISOString().slice(0, 10);
-      await exportNodesToPdf(
+      await exportReportToPdf(
         [reportRef.current, disclaimerRef.current],
         `stoqtrade-premarket-report-${dateStr}.pdf`,
       );

@@ -6,7 +6,7 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { cn } from "../../lib/utils";
 import { relativeTime } from "../../data/mock";
-import { exportNodesToPdf } from "../../lib/exportPdf";
+import { exportReportToPdf } from "../../lib/exportPdf";
 import { DisclaimerReportPage } from "../Premarket/DisclaimerReportPage";
 import { useDisclaimerSettings } from "../Disclosure/useDisclaimerSettings";
 import { DisclaimerSettingsEditor } from "../Disclosure/DisclaimerSettingsEditor";
@@ -283,7 +283,7 @@ export function RamkiPostMarketPage() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     try {
       const dateStr = new Date().toISOString().slice(0, 10);
-      await exportNodesToPdf(
+      await exportReportToPdf(
         [reportRef.current, disclaimerRef.current],
         `stoqtrade-ramki-postmarket-report-${dateStr}.pdf`,
       );
