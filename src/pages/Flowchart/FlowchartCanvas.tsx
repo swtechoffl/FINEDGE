@@ -8,6 +8,7 @@ import {
   SelectionMode,
   getViewportForBounds,
   type Edge,
+  type FinalConnectionState,
   type NodeTypes,
   type ReactFlowInstance,
 } from "@xyflow/react";
@@ -87,6 +88,7 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
     onConnect,
     addShape,
     insertNodeOnEdge,
+    spawnConnectedShape,
     pasteNodes,
     selectNode,
     updateSelected,
@@ -223,6 +225,22 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
       if (id) selectNode(id);
     },
     [lastShape, insertNodeOnEdge, activeColor, activeFontSize, activeBold, selectNode],
+  );
+
+  // A connection dragged from a source dot and released back over its own
+  // shape (rather than dropped on a different node or on empty canvas) reads
+  // as "just clicked the dot" — spawn a same-shape copy and wire it up
+  // instead of requiring a drag onto an existing shape every time.
+  const handleConnectEnd = useCallback(
+    (_event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
+      if (connectionState.isValid) return;
+      const { fromNode, fromHandle, toNode } = connectionState;
+      if (!fromNode || !fromHandle || fromHandle.type !== "source") return;
+      if (!toNode || toNode.id !== fromNode.id) return;
+      const id = spawnConnectedShape(fromNode.id, fromHandle.position);
+      if (id) selectNode(id);
+    },
+    [spawnConnectedShape, selectNode],
   );
 
   // edgeTypes must stay referentially stable (recreating it forces xyflow to
@@ -395,6 +413,7 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectEnd={handleConnectEnd}
         onInit={setRfInstance}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

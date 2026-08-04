@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addEdge,
   MarkerType,
+  Position,
   useEdgesState,
   useNodesState,
   type Connection,
@@ -9,7 +10,14 @@ import {
   type Node,
 } from "@xyflow/react";
 import { boardStorageKey } from "./boards";
-import { DEFAULT_FONT_SIZE, LINE_STYLE_EDGE_TYPE, DEFAULT_LINE_STYLE, type ShapeKind, type ShapeNodeData } from "./types";
+import {
+  DEFAULT_FONT_SIZE,
+  LINE_STYLE_EDGE_TYPE,
+  DEFAULT_LINE_STYLE,
+  SHAPE_LABELS,
+  type ShapeKind,
+  type ShapeNodeData,
+} from "./types";
 
 export type FlowNode = Node<ShapeNodeData>;
 
@@ -59,6 +67,15 @@ function loadBoard(boardId: string): { nodes: FlowNode[]; edges: Edge[] } {
 type Snapshot = { nodes: FlowNode[]; edges: Edge[] };
 const MAX_HISTORY = 50;
 const HISTORY_DEBOUNCE_MS = 400;
+
+// How far off in each direction a shape spawned via spawnConnectedShape
+// lands from the node it was spawned off of.
+const SPAWN_OFFSET: Record<Position, { dx: number; dy: number }> = {
+  [Position.Top]: { dx: 0, dy: -180 },
+  [Position.Right]: { dx: 240, dy: 0 },
+  [Position.Bottom]: { dx: 0, dy: 180 },
+  [Position.Left]: { dx: -240, dy: 0 },
+};
 
 export function useFlowchart(boardId: string) {
   const initial = useRef(loadBoard(boardId)).current;
@@ -215,6 +232,40 @@ export function useFlowchart(boardId: string) {
     [edges, setNodes, setEdges],
   );
 
+  // A drag started from a source dot and released back over its own node
+  // (see FlowchartCanvas.tsx's onConnectEnd) reads as "clicked the dot" —
+  // spawns a fresh copy of that same shape a step off in the handle's
+  // direction and wires them together, instead of requiring a drag onto an
+  // existing shape every time.
+  const spawnConnectedShape = useCallback(
+    (sourceNodeId: string, sourceHandlePosition: Position) => {
+      const sourceNode = nodes.find((n) => n.id === sourceNodeId);
+      if (!sourceNode) return null;
+      const { shape, color, fontSize, bold } = sourceNode.data;
+      const { dx, dy } = SPAWN_OFFSET[sourceHandlePosition];
+      const nodeId = makeId("node");
+      const label = shape === "text" ? "Text" : SHAPE_LABELS[shape];
+      const newNode: FlowNode = {
+        id: nodeId,
+        type: "shape",
+        position: { x: sourceNode.position.x + dx, y: sourceNode.position.y + dy },
+        data: { label, shape, color, fontSize, bold },
+      };
+      const newEdge: Edge = {
+        id: makeId("edge"),
+        source: sourceNodeId,
+        sourceHandle: sourceHandlePosition,
+        target: nodeId,
+        type: defaultEdgeTypeRef.current,
+        markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
+      };
+      setNodes((nds) => nds.concat(newNode));
+      setEdges((eds) => eds.concat(newEdge));
+      return nodeId;
+    },
+    [nodes, setNodes, setEdges],
+  );
+
   // Pastes a previously copied set of nodes (+ any edges between them) as
   // fresh copies, offset so repeated pastes cascade instead of stacking.
   const pasteNodes = useCallback(
@@ -280,6 +331,7 @@ export function useFlowchart(boardId: string) {
     onConnect,
     addShape,
     insertNodeOnEdge,
+    spawnConnectedShape,
     pasteNodes,
     selectNode,
     updateSelected,
