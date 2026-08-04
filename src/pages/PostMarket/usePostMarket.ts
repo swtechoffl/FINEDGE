@@ -75,6 +75,13 @@ export interface AdvanceDeclineData {
   total: number;
 }
 
+export interface IndexCloseEntry {
+  symbol: string;
+  label: string;
+  price: number;
+  changePct: number;
+}
+
 export interface PostMarketData {
   fetchedAt: number;
   gainers: MoverQuote[];
@@ -84,6 +91,7 @@ export interface PostMarketData {
   advanceDecline: AdvanceDeclineData | null;
   oiBuildup: OiBuildup;
   indexOi: IndexOiEntry[];
+  indexClose: IndexCloseEntry[];
   near52WeekHigh: Week52Entry[];
   near52WeekLow: Week52Entry[];
   corporateActions: CorporateAction[];
@@ -103,6 +111,7 @@ const EMPTY: PostMarketData = {
   advanceDecline: null,
   oiBuildup: { longBuildup: [], shortBuildup: [], shortCovering: [], longUnwinding: [] },
   indexOi: [],
+  indexClose: [],
   near52WeekHigh: [],
   near52WeekLow: [],
   corporateActions: [],

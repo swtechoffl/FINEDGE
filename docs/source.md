@@ -68,7 +68,7 @@ Frontend: `NewsItem.aiAnalysisSource` is `"ai"` or `"heuristic"` — the news dr
 |---|---|---|---|
 | GIFT Nifty (price, change, implied gap) | giftcitynifty.com (third-party aggregator, **not** an exchange feed) | Scrapes `schema.org`/JSON-LD `PropertyValue` fields from `/gift-nifty-dashboard/` | 5 min (`server/premarket.js`) |
 | India VIX | Yahoo Finance | `^INDIAVIX` | 5 min |
-| Gold / Silver / Crude (WTI) | Yahoo Finance | `GC=F`, `SI=F`, `CL=F` | 5 min |
+| Gold / Silver / Brent Oil | Yahoo Finance | `GC=F`, `SI=F`, `BZ=F` | 5 min |
 | USD/INR, GBP/INR | Yahoo Finance | `USDINR=X`, `GBPINR=X` | 5 min |
 | US markets (Dow, S&P 500, Nasdaq, Russell 2000) | Yahoo Finance | `^DJI`, `^GSPC`, `^IXIC`, `^RUT` | 5 min |
 | Europe (FTSE 100, CAC 40, DAX) | Yahoo Finance | `^FTSE`, `^FCHI`, `^GDAXI` | 5 min |

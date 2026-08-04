@@ -1,4 +1,10 @@
-import { fetchYahooQuote, fetchYahooDailyOHLC, mapWithConcurrency, YAHOO_BROWSER_UA } from "./yahoo.js";
+import {
+  fetchYahooQuote,
+  fetchYahooDailyOHLC,
+  fetchReliableChangePct,
+  mapWithConcurrency,
+  YAHOO_BROWSER_UA,
+} from "./yahoo.js";
 import { fetchNseJson } from "./nse.js";
 import { generateReportSummary } from "./groq.js";
 
@@ -7,12 +13,17 @@ const CONCURRENCY = 6;
 // universe, which only needs a coarse 15-min refresh) — poll more often.
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
+// Symbols where Yahoo's own meta.previousClose has been observed to go
+// stale — their changePct gets recomputed from the daily close series
+// instead (see fetchReliableChangePct in yahoo.js).
+const UNRELIABLE_PREV_CLOSE_SYMBOLS = new Set(["000001.SS"]);
+
 const SYMBOL_GROUPS = {
   domestic: [{ symbol: "^INDIAVIX", label: "India VIX" }],
   commodities: [
     { symbol: "GC=F", label: "Gold" },
     { symbol: "SI=F", label: "Silver" },
-    { symbol: "CL=F", label: "Crude Oil (WTI)" },
+    { symbol: "BZ=F", label: "Brent Oil" },
   ],
   currency: [
     { symbol: "USDINR=X", label: "USD/INR" },
@@ -298,6 +309,13 @@ async function refreshPremarket() {
   const [symbolResults, giftResult, fiiDiiResult, pivotsResult, bankPivotsResult, iposResult] = await Promise.all([
     mapWithConcurrency(allSymbols, CONCURRENCY, async (item) => {
       const quote = await fetchYahooQuote(item.symbol);
+      if (UNRELIABLE_PREV_CLOSE_SYMBOLS.has(item.symbol)) {
+        try {
+          quote.changePct = await fetchReliableChangePct(item.symbol, quote.price);
+        } catch {
+          // fall back to fetchYahooQuote's own changePct if this fails
+        }
+      }
       return { ...item, ...quote };
     }),
     fetchGiftNifty().catch((err) => ({ error: err.message })),

@@ -34,6 +34,34 @@ export async function fetchYahooQuote(yahooSymbol) {
   };
 }
 
+// Yahoo's own meta.previousClose/chartPreviousClose has been observed to go
+// stale for specific symbols (verified live for 000001.SS: it referenced a
+// close from two trading sessions back instead of one, silently producing a
+// wrong % change even though meta.regularMarketPrice itself stayed live and
+// accurate). This sidesteps that field entirely by recomputing the change
+// from the daily close series, using the exchange's own local calendar date
+// (not UTC "today") to correctly pick out the last complete prior session.
+export async function fetchReliableChangePct(yahooSymbol, currentPrice) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=10d&interval=1d`;
+  const res = await fetch(url, { headers: { "User-Agent": YAHOO_BROWSER_UA } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const result = data?.chart?.result?.[0];
+  if (!result) throw new Error(data?.chart?.error?.description || "no result from Yahoo Finance");
+
+  const tz = result.meta?.exchangeTimezoneName || result.meta?.timezone || "UTC";
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+  const ts = result.timestamp || [];
+  const closes = result.indicators?.quote?.[0]?.close || [];
+  const priorCloses = ts
+    .map((t, i) => ({ date: new Date(t * 1000).toLocaleDateString("en-CA", { timeZone: tz }), close: closes[i] ?? null }))
+    .filter((b) => b.close !== null && b.date < todayStr);
+  if (priorCloses.length === 0) throw new Error("no prior-session close available");
+
+  const prevClose = priorCloses[priorCloses.length - 1].close;
+  return +(((currentPrice - prevClose) / prevClose) * 100).toFixed(2);
+}
+
 // Daily OHLC bars — needed for pivot-point math, which requires the
 // previous *complete* session's high/low/close (not just the running
 // intraday meta.regularMarketDayHigh/Low that fetchYahooQuote exposes).

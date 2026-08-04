@@ -11,6 +11,7 @@ import type {
   MoverQuote,
   OiBuildupEntry,
   IndexOiEntry,
+  IndexCloseEntry,
   Week52Entry,
   MostActiveQuote,
   CorporateAction,
@@ -57,6 +58,23 @@ function BentoCard({
         {meta && <span className="text-[10px] text-subtle-foreground">{meta}</span>}
       </div>
       {children}
+    </div>
+  );
+}
+
+function IndexCloseCard({ item }: { item: IndexCloseEntry }) {
+  const up = item.changePct >= 0;
+  return (
+    <div className="rounded-xl bg-surface px-3 py-2.5">
+      <div className="text-xs font-semibold text-subtle-foreground">{item.label}</div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className="text-lg font-extrabold text-foreground">{item.price.toLocaleString("en-IN")}</span>
+        <span className={cn("flex items-center gap-0.5 text-xs font-bold", up ? "text-bullish" : "text-bearish")}>
+          {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          {up ? "+" : ""}
+          {item.changePct}%
+        </span>
+      </div>
     </div>
   );
 }
@@ -260,6 +278,16 @@ export function PostMarketPage() {
               )}
 
               <div className="grid grid-cols-4 gap-3">
+                {data.indexClose.length > 0 && (
+                  <BentoCard title="Index Closing Levels" className="col-span-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      {data.indexClose.map((item) => (
+                        <IndexCloseCard key={item.symbol} item={item} />
+                      ))}
+                    </div>
+                  </BentoCard>
+                )}
+
                 {data.indexOi.length > 0 && (
                   <BentoCard title="Index Futures — OI Change" className="col-span-4">
                     <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">

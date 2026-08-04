@@ -280,6 +280,10 @@ function describeMoversForAi({ gainers, losers, mostActive, oiBuildup, indexOi }
   return lines.join("\n");
 }
 
+// The index quotes prices.js already polls (Nifty/Sensex/Bank Nifty) —
+// surfaced on the Post Market report as the day's index closing levels.
+const CLOSING_INDEX_SYMBOLS = ["^NSEI", "^NSEBANK", "^BSESN"];
+
 let cache = {
   fetchedAt: 0,
   gainers: [],
@@ -289,6 +293,7 @@ let cache = {
   advanceDecline: null,
   oiBuildup: EMPTY_OI_BUILDUP,
   indexOi: [],
+  indexClose: [],
   near52WeekHigh: [],
   near52WeekLow: [],
   corporateActions: [],
@@ -303,7 +308,11 @@ async function refreshMovers(force = false) {
   // cache synchronously via getCachedPrice — warm/force it first so a forced
   // refresh here actually yields fresh 52-week/OI-buildup price fields too,
   // not just whatever prices.js's own independent poller last happened to hold.
-  await getPrices({ force });
+  const priceCache = await getPrices({ force });
+  const indexClose = CLOSING_INDEX_SYMBOLS.map((symbol) => {
+    const idx = priceCache.indices[symbol];
+    return idx ? { symbol, label: idx.label, price: idx.price, changePct: idx.changePct } : null;
+  }).filter((entry) => entry !== null);
 
   const [glResult, oiResult, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
     fetchGainersLosers().catch((err) => ({ error: err.message })),
@@ -342,6 +351,7 @@ async function refreshMovers(force = false) {
     advanceDecline,
     oiBuildup,
     indexOi,
+    indexClose,
     near52WeekHigh: week52.near52WeekHigh,
     near52WeekLow: week52.near52WeekLow,
     corporateActions: Array.isArray(caResult?.curated) ? caResult.curated : [],

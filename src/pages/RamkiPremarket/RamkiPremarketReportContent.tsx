@@ -43,7 +43,7 @@ const LABEL_EMOJI: Record<string, string> = {
   "India VIX": "🌡️",
   Gold: "🥇",
   Silver: "🥈",
-  "Crude Oil (WTI)": "🛢️",
+  "Brent Oil": "🛢️",
   "USD/INR": "💵",
   "GBP/INR": "💷",
 };
