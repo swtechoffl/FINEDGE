@@ -161,3 +161,41 @@
   border-radius: inherit;
   opacity: 0 !important;
 }
+
+/* --- Resize handles (NodeResizer) --- */
+
+.flowchart-resize-handle {
+  width: 9px !important;
+  height: 9px !important;
+  background: var(--bg-surface) !important;
+  border: 2px solid var(--accent) !important;
+  border-radius: 2px !important;
+}
+
+/* --- Edge "insert shape" button --- */
+
+.flowchart-edge-add {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: var(--subtle-foreground);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  opacity: 0.55;
+  cursor: pointer;
+  pointer-events: all;
+  transition: opacity 120ms ease, transform 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.flowchart-edge-add:hover,
+.flowchart-edge-add--visible {
+  color: var(--accent);
+  border-color: var(--accent);
+  opacity: 1;
+  transform: scale(1.1);
+}

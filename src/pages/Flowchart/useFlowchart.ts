@@ -188,6 +188,33 @@ export function useFlowchart(boardId: string) {
     [setNodes],
   );
 
+  // Splits an existing edge in two through a freshly created node — used by
+  // the "+" button rendered at an edge's midpoint (see FlowchartEdges.tsx).
+  // The new edges inherit the original edge's style/type/marker so the
+  // connector look doesn't change, just its route.
+  const insertNodeOnEdge = useCallback(
+    (
+      edgeId: string,
+      position: { x: number; y: number },
+      shape: ShapeKind,
+      color: string,
+      label: string,
+      fontSize: number,
+      bold: boolean,
+    ) => {
+      const edge = edges.find((e) => e.id === edgeId);
+      if (!edge) return null;
+      const nodeId = makeId("node");
+      const newNode: FlowNode = { id: nodeId, type: "shape", position, data: { label, shape, color, fontSize, bold } };
+      const edgeToNew: Edge = { ...edge, id: makeId("edge"), target: nodeId, targetHandle: undefined };
+      const edgeFromNew: Edge = { ...edge, id: makeId("edge"), source: nodeId, sourceHandle: undefined };
+      setNodes((nds) => nds.concat(newNode));
+      setEdges((eds) => eds.filter((e) => e.id !== edgeId).concat(edgeToNew, edgeFromNew));
+      return nodeId;
+    },
+    [edges, setNodes, setEdges],
+  );
+
   // Pastes a previously copied set of nodes (+ any edges between them) as
   // fresh copies, offset so repeated pastes cascade instead of stacking.
   const pasteNodes = useCallback(
@@ -252,6 +279,7 @@ export function useFlowchart(boardId: string) {
     onEdgesChange,
     onConnect,
     addShape,
+    insertNodeOnEdge,
     pasteNodes,
     selectNode,
     updateSelected,

@@ -12,6 +12,7 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { createShapeEdgeTypes, type InsertOnEdgeHandler } from "./FlowchartEdges";
 import {
   Bold,
   Check,
@@ -85,6 +86,7 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
     onEdgesChange,
     onConnect,
     addShape,
+    insertNodeOnEdge,
     pasteNodes,
     selectNode,
     updateSelected,
@@ -104,6 +106,10 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
   const [activeFontSize, setActiveFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   const [activeBold, setActiveBold] = useState(true);
   const [activeLineStyle, setActiveLineStyle] = useState<LineStyle>(DEFAULT_LINE_STYLE);
+  // Whatever shape the user picked most recently from the toolbar — reused
+  // when they click the "+" that appears on a connector's midpoint, so that
+  // action drops in the same kind of shape rather than always a rectangle.
+  const [lastShape, setLastShape] = useState<ShapeKind>(SHAPE_BUTTONS[0].shape);
   // Cascades successive additions like Miro/FigJam so new shapes don't land
   // stacked exactly on top of the last one.
   const addCountRef = useRef(0);
@@ -201,10 +207,32 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
       const position = { x: center.x + cascade, y: center.y + cascade };
       const label = shape === "text" ? "Text" : SHAPE_LABELS[shape];
       const id = addShape(shape, position, activeColor, label, activeFontSize, activeBold);
+      setLastShape(shape);
       selectNode(id);
     },
     [rfInstance, addShape, selectNode, activeColor, activeFontSize, activeBold],
   );
+
+  // Fired by the "+" button rendered at a connector's midpoint (see
+  // FlowchartEdges.tsx) — drops in whatever shape was last used and splits
+  // the edge in two through it.
+  const handleInsertOnEdge = useCallback(
+    (edgeId: string, x: number, y: number) => {
+      const label = lastShape === "text" ? "Text" : SHAPE_LABELS[lastShape];
+      const id = insertNodeOnEdge(edgeId, { x, y }, lastShape, activeColor, label, activeFontSize, activeBold);
+      if (id) selectNode(id);
+    },
+    [lastShape, insertNodeOnEdge, activeColor, activeFontSize, activeBold, selectNode],
+  );
+
+  // edgeTypes must stay referentially stable (recreating it forces xyflow to
+  // remount every edge) — the ref indirection lets the edge components
+  // always call the latest handleInsertOnEdge without that.
+  const insertOnEdgeRef = useRef<InsertOnEdgeHandler>(() => {});
+  useEffect(() => {
+    insertOnEdgeRef.current = handleInsertOnEdge;
+  }, [handleInsertOnEdge]);
+  const edgeTypes = useMemo(() => createShapeEdgeTypes(insertOnEdgeRef), []);
 
   const handleColorPick = useCallback(
     (color: string) => {
@@ -369,6 +397,7 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
         onConnect={onConnect}
         onInit={setRfInstance}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         deleteKeyCode={["Backspace", "Delete"]}
         fitView
         colorMode={theme}
@@ -396,9 +425,9 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
           {SHAPE_BUTTONS.map(({ shape, icon: Icon }) => (
             <Button
               key={shape}
-              variant="outline"
+              variant={shape === lastShape ? "accentOutline" : "outline"}
               size="icon"
-              title={`Add ${SHAPE_LABELS[shape]}`}
+              title={`Add ${SHAPE_LABELS[shape]}${shape === lastShape ? " (used for the connector \"+\")" : ""}`}
               onClick={() => handleAddShape(shape)}
             >
               <Icon size={16} />
