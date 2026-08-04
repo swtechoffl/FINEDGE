@@ -8,6 +8,8 @@ import { useReportBranding } from "./useReportBranding";
 import { ReportBrandingEditor } from "./ReportBrandingEditor";
 import { PremarketReportContent } from "./PremarketReportContent";
 import { DisclaimerReportPage } from "./DisclaimerReportPage";
+import { useDisclaimerSettings } from "../Disclosure/useDisclaimerSettings";
+import { DisclaimerSettingsEditor } from "../Disclosure/DisclaimerSettingsEditor";
 import { useNewsFeed } from "../MarketBuzz/useNewsFeed";
 import { usePostMarket } from "../PostMarket/usePostMarket";
 import { relativeTime } from "../../data/mock";
@@ -21,6 +23,7 @@ export function PremarketPage() {
   const { data: moversData, refreshing: moversRefreshing, refresh: refreshMovers } = usePostMarket();
   const { items: newsItems } = useNewsFeed();
   const { branding, setName, setLogoDataUrl, clear } = useReportBranding();
+  const disclaimerSettings = useDisclaimerSettings();
   const reportRef = useRef<HTMLDivElement>(null);
   const disclaimerRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -120,6 +123,7 @@ export function PremarketPage() {
               setLogoDataUrl={setLogoDataUrl}
               clear={clear}
             />
+            <DisclaimerSettingsEditor {...disclaimerSettings} />
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting || !hasAnyData}>
               {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
               <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export PDF"}</span>
@@ -181,7 +185,7 @@ export function PremarketPage() {
             </Card>
 
             <Card className="overflow-hidden">
-              <DisclaimerReportPage ref={disclaimerRef} />
+              <DisclaimerReportPage ref={disclaimerRef} settings={disclaimerSettings.settings} />
             </Card>
           </div>
         )}

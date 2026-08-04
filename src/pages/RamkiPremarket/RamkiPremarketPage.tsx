@@ -7,6 +7,8 @@ import { usePremarket } from "../Premarket/usePremarket";
 import { useReportBranding } from "../Premarket/useReportBranding";
 import { ReportBrandingEditor } from "../Premarket/ReportBrandingEditor";
 import { DisclaimerReportPage } from "../Premarket/DisclaimerReportPage";
+import { useDisclaimerSettings } from "../Disclosure/useDisclaimerSettings";
+import { DisclaimerSettingsEditor } from "../Disclosure/DisclaimerSettingsEditor";
 import { usePostMarket } from "../PostMarket/usePostMarket";
 import { relativeTime } from "../../data/mock";
 import { exportNodesToPdf } from "../../lib/exportPdf";
@@ -17,6 +19,7 @@ export function RamkiPremarketPage() {
   const { data, loading, refreshing, refresh } = usePremarket();
   const { data: moversData, refreshing: moversRefreshing, refresh: refreshMovers } = usePostMarket();
   const { branding, setName, setLogoDataUrl, clear } = useReportBranding();
+  const disclaimerSettings = useDisclaimerSettings();
   const { items: manualNews, addNews, removeNews } = useManualNews();
   const reportRef = useRef<HTMLDivElement>(null);
   const disclaimerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +78,7 @@ export function RamkiPremarketPage() {
               setLogoDataUrl={setLogoDataUrl}
               clear={clear}
             />
+            <DisclaimerSettingsEditor {...disclaimerSettings} />
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting || !hasAnyData}>
               {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
               <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export PDF"}</span>
@@ -133,7 +137,7 @@ export function RamkiPremarketPage() {
             </Card>
 
             <Card className="overflow-hidden">
-              <DisclaimerReportPage ref={disclaimerRef} />
+              <DisclaimerReportPage ref={disclaimerRef} settings={disclaimerSettings.settings} />
             </Card>
           </div>
         )}

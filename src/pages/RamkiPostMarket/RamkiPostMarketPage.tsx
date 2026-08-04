@@ -8,6 +8,8 @@ import { cn } from "../../lib/utils";
 import { relativeTime } from "../../data/mock";
 import { exportNodesToPdf } from "../../lib/exportPdf";
 import { DisclaimerReportPage } from "../Premarket/DisclaimerReportPage";
+import { useDisclaimerSettings } from "../Disclosure/useDisclaimerSettings";
+import { DisclaimerSettingsEditor } from "../Disclosure/DisclaimerSettingsEditor";
 import { usePostMarket } from "../PostMarket/usePostMarket";
 import type {
   MoverQuote,
@@ -229,6 +231,7 @@ function isTomorrow(dateStr: string, tomorrow: Date) {
 
 export function RamkiPostMarketPage() {
   const { data, loading, refreshing, refresh } = usePostMarket();
+  const disclaimerSettings = useDisclaimerSettings();
   const [commentary, setCommentary] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportMode, setExportMode] = useState(false);
@@ -286,6 +289,7 @@ export function RamkiPostMarketPage() {
             >
               <RefreshCw size={14} className={refreshing ? "animate-spin" : undefined} />
             </Button>
+            <DisclaimerSettingsEditor {...disclaimerSettings} />
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting || !hasAnyData}>
               {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
               <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export PDF"}</span>
@@ -493,7 +497,7 @@ export function RamkiPostMarketPage() {
             </Card>
 
             <Card className="overflow-hidden">
-              <DisclaimerReportPage ref={disclaimerRef} />
+              <DisclaimerReportPage ref={disclaimerRef} settings={disclaimerSettings.settings} />
             </Card>
           </div>
         )}

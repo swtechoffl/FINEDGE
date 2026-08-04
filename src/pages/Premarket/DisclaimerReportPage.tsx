@@ -1,12 +1,15 @@
 import { forwardRef } from "react";
 import { ShieldCheck, Mail, Phone, MapPin } from "lucide-react";
-import { ANALYST, CONTACT, CLOSING_NOTE, DISCLAIMER_PARAGRAPHS } from "../Disclosure/disclaimerContent";
+import type { DisclaimerSettings } from "../Disclosure/useDisclaimerSettings";
 
 // Page 2 of the exported Premarket Report PDF — same content as the
 // standalone Disclosure & Disclaimer page, restyled to match the report's
 // letterhead so it reads as a continuation of the same document rather than
-// a bolted-on page.
-export const DisclaimerReportPage = forwardRef<HTMLDivElement>((_props, ref) => {
+// a bolted-on page. Content comes from useDisclaimerSettings (editable via
+// DisclaimerSettingsEditor) rather than the static defaults directly, so an
+// edit made from any report shows up on every report's disclaimer page.
+export const DisclaimerReportPage = forwardRef<HTMLDivElement, { settings: DisclaimerSettings }>(
+  ({ settings }, ref) => {
   return (
     <div ref={ref} className="bg-surface p-6">
       <div className="mb-5 flex items-center justify-between gap-3 border-b border-border pb-4">
@@ -23,14 +26,14 @@ export const DisclaimerReportPage = forwardRef<HTMLDivElement>((_props, ref) => 
           <ShieldCheck size={18} className="text-accent" />
         </div>
         <div>
-          <div className="text-sm font-bold text-foreground">{ANALYST.name}</div>
-          <div className="text-xs text-muted-foreground">{ANALYST.registration}</div>
-          <div className="text-xs text-muted-foreground">{ANALYST.title}</div>
+          <div className="text-sm font-bold text-foreground">{settings.analystName}</div>
+          <div className="text-xs text-muted-foreground">{settings.registration}</div>
+          <div className="text-xs text-muted-foreground">{settings.title}</div>
         </div>
       </div>
 
       <div className="flex flex-col gap-3">
-        {DISCLAIMER_PARAGRAPHS.map((p, i) => (
+        {settings.paragraphs.map((p, i) => (
           <p key={i} className="text-[13px] leading-relaxed text-muted-foreground">
             {p}
           </p>
@@ -42,23 +45,23 @@ export const DisclaimerReportPage = forwardRef<HTMLDivElement>((_props, ref) => 
           For further queries
         </div>
         <div className="text-sm font-semibold text-foreground">
-          {ANALYST.name} · {ANALYST.regLine}
+          {settings.analystName} · {settings.regLine}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <Mail size={13} className="shrink-0" /> {CONTACT.email}
+            <Mail size={13} className="shrink-0" /> {settings.email}
           </span>
           <span className="flex items-center gap-1.5">
-            <Phone size={13} className="shrink-0" /> {CONTACT.phone}
+            <Phone size={13} className="shrink-0" /> {settings.phone}
           </span>
         </div>
         <div className="flex items-start gap-1.5 text-sm text-muted-foreground">
           <MapPin size={13} className="mt-0.5 shrink-0" />
-          <span>{CONTACT.address}</span>
+          <span>{settings.address}</span>
         </div>
       </div>
 
-      <p className="mt-4 text-xs italic leading-relaxed text-subtle-foreground">{CLOSING_NOTE}</p>
+      <p className="mt-4 text-xs italic leading-relaxed text-subtle-foreground">{settings.closingNote}</p>
     </div>
   );
 });

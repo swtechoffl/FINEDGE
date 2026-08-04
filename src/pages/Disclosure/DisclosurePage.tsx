@@ -1,12 +1,16 @@
 import { ShieldCheck, Mail, Phone, MapPin } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
-import { ANALYST, CONTACT, CLOSING_NOTE, DISCLAIMER_PARAGRAPHS } from "./disclaimerContent";
+import { useDisclaimerSettings } from "./useDisclaimerSettings";
+import { DisclaimerSettingsEditor } from "./DisclaimerSettingsEditor";
 
 export function DisclosurePage() {
+  const disclaimerSettings = useDisclaimerSettings();
+  const { settings } = disclaimerSettings;
+
   return (
     <div className="flex min-h-screen flex-col">
-      <Header title="disclosure & disclaimer" />
+      <Header title="disclosure & disclaimer" extra={<DisclaimerSettingsEditor {...disclaimerSettings} />} />
 
       <div className="mx-auto w-full max-w-3xl px-6 py-6">
         <Card className="p-6">
@@ -15,14 +19,14 @@ export function DisclosurePage() {
               <ShieldCheck size={20} className="text-accent" />
             </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight text-foreground">{ANALYST.name}</h2>
-              <p className="text-xs text-muted-foreground">{ANALYST.registration}</p>
-              <p className="text-xs text-muted-foreground">{ANALYST.title}</p>
+              <h2 className="text-base font-bold tracking-tight text-foreground">{settings.analystName}</h2>
+              <p className="text-xs text-muted-foreground">{settings.registration}</p>
+              <p className="text-xs text-muted-foreground">{settings.title}</p>
             </div>
           </div>
 
           <div className="flex flex-col gap-4">
-            {DISCLAIMER_PARAGRAPHS.map((p, i) => (
+            {settings.paragraphs.map((p, i) => (
               <p key={i} className="text-sm leading-relaxed text-muted-foreground">
                 {p}
               </p>
@@ -34,23 +38,23 @@ export function DisclosurePage() {
               For further queries
             </div>
             <div className="text-sm font-semibold text-foreground">
-              {ANALYST.name} · {ANALYST.regLine}
+              {settings.analystName} · {settings.regLine}
             </div>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <Mail size={14} className="shrink-0" /> {CONTACT.email}
+                <Mail size={14} className="shrink-0" /> {settings.email}
               </span>
               <span className="flex items-center gap-1.5">
-                <Phone size={14} className="shrink-0" /> {CONTACT.phone}
+                <Phone size={14} className="shrink-0" /> {settings.phone}
               </span>
             </div>
             <div className="flex items-start gap-1.5 text-sm text-muted-foreground">
               <MapPin size={14} className="mt-0.5 shrink-0" />
-              <span>{CONTACT.address}</span>
+              <span>{settings.address}</span>
             </div>
           </div>
 
-          <p className="mt-5 text-xs italic leading-relaxed text-subtle-foreground">{CLOSING_NOTE}</p>
+          <p className="mt-5 text-xs italic leading-relaxed text-subtle-foreground">{settings.closingNote}</p>
         </Card>
       </div>
     </div>
