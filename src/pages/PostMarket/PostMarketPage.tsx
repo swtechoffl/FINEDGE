@@ -283,7 +283,10 @@ export function PostMarketPage() {
     try {
       const dateStr = new Date().toISOString().slice(0, 10);
       await exportReportToPdf(
-        [reportRef.current, disclaimerRef.current],
+        [
+          { node: reportRef.current, mode: "paginate" },
+          { node: disclaimerRef.current, mode: "fit" },
+        ],
         `stoqtrade-postmarket-report-${dateStr}.pdf`,
       );
     } catch {

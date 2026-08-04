@@ -48,7 +48,10 @@ export function RamkiPremarketPage() {
     try {
       const dateStr = new Date().toISOString().slice(0, 10);
       await exportReportToPdf(
-        [reportRef.current, disclaimerRef.current],
+        [
+          { node: reportRef.current, mode: "paginate" },
+          { node: disclaimerRef.current, mode: "fit" },
+        ],
         `stoqtrade-ramki-premarket-report-${dateStr}.pdf`,
       );
     } catch {

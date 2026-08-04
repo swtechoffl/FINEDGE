@@ -41,6 +41,10 @@ export async function exportNodeToPdf(node: HTMLElement, filename: string, toBlo
 // Standard A4 page size in PDF points (1/72in) — 210mm x 297mm.
 const A4_WIDTH_PT = 595.28;
 const A4_HEIGHT_PT = 841.89;
+// ~10mm margin on every side, so content never bleeds to the page edge.
+const PAGE_MARGIN_PT = 28;
+const USABLE_WIDTH_PT = A4_WIDTH_PT - PAGE_MARGIN_PT * 2;
+const USABLE_HEIGHT_PT = A4_HEIGHT_PT - PAGE_MARGIN_PT * 2;
 
 // Y-coordinates (CSS px, relative to `root`'s own top edge) where it's
 // visually safe to start a new page — the top edge of any direct child of
@@ -85,11 +89,61 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+export interface ReportSection {
+  node: HTMLElement;
+  // "paginate" (default) splits tall content across as many A4 pages as it
+  // needs, snapping breaks to card/section edges. "fit" forces everything
+  // onto exactly one page, scaled down if needed — for shorter, linear
+  // content (like the disclaimer) that reads better as a single page than
+  // spread thin across two or three.
+  mode?: "paginate" | "fit";
+}
+
+async function rasterizeNode(
+  node: HTMLElement,
+  toBlob: typeof import("html-to-image")["toBlob"],
+  backgroundColor: string,
+  pixelRatio: number,
+) {
+  const pngBlob = await toBlob(node, { pixelRatio, cacheBust: true, backgroundColor });
+  if (!pngBlob) throw new Error("Could not rasterize a report page");
+  const url = URL.createObjectURL(pngBlob);
+  try {
+    return await loadImage(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function cropToCanvas(
+  source: HTMLImageElement,
+  sourceYPx: number,
+  sourceHeightPx: number,
+  destWidthPx: number,
+  destHeightPx: number,
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = destWidthPx;
+  canvas.height = destHeightPx;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D context unavailable");
+  ctx.drawImage(source, 0, sourceYPx, source.width, sourceHeightPx, 0, 0, destWidthPx, destHeightPx);
+  return canvas;
+}
+
+async function canvasToPdfImage(canvas: HTMLCanvasElement, pdfDoc: import("pdf-lib").PDFDocument) {
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Could not encode a page image"))), "image/png"),
+  );
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  return pdfDoc.embedPng(bytes);
+}
+
 // Same idea as exportNodesToPdf, but instead of one (potentially very tall,
-// non-standard-size) PDF page per node, each node is sliced into as many
-// standard A4 pages as its content needs — for reports meant to be printed
-// or read like a real document rather than a single long screenshot.
-export async function exportReportToPdf(nodes: HTMLElement[], filename: string) {
+// non-standard-size) PDF page per node, each section is laid out on proper,
+// margined A4 pages — for reports meant to be printed or read like a real
+// document rather than a single long screenshot.
+export async function exportReportToPdf(sections: ReportSection[], filename: string) {
   const [{ toBlob }, { PDFDocument }] = await Promise.all([import("html-to-image"), import("pdf-lib")]);
 
   const backgroundColor =
@@ -98,51 +152,53 @@ export async function exportReportToPdf(nodes: HTMLElement[], filename: string) 
 
   const pdfDoc = await PDFDocument.create();
 
-  for (const node of nodes) {
-    const pngBlob = await toBlob(node, { pixelRatio, cacheBust: true, backgroundColor });
-    if (!pngBlob) throw new Error("Could not rasterize a report page");
-    const fullImageUrl = URL.createObjectURL(pngBlob);
-    let fullImage: HTMLImageElement;
-    try {
-      fullImage = await loadImage(fullImageUrl);
-    } finally {
-      URL.revokeObjectURL(fullImageUrl);
+  for (const { node, mode = "paginate" } of sections) {
+    const fullImage = await rasterizeNode(node, toBlob, backgroundColor, pixelRatio);
+    const contentRect = node.getBoundingClientRect();
+
+    if (mode === "fit") {
+      // Scale to fit within one page's usable area on whichever axis is
+      // more constraining, then center it — never crops or drops content.
+      const scale = Math.min(USABLE_WIDTH_PT / contentRect.width, USABLE_HEIGHT_PT / contentRect.height);
+      const drawWidth = contentRect.width * scale;
+      const drawHeight = contentRect.height * scale;
+      const canvas = cropToCanvas(fullImage, 0, fullImage.height, fullImage.width, fullImage.height);
+      const image = await canvasToPdfImage(canvas, pdfDoc);
+      const page = pdfDoc.addPage([A4_WIDTH_PT, A4_HEIGHT_PT]);
+      page.drawImage(image, {
+        x: (A4_WIDTH_PT - drawWidth) / 2,
+        y: A4_HEIGHT_PT - PAGE_MARGIN_PT - drawHeight,
+        width: drawWidth,
+        height: drawHeight,
+      });
+      continue;
     }
 
-    const contentRect = node.getBoundingClientRect();
     const safeBreaksPx = findSafeBreaks(node);
-    const pageHeightPx = A4_HEIGHT_PT * (contentRect.width / A4_WIDTH_PT);
+    const pageHeightPx = USABLE_HEIGHT_PT * (contentRect.width / USABLE_WIDTH_PT);
     const slices = paginate(safeBreaksPx, contentRect.height, pageHeightPx);
 
     for (const [startPx, endPx] of slices) {
       const sliceHeightPx = endPx - startPx;
       if (sliceHeightPx <= 0.5) continue;
 
-      const canvas = document.createElement("canvas");
-      canvas.width = fullImage.width;
-      canvas.height = Math.round(sliceHeightPx * pixelRatio);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas 2D context unavailable");
-      ctx.drawImage(
+      const canvas = cropToCanvas(
         fullImage,
-        0,
         startPx * pixelRatio,
-        fullImage.width,
         sliceHeightPx * pixelRatio,
-        0,
-        0,
-        canvas.width,
-        canvas.height,
+        fullImage.width,
+        Math.round(sliceHeightPx * pixelRatio),
       );
-      const sliceBlob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Could not crop a page slice"))), "image/png"),
-      );
-      const sliceBytes = new Uint8Array(await sliceBlob.arrayBuffer());
-      const sliceImage = await pdfDoc.embedPng(sliceBytes);
+      const sliceImage = await canvasToPdfImage(canvas, pdfDoc);
 
-      const drawHeight = A4_WIDTH_PT * (canvas.height / canvas.width);
+      const drawHeight = USABLE_WIDTH_PT * (canvas.height / canvas.width);
       const page = pdfDoc.addPage([A4_WIDTH_PT, A4_HEIGHT_PT]);
-      page.drawImage(sliceImage, { x: 0, y: A4_HEIGHT_PT - drawHeight, width: A4_WIDTH_PT, height: drawHeight });
+      page.drawImage(sliceImage, {
+        x: PAGE_MARGIN_PT,
+        y: A4_HEIGHT_PT - PAGE_MARGIN_PT - drawHeight,
+        width: USABLE_WIDTH_PT,
+        height: drawHeight,
+      });
     }
   }
 

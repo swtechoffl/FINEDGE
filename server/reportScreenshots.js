@@ -14,9 +14,13 @@ export const REPORT_CAPTURE_CONFIG = {
 
 // Standard A4 page size in PDF points (1/72in) — 210mm x 297mm. Mirrors the
 // same constants/algorithm src/lib/exportPdf.ts uses client-side for the
-// interactive "Export PDF" button, so both paths paginate identically.
+// interactive "Export PDF" button, so both paths lay out identically.
 const A4_WIDTH_PT = 595.28;
 const A4_HEIGHT_PT = 841.89;
+// ~10mm margin on every side, so content never bleeds to the page edge.
+const PAGE_MARGIN_PT = 28;
+const USABLE_WIDTH_PT = A4_WIDTH_PT - PAGE_MARGIN_PT * 2;
+const USABLE_HEIGHT_PT = A4_HEIGHT_PT - PAGE_MARGIN_PT * 2;
 
 // Walks down the content in target increments of `pageHeight`, snapping
 // each cut to the latest safe break (a card/section edge) at or before that
@@ -36,14 +40,8 @@ function paginate(safeBreaks, contentHeight, pageHeight) {
   return slices;
 }
 
-// Measures `selector`'s own bounding box plus every safe page-break
-// candidate inside it (the top edge of each of its direct children, and of
-// each direct child of any CSS grid nested inside it — i.e. every bento
-// card), then screenshots it as a sequence of A4-page-sized clips (snapped
-// to those safe breaks where possible) and adds each as its own page to
-// `pdfDoc`.
-async function addPaginatedNodeToPdf(page, pdfDoc, selector) {
-  const layout = await page.evaluate((sel) => {
+async function measureLayout(page, selector) {
+  return page.evaluate((sel) => {
     const root = document.querySelector(sel);
     if (!root) return null;
     const rect = root.getBoundingClientRect();
@@ -55,9 +53,19 @@ async function addPaginatedNodeToPdf(page, pdfDoc, selector) {
       .sort((a, b) => a - b);
     return { x: rect.left, y: rect.top, width: rect.width, height: rect.height, safeBreaks };
   }, selector);
+}
+
+// Measures `selector`'s own bounding box plus every safe page-break
+// candidate inside it (the top edge of each of its direct children, and of
+// each direct child of any CSS grid nested inside it — i.e. every bento
+// card), then screenshots it as a sequence of A4-page-sized clips (snapped
+// to those safe breaks where possible, each drawn within the page margin)
+// and adds each as its own page to `pdfDoc`.
+async function addPaginatedNodeToPdf(page, pdfDoc, selector) {
+  const layout = await measureLayout(page, selector);
   if (!layout) return;
 
-  const pageHeightPx = A4_HEIGHT_PT * (layout.width / A4_WIDTH_PT);
+  const pageHeightPx = USABLE_HEIGHT_PT * (layout.width / USABLE_WIDTH_PT);
   const slices = paginate(layout.safeBreaks, layout.height, pageHeightPx);
 
   for (const [startPx, endPx] of slices) {
@@ -68,16 +76,49 @@ async function addPaginatedNodeToPdf(page, pdfDoc, selector) {
       clip: { x: layout.x, y: layout.y + startPx, width: layout.width, height: sliceHeightPx },
     });
     const image = await pdfDoc.embedPng(clipBuffer);
-    const drawHeight = A4_WIDTH_PT * (sliceHeightPx / layout.width);
+    const drawHeight = USABLE_WIDTH_PT * (sliceHeightPx / layout.width);
     const pdfPage = pdfDoc.addPage([A4_WIDTH_PT, A4_HEIGHT_PT]);
-    pdfPage.drawImage(image, { x: 0, y: A4_HEIGHT_PT - drawHeight, width: A4_WIDTH_PT, height: drawHeight });
+    pdfPage.drawImage(image, {
+      x: PAGE_MARGIN_PT,
+      y: A4_HEIGHT_PT - PAGE_MARGIN_PT - drawHeight,
+      width: USABLE_WIDTH_PT,
+      height: drawHeight,
+    });
   }
 }
 
+// Like addPaginatedNodeToPdf, but forces everything onto exactly one page —
+// scaled down (never cropped) to fit the usable area on whichever axis is
+// more constraining, then centered. Used for the disclaimer: shorter,
+// linear content that reads better as a single page than spread thin
+// across two or three.
+async function addFitToOnePagePdf(page, pdfDoc, selector) {
+  const layout = await measureLayout(page, selector);
+  if (!layout) return;
+
+  const clipBuffer = await page.screenshot({
+    type: "png",
+    clip: { x: layout.x, y: layout.y, width: layout.width, height: layout.height },
+  });
+  const image = await pdfDoc.embedPng(clipBuffer);
+
+  const scale = Math.min(USABLE_WIDTH_PT / layout.width, USABLE_HEIGHT_PT / layout.height);
+  const drawWidth = layout.width * scale;
+  const drawHeight = layout.height * scale;
+  const pdfPage = pdfDoc.addPage([A4_WIDTH_PT, A4_HEIGHT_PT]);
+  pdfPage.drawImage(image, {
+    x: (A4_WIDTH_PT - drawWidth) / 2,
+    y: A4_HEIGHT_PT - PAGE_MARGIN_PT - drawHeight,
+    width: drawWidth,
+    height: drawHeight,
+  });
+}
+
 // Renders the full report page in a headless browser, force-refreshed and
-// switched into export mode via ?export=1, and paginates the report card
-// and its disclaimer page across as many standard A4 pages as each needs
-// (same algorithm as the interactive "Export PDF" button).
+// switched into export mode via ?export=1, and lays out the report card
+// (paginated across as many standard A4 pages as it needs) and its
+// disclaimer page (forced onto a single page) — same algorithm as the
+// interactive "Export PDF" button.
 export async function captureReportPdf(origin, reportKey) {
   const config = REPORT_CAPTURE_CONFIG[reportKey];
   if (!config) throw new Error(`Unknown report "${reportKey}"`);
@@ -107,7 +148,7 @@ export async function captureReportPdf(origin, reportKey) {
     await addPaginatedNodeToPdf(page, pdfDoc, '[data-export-node="report"]');
 
     const hasDisclaimer = await page.$('[data-export-node="disclaimer"]');
-    if (hasDisclaimer) await addPaginatedNodeToPdf(page, pdfDoc, '[data-export-node="disclaimer"]');
+    if (hasDisclaimer) await addFitToOnePagePdf(page, pdfDoc, '[data-export-node="disclaimer"]');
 
     const pdfBytes = await pdfDoc.save();
     return { buffer: Buffer.from(pdfBytes), filenamePrefix: config.filenamePrefix, title: config.title };
