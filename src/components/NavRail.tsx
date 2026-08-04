@@ -1,6 +1,5 @@
 import { NavLink } from "react-router-dom";
 import { Newspaper, Sunrise, Sunset, CloudSun, CloudMoon, CalendarClock, Layers, Images, Workflow, LogOut } from "lucide-react";
-import { BrandMark } from "./BrandMark";
 import { useSocialLinksReadOnly, socialHref, socialDisplay, SOCIAL_META, type SocialLinks } from "../pages/Premarket/useSocialLinks";
 import { cn } from "../lib/utils";
 
@@ -55,9 +54,7 @@ export function NavRail() {
     <nav className="group fixed left-0 top-0 z-40 hidden h-full w-16 flex-col overflow-hidden border-r border-border bg-surface shadow-sm transition-[width] duration-300 ease-[var(--ease-out-expo)] hover:w-72 lg:flex">
       {/* Logo */}
       <NavLink to="/" className="focus-ring flex shrink-0 items-center gap-3 px-4 py-5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent-hover text-accent-foreground shadow-sm">
-          <BrandMark className="h-[18px] w-[18px]" />
-        </div>
+        <img src="/logo.png" alt="Finedge" className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-sm" />
         <div className="hidden whitespace-nowrap group-hover:block">
           <img src="/logo.png" alt="Finedge" className="h-6 w-auto" />
           <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-subtle-foreground">
