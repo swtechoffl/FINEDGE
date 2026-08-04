@@ -118,8 +118,8 @@ export function PremarketPage() {
       const dateStr = new Date().toISOString().slice(0, 10);
       await exportReportToPdf(
         [
-          { node: reportRef.current, mode: "paginate" },
-          { node: disclaimerRef.current, mode: "fit" },
+          { node: reportRef.current },
+          { node: disclaimerRef.current },
         ],
         `stoqtrade-premarket-report-${dateStr}.pdf`,
       );

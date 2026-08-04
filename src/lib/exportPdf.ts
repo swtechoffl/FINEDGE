@@ -46,17 +46,32 @@ const PAGE_MARGIN_PT = 28;
 const USABLE_WIDTH_PT = A4_WIDTH_PT - PAGE_MARGIN_PT * 2;
 const USABLE_HEIGHT_PT = A4_HEIGHT_PT - PAGE_MARGIN_PT * 2;
 
+// A flex-column container only counts as a "list" worth breaking inside —
+// as opposed to a small, cohesive box (the analyst-info card, the "for
+// further queries" contact card) that should always stay intact — once it
+// has at least this many rows.
+const MIN_LIST_ITEMS_FOR_SAFE_BREAK = 5;
+
 // Y-coordinates (CSS px, relative to `root`'s own top edge) where it's
 // visually safe to start a new page — the top edge of any direct child of
-// `root` (letterhead, AI summary blurb, the bento grid itself, ...) or of
-// any direct child of a CSS grid nested inside it (each bento card), so a
-// page break lands between cards/sections rather than through the middle
-// of one wherever there's a reasonable candidate nearby.
+// `root` (letterhead, AI summary blurb, the bento grid itself, ...), of any
+// direct child of a CSS grid nested inside it (each bento card), or of any
+// direct child of a genuinely long flex-column list nested inside it (each
+// disclaimer paragraph, each row in a card's own 5+-item list) — so a page
+// break lands between cards/paragraphs/rows rather than through the middle
+// of one wherever there's a reasonable candidate nearby, without ever
+// splitting a small info box apart.
 function findSafeBreaks(root: HTMLElement): number[] {
   const rootTop = root.getBoundingClientRect().top;
   const candidates = new Set<number>();
   Array.from(root.children).forEach((el) => candidates.add(el.getBoundingClientRect().top - rootTop));
-  root.querySelectorAll(":scope .grid > *").forEach((el) => candidates.add(el.getBoundingClientRect().top - rootTop));
+  root.querySelectorAll(":scope .grid").forEach((grid) => {
+    Array.from(grid.children).forEach((el) => candidates.add(el.getBoundingClientRect().top - rootTop));
+  });
+  root.querySelectorAll(":scope .flex.flex-col").forEach((list) => {
+    if (list.children.length < MIN_LIST_ITEMS_FOR_SAFE_BREAK) return;
+    Array.from(list.children).forEach((el) => candidates.add(el.getBoundingClientRect().top - rootTop));
+  });
   return Array.from(candidates)
     .filter((y) => y > 0)
     .sort((a, b) => a - b);
@@ -65,15 +80,23 @@ function findSafeBreaks(root: HTMLElement): number[] {
 // Walks down the content in target increments of `pageHeight`, snapping
 // each cut to the latest safe break at or before that target — unless doing
 // so would leave a page mostly empty (no safe break within `SLACK` of the
-// target), in which case it just cuts at the raw target instead.
+// target), in which case it just cuts at the raw target instead. The final
+// page always runs straight to the true end of the content rather than
+// snapping to an earlier safe break, so a small tail (e.g. a disclaimer's
+// closing note) doesn't get split into its own near-empty extra page.
 function paginate(safeBreaks: number[], contentHeight: number, pageHeight: number): Array<[number, number]> {
   const SLACK = pageHeight * 0.35;
   const slices: Array<[number, number]> = [];
   let cursor = 0;
   while (cursor < contentHeight - 0.5) {
-    const target = Math.min(cursor + pageHeight, contentHeight);
-    const candidates = safeBreaks.filter((y) => y > cursor + 1 && y <= target && target - y <= SLACK);
-    const cut = candidates.length > 0 ? candidates[candidates.length - 1] : target;
+    const rawTarget = cursor + pageHeight;
+    const isFinalPage = rawTarget >= contentHeight;
+    const target = Math.min(rawTarget, contentHeight);
+    let cut = target;
+    if (!isFinalPage) {
+      const candidates = safeBreaks.filter((y) => y > cursor + 1 && y <= target && target - y <= SLACK);
+      if (candidates.length > 0) cut = candidates[candidates.length - 1];
+    }
     slices.push([cursor, Math.min(cut, contentHeight)]);
     cursor = slices[slices.length - 1][1];
   }
@@ -91,12 +114,6 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 export interface ReportSection {
   node: HTMLElement;
-  // "paginate" (default) splits tall content across as many A4 pages as it
-  // needs, snapping breaks to card/section edges. "fit" forces everything
-  // onto exactly one page, scaled down if needed — for shorter, linear
-  // content (like the disclaimer) that reads better as a single page than
-  // spread thin across two or three.
-  mode?: "paginate" | "fit";
 }
 
 async function rasterizeNode(
@@ -152,27 +169,9 @@ export async function exportReportToPdf(sections: ReportSection[], filename: str
 
   const pdfDoc = await PDFDocument.create();
 
-  for (const { node, mode = "paginate" } of sections) {
+  for (const { node } of sections) {
     const fullImage = await rasterizeNode(node, toBlob, backgroundColor, pixelRatio);
     const contentRect = node.getBoundingClientRect();
-
-    if (mode === "fit") {
-      // Scale to fit within one page's usable area on whichever axis is
-      // more constraining, then center it — never crops or drops content.
-      const scale = Math.min(USABLE_WIDTH_PT / contentRect.width, USABLE_HEIGHT_PT / contentRect.height);
-      const drawWidth = contentRect.width * scale;
-      const drawHeight = contentRect.height * scale;
-      const canvas = cropToCanvas(fullImage, 0, fullImage.height, fullImage.width, fullImage.height);
-      const image = await canvasToPdfImage(canvas, pdfDoc);
-      const page = pdfDoc.addPage([A4_WIDTH_PT, A4_HEIGHT_PT]);
-      page.drawImage(image, {
-        x: (A4_WIDTH_PT - drawWidth) / 2,
-        y: A4_HEIGHT_PT - PAGE_MARGIN_PT - drawHeight,
-        width: drawWidth,
-        height: drawHeight,
-      });
-      continue;
-    }
 
     const safeBreaksPx = findSafeBreaks(node);
     const pageHeightPx = USABLE_HEIGHT_PT * (contentRect.width / USABLE_WIDTH_PT);
