@@ -81,6 +81,10 @@ export function PremarketPage() {
   async function handleExport() {
     if (!reportRef.current || !disclaimerRef.current) return;
     setExporting(true);
+    // Force a real-time refetch (bypassing the server's own cache TTL)
+    // right before rasterizing, so the exported PDF reflects live data at
+    // export time rather than whatever the background poller last fetched.
+    await Promise.allSettled([refresh(), refreshMovers()]);
     // Briefly switch the live report into "export mode" (hides source
     // attributions that should stay on-screen but not in the PDF) and wait
     // two frames so the re-render is actually painted before we rasterize it.

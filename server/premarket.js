@@ -346,9 +346,9 @@ async function refreshPremarket() {
   return cache;
 }
 
-export async function getPremarket() {
+export async function getPremarket({ force = false } = {}) {
   const isStale = Date.now() - cache.fetchedAt > REFRESH_INTERVAL_MS;
-  if (!isStale) return cache;
+  if (!isStale && !force) return cache;
   if (inFlight) return inFlight;
   inFlight = refreshPremarket().finally(() => {
     inFlight = null;

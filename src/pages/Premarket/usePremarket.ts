@@ -119,11 +119,11 @@ export function usePremarket() {
   const load = useCallback(async ({ manual = false } = {}) => {
     if (manual) setRefreshing(true);
     try {
-      // A manual refresh should show the latest the server already has —
-      // the server keeps its own cache warm on a background interval
-      // regardless of frontend requests, so this can be ahead of the
-      // frontend's own polling cadence without needing a force-refetch.
-      const res = await fetch("/api/premarket");
+      // A manual refresh forces the server past its own cache TTL so it
+      // hits Yahoo/NSE live right now, instead of settling for whatever the
+      // background poller last happened to fetch (which can be several
+      // minutes stale). The passive interval poll below stays unforced.
+      const res = await fetch(manual ? "/api/premarket?force=1" : "/api/premarket");
       if (!res.ok) return;
       const json = await res.json();
       if (cancelledRef.current) return;

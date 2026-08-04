@@ -39,6 +39,10 @@ export function RamkiPremarketPage() {
   async function handleExport() {
     if (!reportRef.current || !disclaimerRef.current) return;
     setExporting(true);
+    // Force a real-time refetch (bypassing the server's own cache TTL)
+    // right before rasterizing, so the exported PDF reflects live data at
+    // export time rather than whatever the background poller last fetched.
+    await Promise.allSettled([refresh(), refreshMovers()]);
     setExportMode(true);
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     try {

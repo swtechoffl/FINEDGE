@@ -49,9 +49,9 @@ async function refreshPrices() {
   return cache;
 }
 
-export async function getPrices() {
+export async function getPrices({ force = false } = {}) {
   const isStale = Date.now() - cache.fetchedAt > REFRESH_INTERVAL_MS;
-  if (!isStale) return cache;
+  if (!isStale && !force) return cache;
   if (inFlight) return inFlight;
   inFlight = refreshPrices().finally(() => {
     inFlight = null;

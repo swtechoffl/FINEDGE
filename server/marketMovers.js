@@ -1,5 +1,5 @@
 import { ALL_STOCKS } from "./sectors.js";
-import { getCachedPrice } from "./prices.js";
+import { getCachedPrice, getPrices } from "./prices.js";
 import { fetchNseJson } from "./nse.js";
 import { generateReportSummary } from "./groq.js";
 
@@ -298,7 +298,13 @@ let cache = {
 };
 let inFlight = null;
 
-async function refreshMovers() {
+async function refreshMovers(force = false) {
+  // fetchOiSpurts (below) and compute52WeekMovers (after) both read prices.js's
+  // cache synchronously via getCachedPrice — warm/force it first so a forced
+  // refresh here actually yields fresh 52-week/OI-buildup price fields too,
+  // not just whatever prices.js's own independent poller last happened to hold.
+  await getPrices({ force });
+
   const [glResult, oiResult, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
     fetchGainersLosers().catch((err) => ({ error: err.message })),
     fetchOiSpurts().catch((err) => ({ error: err.message })),
@@ -346,11 +352,11 @@ async function refreshMovers() {
   return cache;
 }
 
-export async function getMarketMovers() {
+export async function getMarketMovers({ force = false } = {}) {
   const isStale = Date.now() - cache.fetchedAt > REFRESH_INTERVAL_MS;
-  if (!isStale) return cache;
+  if (!isStale && !force) return cache;
   if (inFlight) return inFlight;
-  inFlight = refreshMovers().finally(() => {
+  inFlight = refreshMovers(force).finally(() => {
     inFlight = null;
   });
   return inFlight;

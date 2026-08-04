@@ -283,7 +283,12 @@ app.get("/api/prices", async (req, res) => {
 
 app.get("/api/premarket", async (req, res) => {
   try {
-    const data = await getPremarket();
+    // ?force=1 bypasses the cache's own TTL and hits Yahoo/NSE live — used by
+    // a manual "Refresh" click and by "Export PDF" so either one is
+    // guaranteed real-time data instead of whatever the background poller
+    // last happened to fetch.
+    const force = req.query.force === "1" || req.query.force === "true";
+    const data = await getPremarket({ force });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: "Failed to load premarket data", detail: String(err) });
@@ -292,7 +297,8 @@ app.get("/api/premarket", async (req, res) => {
 
 app.get("/api/market-movers", async (req, res) => {
   try {
-    const data = await getMarketMovers();
+    const force = req.query.force === "1" || req.query.force === "true";
+    const data = await getMarketMovers({ force });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: "Failed to load market movers", detail: String(err) });
