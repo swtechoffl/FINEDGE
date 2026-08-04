@@ -36,9 +36,15 @@ function CorporateActionChip({ item }: { item: CorporateAction }) {
   );
 }
 
-function SymbolLink({ symbol }: { symbol: string }) {
+function SymbolLink({ symbol, className }: { symbol: string; className?: string }) {
   return (
-    <Link to={`/stock/${symbol}`} className="focus-ring text-sm font-semibold text-foreground hover:text-accent hover:underline">
+    <Link
+      to={`/stock/${symbol}`}
+      className={cn(
+        "focus-ring min-w-0 truncate text-sm font-semibold text-foreground hover:text-accent hover:underline",
+        className,
+      )}
+    >
       {symbol}
     </Link>
   );
@@ -163,8 +169,8 @@ function BuildupRow({ item }: { item: OiBuildupEntry }) {
   const priceUp = item.changePct >= 0;
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
-      <SymbolLink symbol={item.symbol} />
-      <div className="flex items-center gap-3 text-xs">
+      <SymbolLink symbol={item.symbol} className="text-xs" />
+      <div className="flex shrink-0 items-center gap-2 whitespace-nowrap text-xs">
         <span className={cn("font-semibold", priceUp ? "text-bullish" : "text-bearish")}>
           {priceUp ? "+" : ""}
           {item.changePct}%
