@@ -8,6 +8,8 @@ const SHORT_LABELS: Record<string, string> = {
   "/news": "Finedge",
   "/premarket": "Pre-Mkt",
   "/postmarket": "Post-Mkt",
+  "/ramki-premarket": "RK Pre",
+  "/ramki-postmarket": "RK Post",
   "/corporate-actions": "Actions",
   "/market-internals": "Internals",
   "/posters": "Posters",

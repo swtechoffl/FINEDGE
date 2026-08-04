@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Newspaper, Sunrise, Sunset, CalendarClock, Layers, Images, Workflow, LogOut } from "lucide-react";
+import { Newspaper, Sunrise, Sunset, CloudSun, CloudMoon, CalendarClock, Layers, Images, Workflow, LogOut } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { useSocialLinksReadOnly, socialHref, socialDisplay, SOCIAL_META, type SocialLinks } from "../pages/Premarket/useSocialLinks";
 import { cn } from "../lib/utils";
@@ -8,6 +8,8 @@ export const NAV_ITEMS = [
   { to: "/news", label: "Finedge", icon: Newspaper },
   { to: "/premarket", label: "Premarket Report", icon: Sunrise },
   { to: "/postmarket", label: "Post Market Report", icon: Sunset },
+  { to: "/ramki-premarket", label: "RAMKI Premarket", icon: CloudSun },
+  { to: "/ramki-postmarket", label: "RAMKI Post Market", icon: CloudMoon },
   { to: "/corporate-actions", label: "Corporate Actions", icon: CalendarClock },
   { to: "/market-internals", label: "Market Internals", icon: Layers },
   { to: "/posters", label: "Posters", icon: Images },

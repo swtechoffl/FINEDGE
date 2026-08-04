@@ -1,0 +1,503 @@
+import { type ReactNode, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { Download, TrendingUp, TrendingDown, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Header } from "../../components/Header";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { cn } from "../../lib/utils";
+import { relativeTime } from "../../data/mock";
+import { exportNodesToPdf } from "../../lib/exportPdf";
+import { DisclaimerReportPage } from "../Premarket/DisclaimerReportPage";
+import { usePostMarket } from "../PostMarket/usePostMarket";
+import type {
+  MoverQuote,
+  OiBuildupEntry,
+  IndexOiEntry,
+  Week52Entry,
+  MostActiveQuote,
+  CorporateAction,
+  EarningsEvent,
+  VolumeGainerQuote,
+  AdvanceDeclineData,
+} from "../PostMarket/usePostMarket";
+
+function CorporateActionChip({ item }: { item: CorporateAction }) {
+  const shortDate = item.exDate.replace(/-\d{4}$/, "");
+  return (
+    <span
+      title={`${item.company} — ${item.subject}`}
+      className="flex items-center justify-between gap-2 rounded-lg bg-app px-2.5 py-1.5 text-xs"
+    >
+      <span className="truncate font-bold text-foreground">{item.symbol}</span>
+      <span className="shrink-0 text-subtle-foreground">{shortDate}</span>
+    </span>
+  );
+}
+
+function EarningsChip({ item }: { item: EarningsEvent }) {
+  const shortDate = item.date.replace(/-\d{4}$/, "");
+  return (
+    <span
+      title={`${item.company} — ${item.purpose}`}
+      className="flex items-center justify-between gap-2 rounded-lg bg-app px-2.5 py-1.5 text-xs"
+    >
+      <span className="truncate font-bold text-foreground">{item.symbol}</span>
+      <span className="shrink-0 text-subtle-foreground">{shortDate}</span>
+    </span>
+  );
+}
+
+function SymbolLink({ symbol }: { symbol: string }) {
+  return (
+    <Link to={`/stock/${symbol}`} className="focus-ring text-sm font-semibold text-foreground hover:text-accent hover:underline">
+      {symbol}
+    </Link>
+  );
+}
+
+function BentoCard({
+  title,
+  meta,
+  className,
+  children,
+}: {
+  title: string;
+  meta?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("flex flex-col rounded-2xl border border-border bg-app p-4", className)}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle-foreground">{title}</span>
+        {meta && <span className="text-[10px] text-subtle-foreground">{meta}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function MoverRow({ item }: { item: MoverQuote }) {
+  const up = item.changePct >= 0;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <SymbolLink symbol={item.symbol} />
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">{item.price.toLocaleString("en-IN")}</span>
+        <span
+          className={cn(
+            "flex min-w-[64px] items-center justify-end gap-0.5 text-sm font-bold",
+            up ? "text-bullish" : "text-bearish",
+          )}
+        >
+          {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          {up ? "+" : ""}
+          {item.changePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function MostActiveRow({ item }: { item: MostActiveQuote }) {
+  const up = item.changePct >= 0;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <SymbolLink symbol={item.symbol} />
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-subtle-foreground">₹{item.tradedValueCr.toLocaleString("en-IN")} Cr</span>
+        <span className={cn("text-sm font-bold", up ? "text-bullish" : "text-bearish")}>
+          {up ? "+" : ""}
+          {item.changePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function VolumeGainerRow({ item }: { item: VolumeGainerQuote }) {
+  const up = item.changePct >= 0;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <SymbolLink symbol={item.symbol} />
+      <div className="flex items-center gap-3 text-xs">
+        <span className="text-subtle-foreground">
+          Vol {(item.volume / 1e5).toFixed(1)}L ({item.week1VolChangePct >= 0 ? "+" : ""}
+          {item.week1VolChangePct}% vs 1wk avg)
+        </span>
+        <span className={cn("font-semibold", up ? "text-bullish" : "text-bearish")}>
+          {up ? "+" : ""}
+          {item.changePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function AdvanceDeclineBar({ data }: { data: AdvanceDeclineData }) {
+  const advPct = data.total > 0 ? (data.advances / data.total) * 100 : 50;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-bold text-bullish">{data.advances} Advances</span>
+        <span className="font-bold text-bearish">{data.declines} Declines</span>
+      </div>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-chip">
+        <div className="h-full bg-bullish" style={{ width: `${advPct}%` }} />
+        <div className="h-full bg-bearish" style={{ width: `${100 - advPct}%` }} />
+      </div>
+      <div className="text-xs text-subtle-foreground">
+        {data.unchanged} unchanged · {data.total} total securities traded
+      </div>
+    </div>
+  );
+}
+
+function BuildupRow({ item }: { item: OiBuildupEntry }) {
+  const priceUp = item.changePct >= 0;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <SymbolLink symbol={item.symbol} />
+      <div className="flex items-center gap-3 text-xs">
+        <span className={cn("font-semibold", priceUp ? "text-bullish" : "text-bearish")}>
+          {priceUp ? "+" : ""}
+          {item.changePct}%
+        </span>
+        <span className="text-subtle-foreground">
+          OI {item.oiChangePct >= 0 ? "+" : ""}
+          {item.oiChangePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+const OI_BUILDUP_META: Record<string, { label: string; color: string; hint: string }> = {
+  longBuildup: { label: "Long Buildup", color: "var(--bullish)", hint: "Price up, OI up" },
+  shortBuildup: { label: "Short Buildup", color: "var(--bearish)", hint: "Price down, OI up" },
+  shortCovering: { label: "Short Covering", color: "var(--bullish)", hint: "Price up, OI down" },
+  longUnwinding: { label: "Long Unwinding", color: "var(--bearish)", hint: "Price down, OI down" },
+};
+
+function IndexOiBar({ item, maxChange }: { item: IndexOiEntry; maxChange: number }) {
+  const up = item.changeInOI >= 0;
+  const pct = maxChange > 0 ? (Math.abs(item.changeInOI) / maxChange) * 100 : 0;
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-foreground">{item.symbol}</span>
+        <span className={cn("font-semibold", up ? "text-bullish" : "text-bearish")}>
+          {up ? "+" : ""}
+          {item.oiChangePct}% OI
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-chip">
+        <div
+          className={cn("h-full rounded-full", up ? "bg-bullish" : "bg-bearish")}
+          style={{ width: `${Math.max(pct, 3)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Week52Row({ item, kind }: { item: Week52Entry; kind: "high" | "low" }) {
+  const dist = kind === "high" ? item.distFromHighPct : item.distFromLowPct;
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
+      <SymbolLink symbol={item.symbol} />
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground">{item.price.toLocaleString("en-IN")}</span>
+        <span className="font-semibold text-subtle-foreground">{dist}% away</span>
+      </div>
+    </div>
+  );
+}
+
+// NSE date strings look like "05-Aug-2026" — parsed the same way the server
+// parses them (server/marketMovers.js parseNseDate), so a string/case
+// mismatch never causes a real "tomorrow" event to be missed.
+function isTomorrow(dateStr: string, tomorrow: Date) {
+  const parsed = new Date(dateStr.replace(/-/g, " "));
+  if (isNaN(+parsed)) return false;
+  return (
+    parsed.getFullYear() === tomorrow.getFullYear() &&
+    parsed.getMonth() === tomorrow.getMonth() &&
+    parsed.getDate() === tomorrow.getDate()
+  );
+}
+
+export function RamkiPostMarketPage() {
+  const { data, loading, refreshing, refresh } = usePostMarket();
+  const [commentary, setCommentary] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportMode, setExportMode] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+  const disclaimerRef = useRef<HTMLDivElement>(null);
+
+  const hasAnyData =
+    data.gainers.length > 0 ||
+    data.losers.length > 0 ||
+    data.indexOi.length > 0 ||
+    data.corporateActions.length > 0;
+
+  const meta = data.fetchedAt > 0 ? `Updated ${relativeTime(new Date(data.fetchedAt).toISOString())}` : undefined;
+  const maxIndexOiChange = Math.max(...data.indexOi.map((i) => Math.abs(i.changeInOI)), 1);
+  const buildupKeys = ["longBuildup", "shortBuildup", "shortCovering", "longUnwinding"] as const;
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const earningsTomorrow = data.earningsCalendar.filter((e) => isTomorrow(e.date, tomorrow));
+  const actionsTomorrow = data.corporateActionsAll.filter((a) => isTomorrow(a.exDate, tomorrow));
+  const hasEventsTomorrow = earningsTomorrow.length > 0 || actionsTomorrow.length > 0;
+
+  async function handleExport() {
+    if (!reportRef.current || !disclaimerRef.current) return;
+    setExporting(true);
+    setExportMode(true);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    try {
+      const dateStr = new Date().toISOString().slice(0, 10);
+      await exportNodesToPdf(
+        [reportRef.current, disclaimerRef.current],
+        `stoqtrade-ramki-postmarket-report-${dateStr}.pdf`,
+      );
+    } catch {
+      // best-effort — the button re-enables either way, user can retry
+    } finally {
+      setExportMode(false);
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header
+        title="ramki post market report"
+        meta={meta}
+        extra={
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={refresh}
+              disabled={refreshing}
+              title="Refresh for latest data"
+            >
+              <RefreshCw size={14} className={refreshing ? "animate-spin" : undefined} />
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting || !hasAnyData}>
+              {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export PDF"}</span>
+            </Button>
+          </>
+        }
+      />
+
+      <div className="mx-auto w-full max-w-5xl px-6 py-6">
+        {loading && !hasAnyData ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
+            <Loader2 size={24} className="animate-spin text-accent" />
+            <p className="text-sm font-medium text-muted-foreground">Fetching market internals from NSE…</p>
+          </div>
+        ) : !hasAnyData ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-32 text-center">
+            <p className="text-sm font-medium text-muted-foreground">
+              Couldn't load market movers data. Make sure the API server is running.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <Card className="overflow-hidden">
+              <div ref={reportRef} className="bg-surface p-6">
+                <div className="mb-5 border-b border-border pb-4">
+                  <h2 className="text-lg font-extrabold tracking-tight text-foreground">
+                    RAMKI Post Market Report<span className="text-accent">.</span>
+                  </h2>
+                  <span className="text-xs text-subtle-foreground">
+                    {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                  </span>
+                </div>
+
+                {data.aiSummary && (
+                  <div className="mb-5 flex gap-2.5 rounded-xl border border-accent/15 bg-accent-bg p-4">
+                    <Sparkles size={16} className="mt-0.5 shrink-0 text-accent" />
+                    <p className="text-sm leading-relaxed text-foreground">{data.aiSummary}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-4 gap-3">
+                  {data.indexOi.length > 0 && (
+                    <BentoCard title="Index Futures — OI Change" className="col-span-4">
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+                        {data.indexOi.map((idx) => (
+                          <IndexOiBar key={idx.symbol} item={idx} maxChange={maxIndexOiChange} />
+                        ))}
+                      </div>
+                    </BentoCard>
+                  )}
+
+                  {data.gainers.length > 0 && (
+                    <BentoCard title="Top Gainers" className="col-span-4 lg:col-span-2">
+                      <div className="flex flex-col">
+                        {data.gainers.slice(0, 8).map((item) => (
+                          <MoverRow key={item.symbol} item={item} />
+                        ))}
+                      </div>
+                    </BentoCard>
+                  )}
+
+                  {data.losers.length > 0 && (
+                    <BentoCard title="Top Losers" className="col-span-4 lg:col-span-2">
+                      <div className="flex flex-col">
+                        {data.losers.slice(0, 8).map((item) => (
+                          <MoverRow key={item.symbol} item={item} />
+                        ))}
+                      </div>
+                    </BentoCard>
+                  )}
+
+                  {data.mostActive.length > 0 && (
+                    <BentoCard title="Most Active Equities (by value)" className="col-span-4">
+                      <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+                        {data.mostActive.map((item) => (
+                          <MostActiveRow key={item.symbol} item={item} />
+                        ))}
+                      </div>
+                    </BentoCard>
+                  )}
+
+                  {data.advanceDecline && (
+                    <BentoCard title="Market Breadth (Advance / Decline)" className="col-span-4 self-start lg:col-span-2">
+                      <AdvanceDeclineBar data={data.advanceDecline} />
+                    </BentoCard>
+                  )}
+
+                  {data.volumeGainers.length > 0 && (
+                    <BentoCard title="Volume Gainers" className="col-span-4 lg:col-span-2">
+                      <div className="flex flex-col">
+                        {data.volumeGainers.slice(0, 8).map((item) => (
+                          <VolumeGainerRow key={item.symbol} item={item} />
+                        ))}
+                      </div>
+                    </BentoCard>
+                  )}
+
+                  {buildupKeys.some((k) => data.oiBuildup[k].length > 0) && (
+                    <BentoCard title="OI Buildup (F&O)" className="col-span-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {buildupKeys.map((key) => {
+                          const buildupMeta = OI_BUILDUP_META[key];
+                          const items = data.oiBuildup[key];
+                          if (items.length === 0) return null;
+                          return (
+                            <div key={key}>
+                              <div className="mb-1.5 flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full" style={{ background: buildupMeta.color }} />
+                                <span className="text-xs font-bold text-foreground">{buildupMeta.label}</span>
+                              </div>
+                              <div className="mb-2 text-[10px] text-subtle-foreground">{buildupMeta.hint}</div>
+                              <div className="flex flex-col">
+                                {items.slice(0, 5).map((item) => (
+                                  <BuildupRow key={item.symbol} item={item} />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </BentoCard>
+                  )}
+
+                  {(data.near52WeekHigh.length > 0 || data.near52WeekLow.length > 0) && (
+                    <BentoCard title="52-Week High / Low Watch" className="col-span-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {data.near52WeekHigh.length > 0 && (
+                          <div>
+                            <div className="mb-1.5 text-xs font-bold text-bullish">Near 52-Week High</div>
+                            <div className="flex flex-col">
+                              {data.near52WeekHigh.map((item) => (
+                                <Week52Row key={item.symbol} item={item} kind="high" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {data.near52WeekLow.length > 0 && (
+                          <div>
+                            <div className="mb-1.5 text-xs font-bold text-bearish">Near 52-Week Low</div>
+                            <div className="flex flex-col">
+                              {data.near52WeekLow.map((item) => (
+                                <Week52Row key={item.symbol} item={item} kind="low" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </BentoCard>
+                  )}
+
+                  {data.corporateActionsAll.length > 0 && (
+                    <BentoCard title="Upcoming Corporate Actions" className="col-span-4">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                        {data.corporateActionsAll.slice(0, 20).map((ca) => (
+                          <CorporateActionChip key={`${ca.symbol}-${ca.exDate}-${ca.subject}`} item={ca} />
+                        ))}
+                      </div>
+                    </BentoCard>
+                  )}
+
+                  <BentoCard title="Post Market Commentary" className="col-span-4">
+                    {exportMode ? (
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                        {commentary.trim() || "No commentary added."}
+                      </p>
+                    ) : (
+                      <textarea
+                        value={commentary}
+                        onChange={(e) => setCommentary(e.target.value)}
+                        placeholder="Add today's closing commentary — index action, sector highlights, outlook…"
+                        rows={5}
+                        className="focus-ring w-full resize-y rounded-lg border border-border bg-surface p-3 text-sm text-foreground placeholder:text-subtle-foreground"
+                      />
+                    )}
+                  </BentoCard>
+
+                  {hasEventsTomorrow && (
+                    <BentoCard title="Events to Watch Tomorrow" className="col-span-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {earningsTomorrow.length > 0 && (
+                          <div>
+                            <div className="mb-1.5 text-xs font-bold text-accent">Results / Earnings</div>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              {earningsTomorrow.map((item) => (
+                                <EarningsChip key={`${item.symbol}-${item.date}`} item={item} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {actionsTomorrow.length > 0 && (
+                          <div>
+                            <div className="mb-1.5 text-xs font-bold text-subtle-foreground">Corporate Actions</div>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              {actionsTomorrow.map((item) => (
+                                <CorporateActionChip key={`${item.symbol}-${item.exDate}-${item.subject}`} item={item} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </BentoCard>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="overflow-hidden">
+              <DisclaimerReportPage ref={disclaimerRef} />
+            </Card>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

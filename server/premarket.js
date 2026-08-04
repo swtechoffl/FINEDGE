@@ -139,17 +139,24 @@ async function fetchIpoListings() {
     fetchNseJson("/api/public-past-issues?index=ipo", "https://www.nseindia.com/market-data/all-past-issues-ipo"),
   ]);
 
-  const current = (Array.isArray(currentRows) ? currentRows : []).map((r) => ({
-    symbol: r.symbol,
-    company: r.companyName,
-    priceRange: r.issuePrice,
-    startDate: r.issueStartDate,
-    endDate: r.issueEndDate,
-    subscriptionTimes: r.noOfTime ? +parseFloat(r.noOfTime).toFixed(2) : null,
-  }));
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // NSE's "current-issue" endpoint can lag rolling a name over to the past-
+  // issues feed once its subscription window closes, so without an explicit
+  // end-date check a just-closed IPO keeps showing as "Currently Open".
+  const current = (Array.isArray(currentRows) ? currentRows : [])
+    .map((r) => ({ ...r, _end: parseNseIpoDate(r.issueEndDate) }))
+    .filter((r) => !r._end || r._end >= today)
+    .map((r) => ({
+      symbol: r.symbol,
+      company: r.companyName,
+      priceRange: r.issuePrice,
+      startDate: r.issueStartDate,
+      endDate: r.issueEndDate,
+      subscriptionTimes: r.noOfTime ? +parseFloat(r.noOfTime).toFixed(2) : null,
+    }));
+
   const lookaheadCutoff = new Date(today);
   lookaheadCutoff.setDate(lookaheadCutoff.getDate() + IPO_LOOKAHEAD_DAYS);
   const currentSymbols = new Set(current.map((c) => c.symbol));
