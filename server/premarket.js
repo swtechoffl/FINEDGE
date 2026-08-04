@@ -163,8 +163,12 @@ async function fetchIpoListings() {
 
   const upcoming = (Array.isArray(upcomingRows) ? upcomingRows : [])
     .filter((r) => !currentSymbols.has(r.symbol))
-    .map((r) => ({ ...r, _start: parseNseIpoDate(r.issueStartDate) }))
-    .filter((r) => r._start && r._start <= lookaheadCutoff)
+    .map((r) => ({ ...r, _start: parseNseIpoDate(r.issueStartDate), _end: parseNseIpoDate(r.issueEndDate) }))
+    // NSE's "upcoming" feed can lag removing an issue whose window has
+    // already opened and closed entirely (verified live: rows with both
+    // start and end dates in the past lingering here) — the end-date check
+    // catches what the start-date lookahead alone doesn't.
+    .filter((r) => r._start && r._start <= lookaheadCutoff && (!r._end || r._end >= today))
     .sort((a, b) => +a._start - +b._start)
     .map((r) => ({
       symbol: r.symbol,
