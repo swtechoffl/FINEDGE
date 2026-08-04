@@ -22,7 +22,7 @@ const LOCAL_CHROME_CANDIDATES = [
   "/usr/bin/chromium-browser",
 ];
 
-async function launchBrowser() {
+export async function launchBrowser() {
   if (process.env.VERCEL) {
     // @sparticuz/chromium ships a Lambda/Vercel-function-compatible Chromium
     // build inside the deployed package — Vercel Functions now support up to

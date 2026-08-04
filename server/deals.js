@@ -6,6 +6,12 @@ function toDdMmYyyy(date) {
   return `${dd}-${mm}-${date.getFullYear()}`;
 }
 
+function parseNseDealDate(d) {
+  if (!d) return null;
+  const parsed = new Date(d.replace(/-/g, " "));
+  return isNaN(+parsed) ? null : parsed;
+}
+
 const LOOKBACK_DAYS = 10;
 const REFERER = "https://www.nseindia.com/report-detail/display-bulk-and-block-deals";
 
@@ -17,7 +23,14 @@ async function fetchDeals(optionType) {
     `/api/historicalOR/bulk-block-short-deals?optionType=${optionType}&from=${toDdMmYyyy(from)}&to=${toDdMmYyyy(to)}`,
     REFERER,
   );
-  return Array.isArray(res?.data) ? res.data : [];
+  const rows = Array.isArray(res?.data) ? res.data : [];
+  // NSE doesn't guarantee any particular row order across the lookback
+  // window (verified live: rows for a single day weren't even grouped
+  // together) — sort newest-first so slicing to the top 20 below actually
+  // surfaces the most recent deals instead of an arbitrary mix.
+  return rows
+    .map((r) => ({ ...r, _date: parseNseDealDate(r.BD_DT_DATE) }))
+    .sort((a, b) => (b._date?.getTime() ?? 0) - (a._date?.getTime() ?? 0));
 }
 
 export async function fetchBulkDeals() {

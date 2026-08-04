@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Loader2, RefreshCw } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Button } from "../../components/ui/Button";
@@ -29,6 +29,28 @@ export function PremarketPage() {
   const [exporting, setExporting] = useState(false);
   const [exportMode, setExportMode] = useState(false);
   const [customNewsIds, setCustomNewsIds] = useState<string[] | null>(null);
+
+  // ?export=1 drives an automated headless-browser capture for Telegram
+  // delivery (see server/reportScreenshots.js) — forces a live refresh and
+  // switches into export mode on its own, without needing an interactive
+  // click. data-export-ready only appears once that refresh has actually
+  // landed, so the capture doesn't screenshot a pre-refresh, possibly-stale
+  // first paint.
+  const isExportCapture = useMemo(() => new URLSearchParams(window.location.search).get("export") === "1", []);
+  const [captureReady, setCaptureReady] = useState(false);
+  useEffect(() => {
+    if (!isExportCapture) return;
+    let cancelled = false;
+    (async () => {
+      await Promise.allSettled([refresh(), refreshMovers()]);
+      if (cancelled) return;
+      setExportMode(true);
+      setCaptureReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isExportCapture, refresh, refreshMovers]);
 
   const hasAnyData = data.giftNifty || Object.values(data.groups).some((g) => g.length > 0) || data.fiiDii;
 
@@ -136,7 +158,10 @@ export function PremarketPage() {
         }
       />
 
-      <div className="mx-auto w-full max-w-5xl px-6 py-6">
+      <div
+        className="mx-auto w-full max-w-5xl px-6 py-6"
+        {...(isExportCapture ? { "data-export-ready": captureReady ? "1" : "0" } : {})}
+      >
         {loading && !hasAnyData ? (
           <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
             <Loader2 size={24} className="animate-spin text-accent" />

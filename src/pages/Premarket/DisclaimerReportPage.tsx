@@ -11,7 +11,7 @@ import type { DisclaimerSettings } from "../Disclosure/useDisclaimerSettings";
 export const DisclaimerReportPage = forwardRef<HTMLDivElement, { settings: DisclaimerSettings }>(
   ({ settings }, ref) => {
   return (
-    <div ref={ref} className="bg-surface p-6">
+    <div ref={ref} data-export-node="disclaimer" className="bg-surface p-6">
       <div className="mb-5 flex items-center justify-between gap-3 border-b border-border pb-4">
         <div>
           <h2 className="text-lg font-extrabold tracking-tight text-foreground">

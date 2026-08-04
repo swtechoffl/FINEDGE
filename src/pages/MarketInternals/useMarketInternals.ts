@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface ParticipantRow {
   category: "FII" | "DII" | "Pro" | "Client";
@@ -71,31 +71,42 @@ const EMPTY: MarketInternalsData = {
 export function useMarketInternals() {
   const [data, setData] = useState<MarketInternalsData>(EMPTY);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const cancelledRef = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const res = await fetch("/api/market-internals");
-        if (!res.ok) return;
-        const json = await res.json();
-        if (cancelled) return;
-        setData(json);
-      } catch {
-        // supplementary data — fail silently and retry on the next interval
-      } finally {
-        if (!cancelled) setLoading(false);
+  const load = useCallback(async ({ manual = false } = {}) => {
+    if (manual) setRefreshing(true);
+    try {
+      // A manual refresh forces the server past its own 15-min cache TTL so
+      // it re-fetches bulk/block deals, participant OI, and option chains
+      // live right now, instead of settling for whatever the background
+      // poller last happened to fetch.
+      const res = await fetch(manual ? "/api/market-internals?force=1" : "/api/market-internals");
+      if (!res.ok) return;
+      const json = await res.json();
+      if (cancelledRef.current) return;
+      setData(json);
+    } catch {
+      // supplementary data — fail silently and retry on the next interval
+    } finally {
+      if (!cancelledRef.current) {
+        setLoading(false);
+        if (manual) setRefreshing(false);
       }
     }
+  }, []);
 
+  useEffect(() => {
+    cancelledRef.current = false;
     load();
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [load]);
 
-  return { data, loading };
+  const refresh = useCallback(() => load({ manual: true }), [load]);
+
+  return { data, loading, refreshing, refresh };
 }

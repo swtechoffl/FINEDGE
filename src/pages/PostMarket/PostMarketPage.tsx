@@ -1,11 +1,15 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, TrendingDown, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { cn } from "../../lib/utils";
 import { relativeTime } from "../../data/mock";
+import { exportNodesToPdf } from "../../lib/exportPdf";
+import { DisclaimerReportPage } from "../Premarket/DisclaimerReportPage";
+import { useDisclaimerSettings } from "../Disclosure/useDisclaimerSettings";
+import { DisclaimerSettingsEditor } from "../Disclosure/DisclaimerSettingsEditor";
 import { usePostMarket } from "./usePostMarket";
 import type {
   MoverQuote,
@@ -218,6 +222,30 @@ function Week52Row({ item, kind }: { item: Week52Entry; kind: "high" | "low" }) 
 
 export function PostMarketPage() {
   const { data, loading, refreshing, refresh } = usePostMarket();
+  const disclaimerSettings = useDisclaimerSettings();
+  const reportRef = useRef<HTMLDivElement>(null);
+  const disclaimerRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
+
+  // ?export=1 drives an automated headless-browser capture for Telegram
+  // delivery (see server/reportScreenshots.js) — forces a live refresh on
+  // its own, without needing an interactive click. data-export-ready only
+  // appears once that refresh has actually landed, so the capture doesn't
+  // screenshot a pre-refresh, possibly-stale first paint.
+  const isExportCapture = useMemo(() => new URLSearchParams(window.location.search).get("export") === "1", []);
+  const [captureReady, setCaptureReady] = useState(false);
+  useEffect(() => {
+    if (!isExportCapture) return;
+    let cancelled = false;
+    (async () => {
+      await refresh();
+      if (!cancelled) setCaptureReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isExportCapture, refresh]);
+
   const hasAnyData =
     data.gainers.length > 0 ||
     data.losers.length > 0 ||
@@ -228,25 +256,55 @@ export function PostMarketPage() {
   const maxIndexOiChange = Math.max(...data.indexOi.map((i) => Math.abs(i.changeInOI)), 1);
   const buildupKeys = ["longBuildup", "shortBuildup", "shortCovering", "longUnwinding"] as const;
 
+  async function handleExport() {
+    if (!reportRef.current || !disclaimerRef.current) return;
+    setExporting(true);
+    // Force a real-time refetch (bypassing the server's own cache TTL)
+    // right before rasterizing, so the exported PDF reflects live data at
+    // export time rather than whatever the background poller last fetched.
+    await refresh();
+    try {
+      const dateStr = new Date().toISOString().slice(0, 10);
+      await exportNodesToPdf(
+        [reportRef.current, disclaimerRef.current],
+        `stoqtrade-postmarket-report-${dateStr}.pdf`,
+      );
+    } catch {
+      // best-effort — the button re-enables either way, user can retry
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header
         title="post market report"
         meta={meta}
         extra={
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={refresh}
-            disabled={refreshing}
-            title="Refresh for latest data"
-          >
-            <RefreshCw size={14} className={refreshing ? "animate-spin" : undefined} />
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={refresh}
+              disabled={refreshing}
+              title="Refresh for latest data"
+            >
+              <RefreshCw size={14} className={refreshing ? "animate-spin" : undefined} />
+            </Button>
+            <DisclaimerSettingsEditor {...disclaimerSettings} />
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting || !hasAnyData}>
+              {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              <span className="hidden sm:inline">{exporting ? "Exporting…" : "Export PDF"}</span>
+            </Button>
+          </>
         }
       />
 
-      <div className="mx-auto w-full max-w-5xl px-6 py-6">
+      <div
+        className="mx-auto w-full max-w-5xl px-6 py-6"
+        {...(isExportCapture ? { "data-export-ready": captureReady ? "1" : "0" } : {})}
+      >
         {loading && !hasAnyData ? (
           <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
             <Loader2 size={24} className="animate-spin text-accent" />
@@ -259,8 +317,9 @@ export function PostMarketPage() {
             </p>
           </div>
         ) : (
+          <div className="flex flex-col gap-4">
           <Card className="overflow-hidden">
-            <div className="bg-surface p-6">
+            <div ref={reportRef} data-export-node="report" className="bg-surface p-6">
               <div className="mb-5 border-b border-border pb-4">
                 <h2 className="text-lg font-extrabold tracking-tight text-foreground">
                   Post Market Report<span className="text-accent">.</span>
@@ -409,6 +468,11 @@ export function PostMarketPage() {
               </div>
             </div>
           </Card>
+
+          <Card className="overflow-hidden">
+            <DisclaimerReportPage ref={disclaimerRef} settings={disclaimerSettings.settings} />
+          </Card>
+          </div>
         )}
       </div>
     </div>

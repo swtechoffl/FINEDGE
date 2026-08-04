@@ -1,7 +1,8 @@
 import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Header } from "../../components/Header";
+import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { cn } from "../../lib/utils";
 import { relativeTime } from "../../data/mock";
@@ -197,7 +198,7 @@ function ShortSellingList({ rows }: { rows: ShortSellingRow[] }) {
 }
 
 export function MarketInternalsPage() {
-  const { data, loading } = useMarketInternals();
+  const { data, loading, refreshing, refresh } = useMarketInternals();
   const hasAnyData =
     data.participantOi !== null ||
     data.optionChains.length > 0 ||
@@ -209,7 +210,21 @@ export function MarketInternalsPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header title="market internals" meta={meta} />
+      <Header
+        title="market internals"
+        meta={meta}
+        extra={
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={refresh}
+            disabled={refreshing}
+            title="Refresh for latest data"
+          >
+            <RefreshCw size={14} className={refreshing ? "animate-spin" : undefined} />
+          </Button>
+        }
+      />
 
       <div className="mx-auto w-full max-w-5xl px-6 py-6">
         {loading && !hasAnyData ? (

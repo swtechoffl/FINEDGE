@@ -40,9 +40,9 @@ async function refreshInternals() {
   return cache;
 }
 
-export async function getMarketInternals() {
+export async function getMarketInternals({ force = false } = {}) {
   const isStale = Date.now() - cache.fetchedAt > REFRESH_INTERVAL_MS;
-  if (!isStale) return cache;
+  if (!isStale && !force) return cache;
   if (inFlight) return inFlight;
   inFlight = refreshInternals().finally(() => {
     inFlight = null;

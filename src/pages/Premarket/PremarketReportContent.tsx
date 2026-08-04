@@ -451,7 +451,7 @@ export const PremarketReportContent = forwardRef<
   const today = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <div ref={ref} className="bg-surface p-6">
+    <div ref={ref} data-export-node="report" className="bg-surface p-6">
       {/* Letterhead — shown on screen and captured in the exported PDF */}
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
         <div>

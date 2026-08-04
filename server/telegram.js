@@ -33,6 +33,26 @@ export async function sendTelegramPosterAlbum(photos, caption) {
   return json.result;
 }
 
+// Full PDF reports go through sendDocument rather than sendPhoto/
+// sendMediaGroup — Telegram would otherwise re-compress a photo-typed
+// upload, which is fine for a poster image but would visibly degrade a
+// dense, text-heavy report page.
+export async function sendTelegramDocument(buffer, filename, caption) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) throw new Error("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not configured");
+
+  const form = new FormData();
+  form.set("chat_id", chatId);
+  if (caption) form.set("caption", caption);
+  form.set("document", new Blob([buffer], { type: "application/pdf" }), filename);
+
+  const res = await fetch(`${TELEGRAM_API}/bot${token}/sendDocument`, { method: "POST", body: form });
+  const json = await res.json();
+  if (!json.ok) throw new Error(`Telegram sendDocument failed: ${json.description || res.status}`);
+  return json.result;
+}
+
 async function sendTelegramPhoto(buffer, posterId, caption) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;

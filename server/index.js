@@ -12,7 +12,8 @@ import { getMarketMovers, startMarketMoversPolling } from "./marketMovers.js";
 import { getMarketInternals, startMarketInternalsPolling } from "./marketInternals.js";
 import { getStockDetail } from "./stockDetail.js";
 import { capturePremarketPosters } from "./posterScreenshots.js";
-import { sendTelegramPosterAlbum } from "./telegram.js";
+import { captureReportPdf, REPORT_CAPTURE_CONFIG } from "./reportScreenshots.js";
+import { sendTelegramPosterAlbum, sendTelegramDocument } from "./telegram.js";
 
 // Local dev / a plain Node host reads GROQ_API_KEY from .env; on Vercel (or
 // any platform that injects env vars directly) there's no .env file to
@@ -307,7 +308,8 @@ app.get("/api/market-movers", async (req, res) => {
 
 app.get("/api/market-internals", async (req, res) => {
   try {
-    const data = await getMarketInternals();
+    const force = req.query.force === "1" || req.query.force === "true";
+    const data = await getMarketInternals({ force });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: "Failed to load market internals", detail: String(err) });
@@ -366,6 +368,35 @@ app.post("/api/telegram/send-now", async (req, res) => {
   } catch (err) {
     console.error("[stoqtrade.ai] manual telegram poster send failed:", err);
     res.status(500).json({ error: "Failed to deliver posters", detail: String(err.message || err) });
+  }
+});
+
+// Renders the full Premarket or Post Market report (2-page PDF: report +
+// disclaimer, same as the interactive "Export PDF" button) in a headless
+// browser and sends it to Telegram as a document. Meant to be called by an
+// external scheduler (e.g. an n8n workflow's HTTP Request node) rather than
+// Vercel's own Cron, so it requires the same CRON_SECRET bearer token as
+// /api/cron/telegram-posters — this one sends a real document to a real
+// Telegram chat and shouldn't be triggerable by just knowing the URL.
+// Usage: POST /api/telegram/send-report?report=premarket|postmarket
+app.post("/api/telegram/send-report", async (req, res) => {
+  if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const reportKey = req.query.report;
+  if (!REPORT_CAPTURE_CONFIG[reportKey]) {
+    return res.status(400).json({ error: `Unknown report "${reportKey}" — use "premarket" or "postmarket"` });
+  }
+  try {
+    const origin = `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`;
+    const { buffer, filenamePrefix, title } = await captureReportPdf(origin, reportKey);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const dateLabel = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    await sendTelegramDocument(buffer, `${filenamePrefix}-${dateStr}.pdf`, `${title} — ${dateLabel}`);
+    res.json({ sent: true, report: reportKey });
+  } catch (err) {
+    console.error(`[stoqtrade.ai] report telegram delivery failed (${reportKey}):`, err);
+    res.status(500).json({ error: "Failed to deliver report", detail: String(err.message || err) });
   }
 });
 

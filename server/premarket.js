@@ -14,9 +14,14 @@ const CONCURRENCY = 6;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 // Symbols where Yahoo's own meta.previousClose has been observed to go
-// stale — their changePct gets recomputed from the daily close series
-// instead (see fetchReliableChangePct in yahoo.js).
-const UNRELIABLE_PREV_CLOSE_SYMBOLS = new Set(["000001.SS"]);
+// stale (verified live: both skipped an entire prior session, referencing
+// a close from two trading days back instead of one) — their changePct
+// gets recomputed from the daily close series instead (see
+// fetchReliableChangePct in yahoo.js). Scoped to single-daily-session
+// indices specifically — commodities/forex trade near-continuously and
+// don't have an unambiguous single "close" the same way, so a batch check
+// across those wasn't conclusive enough to add here.
+const UNRELIABLE_PREV_CLOSE_SYMBOLS = new Set(["000001.SS", "^INDIAVIX"]);
 
 const SYMBOL_GROUPS = {
   domestic: [{ symbol: "^INDIAVIX", label: "India VIX" }],
