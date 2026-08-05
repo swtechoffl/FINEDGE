@@ -2,6 +2,7 @@ import { fetchYahooQuote, fetchYahooHistoricalSeries } from "./yahoo.js";
 import { fetchNseJson } from "./nse.js";
 import { ALL_STOCKS } from "./sectors.js";
 import { getCachedPrice } from "./prices.js";
+import { fetchBseCode } from "./bse.js";
 
 const REFERER = "https://www.nseindia.com/option-chain";
 
@@ -122,11 +123,16 @@ async function fetchStockDetailFresh(symbol) {
   const cachedPrice = getCachedPrice(symbol);
   const liveQuote = cachedPrice ? null : await fetchYahooQuote(`${symbol}.NS`).catch(() => null);
 
+  // bseCode's lookup needs the ISIN from nseQuote to disambiguate BSE's
+  // search results (see bse.js), so it can't join the batch below — the
+  // other two fetches don't depend on it, so they still run alongside it
+  // rather than waiting on it.
   const [history, optionChain, nseQuote] = await Promise.all([
     fetchYahooHistoricalSeries(`${symbol}.NS`, "6mo").catch(() => []),
     fetchStockOptionChain(symbol).catch(() => null),
     fetchNseQuote(symbol).catch(() => null),
   ]);
+  const bseCode = await fetchBseCode(symbol, nseQuote?.isin ?? null);
 
   return {
     symbol,
@@ -148,6 +154,7 @@ async function fetchStockDetailFresh(symbol) {
     marketCapCr: nseQuote?.marketCapCr ?? null,
     peRatio: nseQuote?.peRatio ?? null,
     isin: nseQuote?.isin ?? null,
+    bseCode,
     listingDate: nseQuote?.listingDate ?? null,
     faceValue: nseQuote?.faceValue ?? null,
     equityCr: nseQuote?.equityCr ?? null,

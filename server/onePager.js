@@ -80,7 +80,9 @@ export async function generateOnePager(symbol, manual) {
     companyName: detail.name,
     symbol: detail.symbol,
     isin: detail.isin,
-    bseCode: manual.bseCode || null,
+    // Manual entry wins if the analyst typed one in (e.g. to correct a bad
+    // match); otherwise fall back to the free live lookup (see bse.js).
+    bseCode: manual.bseCode || detail.bseCode || null,
     sector: detail.sector,
     exchange: manual.exchange || "NSE",
     marketCapCr: detail.marketCapCr,

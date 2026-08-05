@@ -64,7 +64,7 @@ function OnePagerForm_() {
   const [form, setForm] = useState<OnePagerForm>(emptyOnePagerForm);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ companyName?: string; sector?: string } | null>(null);
+  const [preview, setPreview] = useState<{ companyName?: string; sector?: string; bseCode?: string } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [result, setResult] = useState<OnePagerResult | null>(null);
@@ -84,7 +84,10 @@ function OnePagerForm_() {
       const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}`);
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.detail || data.error || "Lookup failed");
-      setPreview({ companyName: data.name, sector: data.sector });
+      setPreview({ companyName: data.name, sector: data.sector, bseCode: data.bseCode });
+      // Auto-fill BSE Code only if the analyst hasn't already typed one —
+      // never clobber a manual correction.
+      if (data.bseCode) setForm((f) => (f.bseCode.trim() ? f : { ...f, bseCode: data.bseCode }));
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Lookup failed");
     } finally {
@@ -149,21 +152,22 @@ function OnePagerForm_() {
                   onChange={(e) => setForm((f) => ({ ...f, symbol: e.target.value.toUpperCase() }))}
                   placeholder="RELIANCE"
                 />
-                <Button type="button" variant="outline" size="icon" title="Preview company name/sector" onClick={handleFetchLiveData} disabled={fetching || !form.symbol.trim()}>
+                <Button type="button" variant="outline" size="icon" title="Preview company name/sector/BSE code" onClick={handleFetchLiveData} disabled={fetching || !form.symbol.trim()}>
                   {fetching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                 </Button>
               </div>
               {preview && (
                 <span className="text-xs text-muted-foreground">
                   {preview.companyName} · {preview.sector}
+                  {preview.bseCode && ` · BSE ${preview.bseCode}`}
                 </span>
               )}
               {fetchError && <span className="text-xs font-medium text-bearish">{fetchError}</span>}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-subtle-foreground">BSE Code (optional)</span>
-                <Input value={form.bseCode} onChange={(e) => setForm((f) => ({ ...f, bseCode: e.target.value }))} placeholder="500325" />
+                <span className="text-xs font-semibold text-subtle-foreground">BSE Code (auto-looked-up, editable)</span>
+                <Input value={form.bseCode} onChange={(e) => setForm((f) => ({ ...f, bseCode: e.target.value }))} placeholder="Fetch live data to auto-fill" />
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-subtle-foreground">Exchange</span>
