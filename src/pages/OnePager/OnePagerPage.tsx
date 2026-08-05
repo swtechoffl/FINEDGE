@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Sparkles, Download, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, Copy, Check, ClipboardPaste } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
@@ -100,6 +100,22 @@ function OnePagerForm_() {
     [narrativeMode, pastedNarrative],
   );
 
+  // Claude's reply is the only source for 3yr financials and FII/DII% in
+  // this flow (no free feed covers either), so pull them straight into the
+  // form the moment a paste parses successfully — still editable afterwards,
+  // same as if the analyst had typed them in by hand.
+  useEffect(() => {
+    if (!parsedPaste || "error" in parsedPaste) return;
+    if (parsedPaste.financials || parsedPaste.shareholding) {
+      setForm((f) => ({
+        ...f,
+        financials: parsedPaste.financials ?? f.financials,
+        fiiPct: parsedPaste.shareholding?.fiiPct != null ? String(parsedPaste.shareholding.fiiPct) : f.fiiPct,
+        diiPct: parsedPaste.shareholding?.diiPct != null ? String(parsedPaste.shareholding.diiPct) : f.diiPct,
+      }));
+    }
+  }, [parsedPaste]);
+
   async function handleCopyPrompt() {
     await navigator.clipboard.writeText(buildOnePagerResearchPrompt(form));
     setPromptCopied(true);
@@ -132,6 +148,7 @@ function OnePagerForm_() {
 
   async function handleGenerate() {
     let narrative: OnePagerNarrative | undefined;
+    let aiShareholding: { promoterPct: number; fiiPct: number | null; diiPct: number | null; publicPct: number | null; asOfDate: string | null } | undefined;
     if (narrativeMode === "paste") {
       const parsed = parseOnePagerNarrative(pastedNarrative);
       if ("error" in parsed) {
@@ -139,6 +156,10 @@ function OnePagerForm_() {
         return;
       }
       narrative = parsed.narrative;
+      // Only sent as a fallback the server uses if NSE itself has no
+      // shareholding data for this stock — when NSE does have it, that stays
+      // authoritative and this is ignored server-side.
+      aiShareholding = parsed.shareholding ?? undefined;
     }
     setGenerating(true);
     setGenError(null);
@@ -160,7 +181,7 @@ function OnePagerForm_() {
           threeYearFinancials: formatFinancialsForPrompt(form.financials),
           fiiPct: form.fiiPct,
           diiPct: form.diiPct,
-          ...(narrativeMode === "paste" ? { narrative } : {}),
+          ...(narrativeMode === "paste" ? { narrative, aiShareholding } : {}),
         }),
       });
       const json = await res.json();
@@ -278,9 +299,10 @@ function OnePagerForm_() {
         <Card className="p-5">
           <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Narrative source</h3>
           <p className="mb-3 text-xs text-subtle-foreground">
-            Overview, rationale, risks and valuation note are AI-drafted. Groq's free tier has no live search and a tight
-            daily quota — for a better-researched report, copy the prompt below into Claude (or any AI with web search),
-            then paste its JSON reply back in.
+            Overview, rationale, risks and valuation note are AI-drafted; the 3-year financials and FII/DII split below have
+            no free live source either. Groq's free tier has no web search and a tight daily quota — for a
+            better-researched report, copy the prompt into Claude (or any AI with web search) and paste its JSON reply
+            back in. It auto-fills the financial table and shareholding % below too — still editable afterwards.
           </p>
           <div className="mb-3 flex gap-2">
             <Button
@@ -322,7 +344,9 @@ function OnePagerForm_() {
               )}
               {parsedPaste && "narrative" in parsedPaste && (
                 <span className="flex items-center gap-1 text-xs font-medium text-bullish">
-                  <Check size={13} /> Parsed — {parsedPaste.narrative.riskFactors.length} risk factors found. Ready to generate.
+                  <Check size={13} /> Parsed — {parsedPaste.narrative.riskFactors.length} risk factors
+                  {parsedPaste.financials && `, ${parsedPaste.financials.length}yr financials`}
+                  {parsedPaste.shareholding && ", shareholding %"} applied to the form below. Ready to generate.
                 </span>
               )}
             </div>
@@ -332,7 +356,8 @@ function OnePagerForm_() {
         <Card className="p-5">
           <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Shareholding pattern</h3>
           <p className="mb-3 text-xs text-subtle-foreground">
-            Promoter vs Public auto-fills live from NSE on generate. FII/DII (optional, no free source) further split the Public slice.
+            Promoter vs Public auto-fills live from NSE on generate. FII/DII further split the Public slice — type them in,
+            or use "Paste from Claude" above to fill them from research instead.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
@@ -348,7 +373,10 @@ function OnePagerForm_() {
 
         <Card className="p-5">
           <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">3-year financial summary</h3>
-          <p className="mb-3 text-xs text-subtle-foreground">Not available from any free feed — enter the 3 most recent consecutive fiscal years.</p>
+          <p className="mb-3 text-xs text-subtle-foreground">
+            Not available from any free feed — enter the 3 most recent consecutive fiscal years, or use "Paste from
+            Claude" above to fill this table from research instead.
+          </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-xs">
               <thead>

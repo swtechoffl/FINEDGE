@@ -94,6 +94,19 @@ export async function generateOnePager(symbol, manual) {
       slices.push({ label: "Public / Others", pct: publicPct });
     }
     shareholding = { asOfDate, slices };
+  } else if (manual.aiShareholding && typeof manual.aiShareholding.promoterPct === "number") {
+    // NSE has nothing for this stock at all (common for smaller/newer
+    // listings) — fall back to the AI-researched breakdown from the "Paste
+    // from Claude" flow. Clearly labeled as such since it isn't verified
+    // against a live exchange feed the way the branch above is.
+    const { promoterPct, fiiPct, diiPct, publicPct, asOfDate } = manual.aiShareholding;
+    const slices = [{ label: "Promoter", pct: promoterPct }];
+    if (typeof fiiPct === "number") slices.push({ label: "FII", pct: fiiPct });
+    if (typeof diiPct === "number") slices.push({ label: "DII", pct: diiPct });
+    const named = slices.reduce((sum, s) => sum + s.pct, 0);
+    const rest = typeof publicPct === "number" ? publicPct : Math.max(0, +(100 - named).toFixed(2));
+    if (rest > 0.05) slices.push({ label: "Public / Others", pct: rest });
+    shareholding = { asOfDate: `${asOfDate || "Unverified"} · AI-sourced, not NSE-verified`, slices };
   }
 
   const facts = {

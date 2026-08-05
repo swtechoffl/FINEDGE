@@ -1,19 +1,34 @@
-import type { OnePagerForm, OnePagerNarrative } from "./onePagerTypes";
+import type { FinancialYear, OnePagerForm, OnePagerNarrative } from "./onePagerTypes";
 import { formatFinancialsForPrompt } from "./onePagerTypes";
 
-// Mirrors ONE_PAGER_SYSTEM_PROMPT in server/groq.js field-for-field, so a
-// response pasted back in parses into exactly the shape generateOnePager
-// expects — the only difference is this version asks the external AI to do
-// its own live web research (Groq's free plain model has none), which is
-// the whole reason this "paste" path exists.
+export interface ClaudeShareholding {
+  promoterPct: number;
+  fiiPct: number | null;
+  diiPct: number | null;
+  publicPct: number | null;
+  asOfDate: string | null;
+}
+
+export interface OnePagerClaudeResponse {
+  narrative: OnePagerNarrative;
+  shareholding: ClaudeShareholding | null;
+  financials: FinancialYear[] | null;
+}
+
+// Mirrors ONE_PAGER_SYSTEM_PROMPT in server/groq.js field-for-field for the
+// narrative, and extends it to also ask for shareholding % and 3-year
+// financials — the two things this app has no free live source for and
+// previously required typing in by hand. The only reason this "paste" path
+// exists is that Groq's free plain model has no live web search to look any
+// of this up itself.
 export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
   const symbol = form.symbol.trim().toUpperCase() || "<TICKER>";
   const financials = formatFinancialsForPrompt(form.financials);
 
   const lines: string[] = [
-    `You are drafting the narrative sections of a SEBI-compliant "Initial Research Report" one-pager for ${symbol}, an NSE-listed Indian company.`,
+    `You are drafting an "Initial Research Report" one-pager for ${symbol}, an NSE-listed Indian company.`,
     "",
-    "Research the company using web search: business description, key operations/geographies, ownership status (PSU/private), recent developments, financial trends, growth drivers, competitive positioning, and sector-specific risks. Ground every claim in real, current information — never invent a fact, statistic, or event.",
+    "Research the company using web search: business description, key operations/geographies, ownership status (PSU/private), recent developments, financial trends, growth drivers, competitive positioning, sector-specific risks, latest shareholding pattern, and the last 3 fiscal years of financials. Ground every claim and every number in real, current, sourced information — never invent a fact, statistic, or event. Where you can't verify a specific figure, use the literal string \"NA\" rather than guessing.",
     "",
     "Analyst inputs (given — do not contradict, cite exactly, do not alter or round the numbers):",
     `- Rating: ${form.rating}`,
@@ -21,7 +36,7 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
     `- Valuation method: ${form.valuationMethod}`,
     `- Time horizon: ${form.timeHorizon}`,
   ];
-  lines.push(`- 3-year financial summary: ${financials || "not supplied — omit specific figures if you can't verify them"}`);
+  if (financials) lines.push(`- 3-year financial summary already on hand (fill any gaps, don't contradict): ${financials}`);
   lines.push(`- Recent developments (analyst-supplied, safe to cite): ${form.recentDevelopments.trim() || "none supplied"}`);
   lines.push(
     "",
@@ -31,17 +46,78 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
     '  "investmentRationale": "1 paragraph — growth drivers, competitive positioning, and expansion plans, grounded in your research or the analyst inputs above",',
     '  "riskFactors": ["3 to 5 short, one-sentence, company- and sector-specific risks — e.g. commodity/input cyclicality, demand concentration, regulatory or government-ownership overhang, execution risk, competitive intensity, forex/export exposure — pick what actually fits this company"],',
     '  "valuationNote": "1-2 sentences stating the valuation method, target price, and implied upside/downside using the exact numbers given above",',
-    '  "strategyFit": "1 line — who this fits (e.g. long-term growth investor, value investor) given the rating and sector"',
+    '  "strategyFit": "1 line — who this fits (e.g. long-term growth investor, value investor) given the rating and sector",',
+    '  "shareholding": {',
+    '    "promoterPct": <number, latest reported promoter holding %>,',
+    '    "fiiPct": <number, FII/FPI holding % — use null if you can\'t verify>,',
+    '    "diiPct": <number, DII holding % — use null if you can\'t verify>,',
+    '    "publicPct": <number, public/others holding % — use null if you can\'t verify>,',
+    '    "asOfDate": "<e.g. \'30 Jun 2026\' — the quarter-end this shareholding data is as of>"',
+    "  },",
+    '  "financials": [',
+    '    {"year": "FY24", "revenue": "<₹cr>", "ebitdaMargin": "<%>", "pat": "<₹cr>", "roe": "<%>", "roa": "<%>", "debtEquity": "<%>", "divYield": "<%>"},',
+    '    {"year": "FY25", "revenue": "...", "ebitdaMargin": "...", "pat": "...", "roe": "...", "roa": "...", "debtEquity": "...", "divYield": "..."},',
+    '    {"year": "FY26", "revenue": "...", "ebitdaMargin": "...", "pat": "...", "roe": "...", "roa": "...", "debtEquity": "...", "divYield": "..."}',
+    "  ]",
     "}",
+    "",
+    "For \"financials\", use the 3 most recent consecutive fiscal years actually reported (consolidated figures where available).",
   );
   return lines.join("\n");
+}
+
+function toPct(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) return Number(v);
+  return null;
+}
+
+function toFieldString(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  const s = String(v).trim();
+  return s.toUpperCase() === "NA" ? "" : s;
+}
+
+function parseShareholding(raw: unknown): ClaudeShareholding | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const s = raw as Record<string, unknown>;
+  const promoterPct = toPct(s.promoterPct);
+  if (promoterPct === null) return null;
+  return {
+    promoterPct,
+    fiiPct: toPct(s.fiiPct),
+    diiPct: toPct(s.diiPct),
+    publicPct: toPct(s.publicPct),
+    asOfDate: typeof s.asOfDate === "string" && s.asOfDate.trim() ? s.asOfDate.trim() : null,
+  };
+}
+
+function parseFinancials(raw: unknown): FinancialYear[] | null {
+  if (!Array.isArray(raw)) return null;
+  const rows = raw
+    .filter((r): r is Record<string, unknown> => typeof r === "object" && r !== null)
+    .map((r) => ({
+      year: toFieldString(r.year),
+      revenue: toFieldString(r.revenue),
+      ebitdaMargin: toFieldString(r.ebitdaMargin),
+      pat: toFieldString(r.pat),
+      roe: toFieldString(r.roe),
+      roa: toFieldString(r.roa),
+      debtEquity: toFieldString(r.debtEquity),
+      divYield: toFieldString(r.divYield),
+    }))
+    .filter((r) => r.year !== "");
+  return rows.length > 0 ? rows : null;
 }
 
 // Accepts whatever an AI chat surface hands back — usually the bare JSON
 // object, sometimes wrapped in a ```json fence, sometimes with a sentence of
 // preamble/postamble despite the prompt's instructions not to. Pulls out the
-// first balanced {...} span rather than requiring an exact match.
-export function parseOnePagerNarrative(raw: string): { narrative: OnePagerNarrative } | { error: string } {
+// first balanced {...} span rather than requiring an exact match. Only the
+// narrative fields are mandatory — shareholding/financials are bonus data
+// the caller auto-fills into the form when present, so their absence isn't
+// a parse failure.
+export function parseOnePagerNarrative(raw: string): OnePagerClaudeResponse | { error: string } {
   const text = raw.trim();
   if (!text) return { error: "Paste the AI's response first." };
 
@@ -81,5 +157,9 @@ export function parseOnePagerNarrative(raw: string): { narrative: OnePagerNarrat
   if (!strategyFit) missing.push("strategyFit");
   if (missing.length > 0) return { error: `JSON is missing or has empty fields: ${missing.join(", ")}` };
 
-  return { narrative: { companyOverview, investmentRationale, riskFactors, valuationNote, strategyFit } };
+  return {
+    narrative: { companyOverview, investmentRationale, riskFactors, valuationNote, strategyFit },
+    shareholding: parseShareholding(p.shareholding),
+    financials: parseFinancials(p.financials),
+  };
 }

@@ -447,6 +447,9 @@ app.post("/api/one-pager/generate", async (req, res) => {
       typeof n.strategyFit === "string";
     if (!valid) return res.status(400).json({ error: "Invalid pasted narrative" });
   }
+  if (manual.aiShareholding && typeof manual.aiShareholding.promoterPct !== "number") {
+    return res.status(400).json({ error: "Invalid pasted shareholding" });
+  }
   try {
     const onePager = await generateOnePager(symbol, manual);
     res.json(onePager);
