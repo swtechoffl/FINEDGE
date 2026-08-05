@@ -32,6 +32,13 @@ async function fetchNseQuote(symbol) {
     volume: q.tradeInfo?.totalTradedVolume ?? null,
     deliveryPct: q.tradeInfo?.deliveryToTradedQuantity ?? null,
     marketCapCr: q.tradeInfo?.totalMarketCap ? +(q.tradeInfo.totalMarketCap / 1e7).toFixed(2) : null,
+    faceValue: q.tradeInfo?.faceValue ?? null,
+    // issuedSize is share count, not currency — paid-up equity capital
+    // (₹cr) is shares × face value, converted from ₹ to ₹cr.
+    equityCr:
+      q.tradeInfo?.issuedSize && q.tradeInfo?.faceValue
+        ? +((q.tradeInfo.issuedSize * q.tradeInfo.faceValue) / 1e7).toFixed(2)
+        : null,
   };
 }
 
@@ -142,6 +149,14 @@ async function fetchStockDetailFresh(symbol) {
     peRatio: nseQuote?.peRatio ?? null,
     isin: nseQuote?.isin ?? null,
     listingDate: nseQuote?.listingDate ?? null,
+    faceValue: nseQuote?.faceValue ?? null,
+    equityCr: nseQuote?.equityCr ?? null,
+    // EPS (TTM) isn't in NSE's quote payload directly, but it's recoverable
+    // from two fields that are: price / trailing P/E.
+    epsTtm:
+      (cachedPrice?.price ?? liveQuote?.price) && nseQuote?.peRatio
+        ? +((cachedPrice?.price ?? liveQuote?.price) / nseQuote.peRatio).toFixed(2)
+        : null,
     history,
     optionChain,
   };

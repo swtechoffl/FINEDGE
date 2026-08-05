@@ -1,25 +1,32 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Lock } from "lucide-react";
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
-import { Card } from "../../components/ui/Card";
+import { Button } from "./ui/Button";
+import { Input } from "./ui/Input";
+import { Card } from "./ui/Card";
 
-const SESSION_KEY = "stoqtrade-report-maker-unlocked";
 const PIN = "1001";
 
 // A soft, client-side-only gate — not real access control (anyone reading
-// the bundle can find PIN), just a deliberate speed bump so the Report
-// Maker section isn't one accidental nav-click away for every visitor. It
-// stays unlocked for the rest of the browser tab's session once entered.
-export function PinGate({ children }: { children: ReactNode }) {
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(SESSION_KEY) === "1");
+// the bundle can find PIN), just a deliberate speed bump so an internal-use
+// section isn't one accidental nav-click away for every visitor. Stays
+// unlocked for the rest of the browser tab's session once entered.
+export function PinGate({
+  title,
+  sessionKey,
+  children,
+}: {
+  title: string;
+  sessionKey: string;
+  children: ReactNode;
+}) {
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(sessionKey) === "1");
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (pin === PIN) {
-      sessionStorage.setItem(SESSION_KEY, "1");
+      sessionStorage.setItem(sessionKey, "1");
       setUnlocked(true);
     } else {
       setError(true);
@@ -36,7 +43,7 @@ export function PinGate({ children }: { children: ReactNode }) {
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-bg">
             <Lock size={20} className="text-accent" />
           </div>
-          <h2 className="text-base font-extrabold tracking-tight text-foreground">Report Maker</h2>
+          <h2 className="text-base font-extrabold tracking-tight text-foreground">{title}</h2>
           <p className="text-xs text-subtle-foreground">Enter the PIN to open this section.</p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">

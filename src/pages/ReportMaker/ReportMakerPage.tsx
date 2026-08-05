@@ -8,7 +8,7 @@ import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
 import { ANALYST, CONTACT, CLOSING_NOTE } from "../Disclosure/disclaimerContent";
-import { PinGate } from "./PinGate";
+import { PinGate } from "../../components/PinGate";
 import { emptyResearchReportForm, type ResearchReportForm } from "./reportMakerTypes";
 
 const DEFAULT_FIRM_FACTS = [
@@ -531,7 +531,7 @@ export function ReportMakerPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header title="report maker" meta="AI-drafted institutional result-update notes" />
-      <PinGate>
+      <PinGate title="Report Maker" sessionKey="stoqtrade-report-maker-unlocked">
         <ReportMakerForm />
       </PinGate>
     </div>

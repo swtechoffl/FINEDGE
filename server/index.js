@@ -11,6 +11,7 @@ import { getPremarket, startPremarketPolling } from "./premarket.js";
 import { getMarketMovers, startMarketMoversPolling } from "./marketMovers.js";
 import { getMarketInternals, startMarketInternalsPolling } from "./marketInternals.js";
 import { getStockDetail } from "./stockDetail.js";
+import { generateOnePager } from "./onePager.js";
 import { captureAllPosters } from "./posterScreenshots.js";
 import { captureReportPdf, REPORT_CAPTURE_CONFIG } from "./reportScreenshots.js";
 import { sendTelegramPosterAlbum, sendTelegramDocument } from "./telegram.js";
@@ -427,6 +428,19 @@ app.get("/api/stock/:symbol", async (req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: "Failed to load stock detail", detail: String(err) });
+  }
+});
+
+app.post("/api/one-pager/generate", async (req, res) => {
+  const { symbol, ...manual } = req.body || {};
+  if (!symbol || !/^[A-Za-z0-9&-]{1,20}$/.test(symbol)) {
+    return res.status(400).json({ error: "Invalid symbol" });
+  }
+  try {
+    const onePager = await generateOnePager(symbol, manual);
+    res.json(onePager);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to generate one pager", detail: String(err.message || err) });
   }
 });
 

@@ -16,7 +16,7 @@ const MODEL = "llama-3.3-70b-versatile";
 // the single-tool-call "-mini" variant instead, which works.
 const COMPOUND_MODEL = "groq/compound-mini";
 
-async function callGroq(systemPrompt, userPrompt, maxTokens, model = MODEL, isRetry = false) {
+async function callGroq(systemPrompt, userPrompt, maxTokens, model = MODEL, isRetry = false, jsonMode = false) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY not set");
 
@@ -34,6 +34,7 @@ async function callGroq(systemPrompt, userPrompt, maxTokens, model = MODEL, isRe
       ],
       max_tokens: maxTokens,
       temperature: 0.4,
+      ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
     }),
   });
 
@@ -50,7 +51,7 @@ async function callGroq(systemPrompt, userPrompt, maxTokens, model = MODEL, isRe
       const waitMatch = detail.match(/try again in ([\d.]+)s/i);
       const waitMs = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) + 500 : 20000;
       await new Promise((resolve) => setTimeout(resolve, waitMs));
-      return callGroq(systemPrompt, userPrompt, maxTokens, model, true);
+      return callGroq(systemPrompt, userPrompt, maxTokens, model, true, jsonMode);
     }
     throw new Error(`Groq API HTTP ${res.status}: ${detail.slice(0, 200)}`);
   }
@@ -137,4 +138,56 @@ If a piece of data is missing from the user's input, search for it before writin
 // alongside the prompt; a paid Groq Dev Tier plan would lift this ceiling.
 export async function generateResearchReport(userDataText) {
   return callGroq(RESEARCH_REPORT_SYSTEM_PROMPT, userDataText, 3500, COMPOUND_MODEL);
+}
+
+// Narrative prose for the "One Pager" — a much smaller, fixed-layout report
+// (see onePager.js) built almost entirely from live NSE/Yahoo data plus a
+// few analyst-supplied fields (rating, target price, 3yr financials). This
+// call only needs to write the prose around numbers already given to it —
+// no live search — so it stays on the free plain model, not compound-mini.
+// Deliberately does NOT search or use trained "recent news" knowledge for
+// anything time-sensitive it can't verify — see the system prompt below.
+const ONE_PAGER_SYSTEM_PROMPT = `You are a SEBI-registered Research Analyst's assistant drafting the prose sections of a one-page "Initial Research Report". You are given real, verified numeric facts (fetched live from NSE/Yahoo Finance) and the analyst's own inputs (rating, target price, valuation method, 3-year financials). Write ONLY from what's given, plus well-established, general knowledge about the company's core business (what it does, its main segments/geographies, listed/PSU status) — never state a specific recent event, quarterly result, deal, or management change unless it's explicitly given to you in "Recent developments"; if nothing was given there, keep the overview to durable, general facts about the business rather than guessing at anything time-sensitive.
+
+Respond with a single JSON object, no markdown, no code fences, exactly these keys:
+{
+  "companyOverview": "1 short paragraph — business description, key operations/geographies, ownership status (PSU/private), and only cite strategic developments/growth ambitions if given in 'Recent developments'",
+  "investmentRationale": "1 paragraph — growth drivers, competitive positioning, and expansion plans; ground every claim in the supplied financials/facts or 'Recent developments', not invented specifics",
+  "riskFactors": ["3 to 5 short, one-sentence, company- and sector-specific risks — e.g. commodity/input cyclicality, demand concentration, regulatory or government-ownership overhang, execution risk on expansion, competitive intensity, forex/export exposure — pick the ones that actually fit this company's sector"],
+  "valuationNote": "1-2 sentences stating the valuation method, target price, and implied upside/downside using the exact numbers given — do not alter or round them",
+  "strategyFit": "1 line — who this fits (e.g. long-term growth investor, value investor) given the rating and sector"
+}
+
+Every number you reference must come from the facts given to you. Never invent a fact, statistic, or event not present in the input.`;
+
+export async function generateOnePagerNarrative(input) {
+  const lines = [];
+  const add = (label, value) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") lines.push(`${label}: ${value}`);
+  };
+  const f = input.facts;
+  lines.push("=== VERIFIED FACTS (live NSE/Yahoo data) ===");
+  add("Company", f.companyName);
+  add("Sector", f.sector);
+  add("CMP", f.cmp);
+  add("Market cap (₹cr)", f.marketCapCr);
+  add("52-week range", f.fiftyTwoWeekHigh && f.fiftyTwoWeekLow ? `₹${f.fiftyTwoWeekLow} – ₹${f.fiftyTwoWeekHigh}` : null);
+  add("P/E (TTM)", f.peTtm);
+  add("EPS (TTM)", f.epsTtm);
+  add("Book value", f.bookValue);
+  lines.push("\n=== ANALYST INPUTS ===");
+  add("Rating", input.rating);
+  add("Target price", input.targetPrice);
+  add("Implied upside/downside", input.upsidePct !== null ? `${input.upsidePct}%` : null);
+  add("Valuation method", input.valuationMethod);
+  add("Time horizon", input.timeHorizon);
+  if (input.threeYearFinancials) lines.push(`\n3-year financial summary:\n${input.threeYearFinancials}`);
+  if (input.recentDevelopments) lines.push(`\nRecent developments (analyst-supplied — safe to cite):\n${input.recentDevelopments}`);
+
+  const text = await callGroq(ONE_PAGER_SYSTEM_PROMPT, lines.join("\n"), 1200, MODEL, false, true);
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error("Groq returned non-JSON for one-pager narrative");
+  }
 }

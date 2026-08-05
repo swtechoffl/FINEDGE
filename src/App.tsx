@@ -12,6 +12,7 @@ import { FlowchartPage } from "./pages/Flowchart/FlowchartPage";
 import { StockDetailPage } from "./pages/StockDetail/StockDetailPage";
 import { DisclosurePage } from "./pages/Disclosure/DisclosurePage";
 import { ReportMakerPage } from "./pages/ReportMaker/ReportMakerPage";
+import { OnePagerPage } from "./pages/OnePager/OnePagerPage";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path="/posters" element={<PostersPage />} />
         <Route path="/flowchart" element={<FlowchartPage />} />
         <Route path="/report-maker" element={<ReportMakerPage />} />
+        <Route path="/one-pager" element={<OnePagerPage />} />
         <Route path="/stock/:symbol" element={<StockDetailPage />} />
         <Route path="/disclosure" element={<DisclosurePage />} />
         <Route path="*" element={<Navigate to="/news" replace />} />
