@@ -276,7 +276,16 @@ function OnePagerForm_() {
     try {
       const { exportReportToPdf } = await import("../../lib/exportPdf");
       const slug = (result.facts.companyName || result.facts.symbol).toLowerCase().replace(/\s+/g, "-");
-      await exportReportToPdf([{ node: previewRef.current, mode: "fitA4" }], `${slug}-one-pager-${form.symbol}.pdf`);
+      // "paginate" (not "fitA4") — with quarterly/segments/commentary/
+      // financial statements all optional and variable-length, forcing
+      // everything onto one page would shrink text more the more sections
+      // are on, sometimes illegibly. Real A4 pages at a fixed, readable
+      // size, spilling onto a second page when there's enough content,
+      // is what "properly fit A4, add pages if needed" means here — the
+      // same pagination the disclaimer/premarket/postmarket reports
+      // already use, snapping breaks to card/row edges and rebalancing a
+      // too-sparse trailing page instead of leaving it mostly blank.
+      await exportReportToPdf([{ node: previewRef.current, mode: "paginate" }], `${slug}-one-pager-${form.symbol}.pdf`);
     } finally {
       setExporting(false);
     }
@@ -987,12 +996,16 @@ function OnePagerForm_() {
                               <tbody>
                                 {rows.map((r, i) => (
                                   <tr key={i}>
-                                    <td className="truncate border border-border px-1.5 py-0.5 font-semibold text-foreground">{r.label}</td>
+                                    <td className="break-words border border-border px-1.5 py-0.5 font-semibold text-foreground">{r.label}</td>
                                     {/* Pad every row to the same column count — a row with
                                         fewer values than the widest row would otherwise
-                                        shift its cells left of where the header says. */}
+                                        shift its cells left of where the header says. Wraps
+                                        rather than truncating — table-fixed + colgroup keeps
+                                        the table itself from stretching, so long values wrap
+                                        to a second line instead of being cut off or widening
+                                        the column. */}
                                     {Array.from({ length: Math.max(colCount, 1) }).map((_, vi) => (
-                                      <td key={vi} className="truncate border border-border px-1.5 py-0.5 text-right text-muted-foreground">
+                                      <td key={vi} className="break-words border border-border px-1.5 py-0.5 text-right text-muted-foreground">
                                         {r.values[vi] ?? "—"}
                                       </td>
                                     ))}
