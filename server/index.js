@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import Parser from "rss-parser";
 import { PUBLISHER_GROUPS } from "./feeds.js";
 import { classify, resolveTicker, heuristicAnalysis } from "./classify.js";
-import { generateNewsAnalysis } from "./groq.js";
+import { generateNewsAnalysis, generateResearchReport } from "./groq.js";
 import { getPrices, startPricePolling } from "./prices.js";
 import { getPremarket, startPremarketPolling } from "./premarket.js";
 import { getMarketMovers, startMarketMoversPolling } from "./marketMovers.js";
@@ -259,6 +259,10 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   next();
 });
+// Only the Report Maker route reads a JSON body — everything else uses
+// query params or nothing at all. Raised past Express's 100kb default
+// since a pasted 5-year financial statement can run long.
+app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/news", async (req, res) => {
   try {
@@ -313,6 +317,103 @@ app.get("/api/market-internals", async (req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: "Failed to load market internals", detail: String(err) });
+  }
+});
+
+// Serializes the Report Maker form payload into one labeled text block for
+// the Groq prompt — kept server-side so the prompt format has one source of
+// truth regardless of how the client form evolves.
+function formatResearchReportInput(body) {
+  const h = body.header || {};
+  const s = body.snapshot || {};
+  const lines = [];
+  const add = (label, value) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") lines.push(`${label}: ${value}`);
+  };
+
+  lines.push("=== HEADER & RATING ===");
+  add("Company name & ticker", `${h.companyName || ""} (${h.ticker || ""})`);
+  add("Report date", h.reportDate);
+  add("Sector", h.sector);
+  add("CMP", h.cmp);
+  add("Target Price", h.targetPrice);
+  add("Implied upside/downside", h.upside);
+  add("Rating", h.rating);
+  add("Rating rationale", h.ratingRationale);
+  add("Estimate change", h.estimateChange);
+  add("TP change", h.tpChange);
+  add("Rating change", h.ratingChange);
+  add("Is this a revision to prior estimates", h.isRevision ? "Yes" : "No");
+
+  lines.push("\n=== COMPANY SNAPSHOT ===");
+  add("Equity shares outstanding (m)", s.equityShares);
+  add("Market cap", s.marketCap);
+  add("52-week range", s.week52Range);
+  add("1/6/12-month relative performance vs index (%)", s.relativePerformance);
+  add("12M average daily traded value", s.avgDailyValue);
+
+  if (body.shareholding) {
+    lines.push("\n=== SHAREHOLDING PATTERN (%) ===");
+    lines.push(body.shareholding);
+  }
+  if (body.threeYearFinancials) {
+    lines.push("\n=== 3-YEAR FINANCIAL SNAPSHOT (prior actual / current est. / next est.) ===");
+    lines.push(body.threeYearFinancials);
+  }
+
+  const q = body.quarterly || {};
+  lines.push("\n=== QUARTERLY NUMBERS (this quarter vs YoY, vs QoQ, vs estimate) ===");
+  add("Revenue — actual", q.revenueActual);
+  add("Revenue — estimate", q.revenueEstimate);
+  add("Revenue — YoY% / QoQ%", q.revenueGrowth);
+  add("Volume / Price / Forex growth split (%)", q.growthSplit);
+  add("EBITDA — actual / estimate", q.ebitda);
+  add("EBITDA margin — actual, bps YoY change", q.ebitdaMargin);
+  add("PAT adjusted — actual / estimate / YoY%", q.patAdjusted);
+  add("PAT reported (and adjustment items named)", q.patReported);
+  add("Net debt — latest / YoY / QoQ", q.netDebt);
+  add("Working capital days movement", q.workingCapitalDays);
+  add("CFO — YoY", q.cfo);
+
+  if (body.segments) {
+    lines.push("\n=== SEGMENT / GEOGRAPHY REVENUE (with YoY growth) ===");
+    lines.push(body.segments);
+  }
+
+  const c = body.commentary || {};
+  lines.push("\n=== MANAGEMENT COMMENTARY ===");
+  add("Outlook & guidance", c.outlookGuidance);
+  add("Regional commentary", c.regional);
+  add("Business-unit commentary", c.businessUnit);
+  add("Product-wise commentary", c.productWise);
+  add("Debt & balance sheet commentary", c.debtBalanceSheet);
+  add("Other (leadership changes, one-offs, JV/associate investments, geopolitical risk)", c.other);
+
+  const f = body.financials || {};
+  lines.push("\n=== FULL FINANCIAL STATEMENTS (5yr historical + 2yr estimate, as pasted) ===");
+  if (f.incomeStatement) lines.push(`--- Income Statement ---\n${f.incomeStatement}`);
+  if (f.balanceSheet) lines.push(`--- Balance Sheet ---\n${f.balanceSheet}`);
+  if (f.ratios) lines.push(`--- Ratios ---\n${f.ratios}`);
+  if (f.cashFlow) lines.push(`--- Cash Flow Statement ---\n${f.cashFlow}`);
+
+  if (h.isRevision && body.estimateRevision) {
+    lines.push("\n=== CHANGE IN ESTIMATES (old vs new FY estimates) ===");
+    lines.push(body.estimateRevision);
+  }
+
+  lines.push("\n=== FIRM & COMPLIANCE FACTS (use verbatim for the SEBI disclosures section — do not invent anything beyond this) ===");
+  lines.push(body.firmFacts || "[none provided — use [CONFIRM] placeholders throughout the disclosures section]");
+
+  return lines.join("\n");
+}
+
+app.post("/api/report-maker/generate", async (req, res) => {
+  try {
+    const inputText = formatResearchReportInput(req.body || {});
+    const report = await generateResearchReport(inputText);
+    res.json({ report });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to generate report", detail: String(err.message || err) });
   }
 });
 
