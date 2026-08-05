@@ -946,7 +946,9 @@ function OnePagerForm_() {
               {resultFinancialStatements && showFinancialStatements && (
                 <div className="border-t border-border px-6 py-3">
                   <SectionLabel>Financial Statements — Key Line Items (₹cr, last 3 FY)</SectionLabel>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+                  {/* One statement per row, full width — a 4-across grid squeezed each
+                      table too narrow to keep its own columns aligned. */}
+                  <div className="flex flex-col gap-3">
                     {([
                       ["Income Statement", resultFinancialStatements.incomeStatement],
                       ["Balance Sheet", resultFinancialStatements.balanceSheet],
@@ -965,13 +967,19 @@ function OnePagerForm_() {
                         return (
                           <div key={label}>
                             <div className="mb-0.5 text-[9px] font-bold text-foreground">{label}</div>
-                            <table className="w-full border-collapse text-[8px]">
+                            <table className="w-full table-fixed border-collapse text-[8.5px]">
+                              <colgroup>
+                                <col style={{ width: "34%" }} />
+                                {Array.from({ length: Math.max(colCount, 1) }).map((_, i) => (
+                                  <col key={i} style={{ width: `${66 / Math.max(colCount, 1)}%` }} />
+                                ))}
+                              </colgroup>
                               {headers.length > 0 && (
                                 <thead>
                                   <tr className="bg-surface-2">
-                                    <th className="border border-border px-1 py-0.5 text-left">Item</th>
+                                    <th className="border border-border px-1.5 py-0.5 text-left">Item</th>
                                     {headers.map((h, i) => (
-                                      <th key={i} className="border border-border px-1 py-0.5 text-left">{h}</th>
+                                      <th key={i} className="border border-border px-1.5 py-0.5 text-right">{h}</th>
                                     ))}
                                   </tr>
                                 </thead>
@@ -979,9 +987,14 @@ function OnePagerForm_() {
                               <tbody>
                                 {rows.map((r, i) => (
                                   <tr key={i}>
-                                    <td className="border border-border px-1 py-0.5 font-semibold text-foreground">{r.label}</td>
-                                    {r.values.map((val, vi) => (
-                                      <td key={vi} className="border border-border px-1 py-0.5 text-muted-foreground">{val}</td>
+                                    <td className="truncate border border-border px-1.5 py-0.5 font-semibold text-foreground">{r.label}</td>
+                                    {/* Pad every row to the same column count — a row with
+                                        fewer values than the widest row would otherwise
+                                        shift its cells left of where the header says. */}
+                                    {Array.from({ length: Math.max(colCount, 1) }).map((_, vi) => (
+                                      <td key={vi} className="truncate border border-border px-1.5 py-0.5 text-right text-muted-foreground">
+                                        {r.values[vi] ?? "—"}
+                                      </td>
                                     ))}
                                   </tr>
                                 ))}
