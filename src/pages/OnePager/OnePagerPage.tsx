@@ -903,7 +903,7 @@ function OnePagerForm_() {
                   {resultCommentary && showCommentary && (
                     <div>
                       <SectionLabel>Management Commentary</SectionLabel>
-                      <ul className="flex flex-col gap-0.5 text-center">
+                      <ul className="flex flex-col gap-0.5 text-justify">
                         {([
                           ["Outlook & guidance", resultCommentary.outlookGuidance],
                           ["Regional", resultCommentary.regional],
@@ -925,11 +925,11 @@ function OnePagerForm_() {
 
                   <div>
                     <SectionLabel>Risk Factors</SectionLabel>
-                    {/* Plain centered text with an inline bullet, not the
-                        flex+dot layout used elsewhere — a flex row only
-                        centers as a block, it doesn't center-wrap multi-line
-                        text the way plain text-align:center does. */}
-                    <ul className="flex flex-col gap-0.5 text-center">
+                    {/* Plain justified text with an inline bullet, not the
+                        flex+dot layout used elsewhere — a flex row can't
+                        justify-wrap multi-line text the way plain
+                        text-align:justify does. */}
+                    <ul className="flex flex-col gap-0.5 text-justify">
                       {result.narrative.riskFactors.map((r, i) => (
                         <li key={i} className="text-[12px] leading-snug text-muted-foreground">
                           <span className="text-bearish">•</span> {r}
