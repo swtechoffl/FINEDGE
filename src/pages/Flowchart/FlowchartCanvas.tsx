@@ -387,27 +387,66 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
         if (cs.fill && cs.fill !== "none") el.setAttribute("fill", cs.fill);
         if (cs.strokeWidth) el.setAttribute("stroke-width", cs.strokeWidth);
       });
+      clone.style.position = "absolute";
+      clone.style.left = "0";
+      clone.style.top = "0";
+      clone.style.width = `${width}px`;
+      clone.style.height = `${height}px`;
+      clone.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
+
+      // The dotted/lined grid (<Background>) is rendered as a sibling of
+      // .react-flow__viewport, not inside it, so cloning only the viewport
+      // leaves it out entirely — the export fell back to a flat fill,
+      // reading as a plain black/white background instead of matching the
+      // on-canvas grid. Rebuild it directly rather than cloning the live
+      // element: the live grid's <pattern> is positioned for the on-screen
+      // pan/zoom, which doesn't match this export's own framing (`viewport`
+      // above, computed to fit `targets` into `width`x`height`). The
+      // math below mirrors xyflow's own Background component, just fed
+      // this export's viewport instead of the live one.
+      const gap = GRID_SIZE * viewport.zoom;
+      const gridColor = theme === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)";
+      const nudge = gap / 2 + 1;
+      const bgSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      bgSvg.setAttribute("width", String(width));
+      bgSvg.setAttribute("height", String(height));
+      bgSvg.style.cssText = "position:absolute; inset:0;";
+      bgSvg.innerHTML = `
+        <pattern id="flowchart-export-grid" x="${viewport.x % gap}" y="${viewport.y % gap}" width="${gap}" height="${gap}" patternUnits="userSpaceOnUse" patternTransform="translate(-${nudge}, -${nudge})">
+          <path d="M${gap / 2} 0 V${gap} M0 ${gap / 2} H${gap}" stroke="${gridColor}" stroke-width="1" fill="none" />
+        </pattern>
+        <rect x="0" y="0" width="100%" height="100%" fill="url(#flowchart-export-grid)" />
+      `;
+
+      // Carrying the "react-flow"/theme classes above (for edge-stroke CSS
+      // variables) also pulls in .react-flow's own background-color rule —
+      // opaque #141414 in dark mode — which then paints over part of the
+      // grid SVG behind it wherever clone's scaled/translated box happens
+      // to land. The grid + toBlobOptions.backgroundColor already cover the
+      // canvas, so clone itself should stay transparent.
+      clone.style.backgroundColor = "transparent";
+
+      const container = document.createElement("div");
+      container.style.cssText = `position:relative; width:${width}px; height:${height}px; overflow:hidden;`;
+      container.appendChild(bgSvg);
+      container.appendChild(clone);
+      holder.appendChild(container);
 
       const toBlobOptions = {
         backgroundColor: theme === "dark" ? "#09090b" : "#ffffff",
         width,
         height,
         pixelRatio: 2,
-        style: {
-          width: `${width}px`,
-          height: `${height}px`,
-          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-        },
       };
 
       try {
         if (kind === "png") {
           const { toBlob } = await import("html-to-image");
-          const blob = await toBlob(clone, toBlobOptions);
+          const blob = await toBlob(container, toBlobOptions);
           if (blob) downloadFile(new File([blob], "flowchart.png", { type: "image/png" }));
         } else {
           const { exportNodeToPdf } = await import("../../lib/exportPdf");
-          await exportNodeToPdf(clone, "flowchart.pdf", toBlobOptions);
+          await exportNodeToPdf(container, "flowchart.pdf", toBlobOptions);
         }
       } finally {
         holder.remove();
