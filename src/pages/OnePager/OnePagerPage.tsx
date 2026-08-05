@@ -254,6 +254,78 @@ function OnePagerForm_() {
   return (
     <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 px-6 py-6 xl:grid-cols-2">
       <div className="flex flex-col gap-4">
+        <Card className="border-2 border-accent/40 p-5">
+          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Report data source</h3>
+          <p className="mb-3 text-xs text-subtle-foreground">
+            Two independent paths for the narrative and every supporting detail — pick one first, they never mix.
+            <strong className="text-foreground"> Manual entry</strong>: Groq drafts the narrative (free, no web search,
+            tight daily quota) from what you type in the fields below.
+            <strong className="text-foreground"> Paste from Claude</strong>: copy a research prompt into Claude (or any
+            AI with web search) — it researches everything you haven't already typed in — then paste its JSON reply
+            back.
+          </p>
+          <div className="mb-3 flex gap-2">
+            <Button
+              type="button"
+              variant={dataMode === "manual" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDataMode("manual")}
+            >
+              Manual entry
+            </Button>
+            <Button
+              type="button"
+              variant={dataMode === "paste" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDataMode("paste")}
+            >
+              <ClipboardPaste size={14} />
+              Paste from Claude
+            </Button>
+          </div>
+          {dataMode === "paste" && (
+            <div className="flex flex-col gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={handleCopyPrompt} className="self-start">
+                {promptCopied ? <Check size={14} /> : <Copy size={14} />}
+                {promptCopied ? "Copied!" : "Copy research prompt"}
+              </Button>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-subtle-foreground">Paste the AI's JSON reply here</span>
+                <Textarea
+                  rows={6}
+                  value={pastedNarrative}
+                  onChange={(e) => setPastedNarrative(e.target.value)}
+                  placeholder='{"companyOverview": "...", "investmentRationale": "...", "riskFactors": ["...", "..."], "valuationNote": "...", "strategyFit": "...", "shareholding": {...}, "financials": [...]}'
+                  className="font-mono text-xs"
+                />
+              </label>
+              {parsedPaste && "error" in parsedPaste && (
+                <span className="text-xs font-medium text-bearish">{parsedPaste.error}</span>
+              )}
+              {parsedPaste && "narrative" in parsedPaste && (
+                <div className="rounded-lg border border-bullish/30 bg-bullish/10 p-2 text-xs text-bullish">
+                  <div className="flex items-center gap-1 font-medium">
+                    <Check size={13} /> Parsed — ready to generate.
+                  </div>
+                  <ul className="mt-1 list-disc pl-4 text-[11px]">
+                    <li>{parsedPaste.narrative.riskFactors.length} risk factors</li>
+                    <li>
+                      Financials:{" "}
+                      {parsedPaste.financials ? `${parsedPaste.financials.length} year(s) supplied` : "none supplied — table stays empty"}
+                    </li>
+                    <li>
+                      Shareholding:{" "}
+                      {parsedPaste.shareholding
+                        ? `Promoter ${parsedPaste.shareholding.promoterPct}%${parsedPaste.shareholding.fiiPct != null ? `, FII ${parsedPaste.shareholding.fiiPct}%` : ""}${parsedPaste.shareholding.diiPct != null ? `, DII ${parsedPaste.shareholding.diiPct}%` : ""}`
+                        : "none supplied — falls back to live NSE data if available"}
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+
         <Card className="p-5">
           <h3 className="mb-3 text-sm font-extrabold tracking-tight text-foreground">Company & rating</h3>
           <div className="flex flex-col gap-3">
@@ -339,78 +411,6 @@ function OnePagerForm_() {
               <Textarea rows={3} value={form.recentDevelopments} onChange={(e) => setForm((f) => ({ ...f, recentDevelopments: e.target.value }))} />
             </label>
           </div>
-        </Card>
-
-        <Card className="p-5">
-          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Report data source</h3>
-          <p className="mb-3 text-xs text-subtle-foreground">
-            Two independent paths for the narrative and every supporting detail — pick one, they never mix.
-            <strong className="text-foreground"> Manual entry</strong>: Groq drafts the narrative (free, no web search,
-            tight daily quota) from quarterly numbers, segments, commentary, financial statements and shareholding % you
-            type in below.
-            <strong className="text-foreground"> Paste from Claude</strong>: copy a research prompt into Claude (or any
-            AI with web search) — it researches all of that itself — then paste its JSON reply back.
-          </p>
-          <div className="mb-3 flex gap-2">
-            <Button
-              type="button"
-              variant={dataMode === "manual" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDataMode("manual")}
-            >
-              Manual entry
-            </Button>
-            <Button
-              type="button"
-              variant={dataMode === "paste" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDataMode("paste")}
-            >
-              <ClipboardPaste size={14} />
-              Paste from Claude
-            </Button>
-          </div>
-          {dataMode === "paste" && (
-            <div className="flex flex-col gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={handleCopyPrompt} className="self-start">
-                {promptCopied ? <Check size={14} /> : <Copy size={14} />}
-                {promptCopied ? "Copied!" : "Copy research prompt"}
-              </Button>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-subtle-foreground">Paste the AI's JSON reply here</span>
-                <Textarea
-                  rows={6}
-                  value={pastedNarrative}
-                  onChange={(e) => setPastedNarrative(e.target.value)}
-                  placeholder='{"companyOverview": "...", "investmentRationale": "...", "riskFactors": ["...", "..."], "valuationNote": "...", "strategyFit": "...", "shareholding": {...}, "financials": [...]}'
-                  className="font-mono text-xs"
-                />
-              </label>
-              {parsedPaste && "error" in parsedPaste && (
-                <span className="text-xs font-medium text-bearish">{parsedPaste.error}</span>
-              )}
-              {parsedPaste && "narrative" in parsedPaste && (
-                <div className="rounded-lg border border-bullish/30 bg-bullish/10 p-2 text-xs text-bullish">
-                  <div className="flex items-center gap-1 font-medium">
-                    <Check size={13} /> Parsed — ready to generate.
-                  </div>
-                  <ul className="mt-1 list-disc pl-4 text-[11px]">
-                    <li>{parsedPaste.narrative.riskFactors.length} risk factors</li>
-                    <li>
-                      Financials:{" "}
-                      {parsedPaste.financials ? `${parsedPaste.financials.length} year(s) supplied` : "none supplied — table stays empty"}
-                    </li>
-                    <li>
-                      Shareholding:{" "}
-                      {parsedPaste.shareholding
-                        ? `Promoter ${parsedPaste.shareholding.promoterPct}%${parsedPaste.shareholding.fiiPct != null ? `, FII ${parsedPaste.shareholding.fiiPct}%` : ""}${parsedPaste.shareholding.diiPct != null ? `, DII ${parsedPaste.shareholding.diiPct}%` : ""}`
-                        : "none supplied — falls back to live NSE data if available"}
-                    </li>
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
         </Card>
 
         {dataMode === "manual" ? (
@@ -594,8 +594,8 @@ function OnePagerForm_() {
             <p className="text-xs text-subtle-foreground">
               Sourced entirely from the pasted JSON above — nothing here is typed in manually. Edit the pasted text and
               re-parse to change it. Quarterly numbers, segments, management commentary and full financial statements
-              aren't typed in either — the copied prompt tells Claude to research all of that itself via web search
-              before drafting the narrative.
+              have no input fields in this mode either — the copied prompt tells Claude to research anything you
+              haven't already supplied via web search before drafting the narrative.
             </p>
           </Card>
         )}

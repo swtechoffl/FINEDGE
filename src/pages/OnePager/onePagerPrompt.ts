@@ -1,5 +1,11 @@
 import type { FinancialYear, OnePagerForm, OnePagerNarrative } from "./onePagerTypes";
-import { formatFinancialsForPrompt } from "./onePagerTypes";
+import {
+  formatCommentaryForPrompt,
+  formatFinancialsForPrompt,
+  formatFinancialStatementsForPrompt,
+  formatQuarterlyForPrompt,
+  formatSegmentsForPrompt,
+} from "./onePagerTypes";
 
 export interface ClaudeShareholding {
   promoterPct: number;
@@ -24,11 +30,15 @@ export interface OnePagerClaudeResponse {
 export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
   const symbol = form.symbol.trim().toUpperCase() || "<TICKER>";
   const financials = formatFinancialsForPrompt(form.financials);
+  const quarterly = formatQuarterlyForPrompt(form.quarterly);
+  const segments = formatSegmentsForPrompt(form.segments);
+  const commentary = formatCommentaryForPrompt(form.commentary);
+  const statements = formatFinancialStatementsForPrompt(form.financialStatements);
 
   const lines: string[] = [
     `You are drafting an "Initial Research Report" one-pager for ${symbol}, an NSE-listed Indian company.`,
     "",
-    "Research the company using web search — cover all of: business description, key operations/geographies, ownership status (PSU/private); latest quarterly results (revenue/EBITDA/PAT vs YoY and QoQ, beat/miss vs consensus if available); segment/geography revenue mix; recent management commentary and outlook/guidance; the last 3 fiscal years of income statement, balance sheet, ratios and cash flow trends; growth drivers, competitive positioning, sector-specific risks; and the latest shareholding pattern. Ground every claim and every number in real, current, sourced information — never invent a fact, statistic, or event. Where you can't verify a specific figure, use the literal string \"NA\" rather than guessing.",
+    "Research the company using web search — cover all of: business description, key operations/geographies, ownership status (PSU/private); latest quarterly results (revenue/EBITDA/PAT vs YoY and QoQ, beat/miss vs consensus if available); segment/geography revenue mix; recent management commentary and outlook/guidance; the last 3 fiscal years of income statement, balance sheet, ratios and cash flow trends; growth drivers, competitive positioning, sector-specific risks; and the latest shareholding pattern. Only research what isn't already given to you below — where the analyst has already supplied a figure, use it exactly rather than searching for your own. Ground everything else in real, current, sourced information — never invent a fact, statistic, or event. Where you can't verify a specific figure, use the literal string \"NA\" rather than guessing.",
     "",
     "Analyst inputs (given — do not contradict, cite exactly, do not alter or round the numbers):",
     `- Rating: ${form.rating}`,
@@ -37,6 +47,10 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
     `- Time horizon: ${form.timeHorizon}`,
   ];
   if (financials) lines.push(`- 3-year financial summary already on hand (fill any gaps, don't contradict): ${financials}`);
+  if (quarterly) lines.push(`- Quarterly numbers already on hand: ${quarterly.replace(/\n/g, " | ")}`);
+  if (segments) lines.push(`- Segment / geography revenue already on hand: ${segments.replace(/\n/g, " | ")}`);
+  if (commentary) lines.push(`- Management commentary already on hand: ${commentary.replace(/\n/g, " | ")}`);
+  if (statements) lines.push(`- Financial statements already on hand:\n${statements}`);
   lines.push(`- Recent developments (analyst-supplied, safe to cite): ${form.recentDevelopments.trim() || "none supplied"}`);
   lines.push(
     "",
