@@ -227,10 +227,13 @@ export interface ReportSection {
   // it as exactly one page sized to the content's own height (still at the
   // standard A4 width, so it lines up with the report's other pages) —
   // for shorter, linear content (the disclaimer) that should never split
-  // across pages or leave a page mostly blank. Unlike a scale-to-fit-A4
-  // approach, the page grows/shrinks to the content instead of shrinking
-  // the content (and its text) to fit a fixed A4 height.
-  mode?: "paginate" | "fit";
+  // across pages or leave a page mostly blank, without shrinking its text.
+  // "fitA4" is for content deliberately designed to already read as one
+  // page (the One Pager) — it scales the whole page down (by width or
+  // height, whichever is more constraining) to fit within one genuine,
+  // fixed-size A4 page and centers it, rather than growing/shrinking the
+  // page to match the content the way "fit" does.
+  mode?: "paginate" | "fit" | "fitA4";
 }
 
 // Stamps "Page X of Y" centered in the bottom margin of every page already
@@ -327,6 +330,29 @@ export async function exportReportToPdf(sections: ReportSection[], filename: str
       const drawHeight = USABLE_WIDTH_PT * (contentRect.height / contentRect.width);
       const page = pdfDoc.addPage([A4_WIDTH_PT, drawHeight + PAGE_MARGIN_PT * 2]);
       page.drawImage(image, { x: PAGE_MARGIN_PT, y: PAGE_MARGIN_PT, width: drawWidth, height: drawHeight });
+      continue;
+    }
+
+    if (mode === "fitA4") {
+      const canvas = cropToCanvas(fullImage, 0, fullImage.height, fullImage.width, fullImage.height);
+      const image = await canvasToPdfImage(canvas, pdfDoc);
+      // Scale by whichever axis is more constraining so the whole page fits
+      // within a real, fixed A4 — the opposite of "fit", which resizes the
+      // page to the content instead of the content to the page.
+      const scale = Math.min(USABLE_WIDTH_PT / contentRect.width, USABLE_HEIGHT_PT / contentRect.height);
+      const drawWidth = contentRect.width * scale;
+      const drawHeight = contentRect.height * scale;
+      const page = pdfDoc.addPage([A4_WIDTH_PT, A4_HEIGHT_PT]);
+      page.drawImage(image, {
+        // Centered on both axes — the content's own aspect ratio rarely
+        // matches A4's exactly, so centering (rather than pinning to the
+        // top margin) splits the leftover space evenly instead of leaving
+        // it all as a gap under the content.
+        x: (A4_WIDTH_PT - drawWidth) / 2,
+        y: (A4_HEIGHT_PT - drawHeight) / 2,
+        width: drawWidth,
+        height: drawHeight,
+      });
       continue;
     }
 

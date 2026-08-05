@@ -24,6 +24,10 @@ export interface OnePagerForm {
   timeHorizon: string;
   recentDevelopments: string;
   financials: FinancialYear[];
+  // Optional — NSE's free feed only gives Promoter vs Public; these further
+  // split the Public slice when the analyst has that detail.
+  fiiPct: string;
+  diiPct: string;
 }
 
 export function emptyOnePagerForm(): OnePagerForm {
@@ -38,6 +42,8 @@ export function emptyOnePagerForm(): OnePagerForm {
     timeHorizon: "12 months",
     recentDevelopments: "",
     financials: [emptyFinancialYear(), emptyFinancialYear(), emptyFinancialYear()],
+    fiiPct: "",
+    diiPct: "",
   };
 }
 
@@ -62,6 +68,16 @@ export interface EquityCheck {
   reconciles: boolean;
 }
 
+export interface ShareholdingSlice {
+  label: string;
+  pct: number;
+}
+
+export interface Shareholding {
+  asOfDate: string | null;
+  slices: ShareholdingSlice[];
+}
+
 export interface OnePagerFacts {
   companyName: string | null;
   symbol: string;
@@ -79,6 +95,7 @@ export interface OnePagerFacts {
   fiftyTwoWeekHigh: number | null;
   fiftyTwoWeekLow: number | null;
   equityCheck: EquityCheck | null;
+  shareholding: Shareholding | null;
 }
 
 export interface OnePagerNarrative {

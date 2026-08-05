@@ -1,13 +1,15 @@
 import { useRef, useState } from "react";
-import { Loader2, Sparkles, Download, RefreshCw, AlertTriangle } from "lucide-react";
+import { Loader2, Sparkles, Download, RefreshCw, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
+import { Badge } from "../../components/ui/Badge";
 import { PinGate } from "../../components/PinGate";
 import { ANALYST, CONTACT, CLOSING_NOTE, DISCLAIMER_PARAGRAPHS } from "../Disclosure/disclaimerContent";
 import { OnePagerChart } from "./OnePagerChart";
+import { OnePagerPieChart } from "./OnePagerPieChart";
 import {
   emptyOnePagerForm,
   formatFinancialsForPrompt,
@@ -23,6 +25,12 @@ const VALUATION_METHODS = [
   "SOTP (Sum-of-the-Parts)",
 ];
 
+const RATING_BADGE_VARIANT: Record<string, "bullish" | "neutral" | "bearish"> = {
+  BUY: "bullish",
+  HOLD: "neutral",
+  REDUCE: "bearish",
+};
+
 function fmtCr(v: number | null) {
   return v == null ? "—" : `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 2 })} cr`;
 }
@@ -30,33 +38,43 @@ function fmtRs(v: number | null) {
   return v == null ? "—" : `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
-function RatingDefinitionTable({ horizon }: { horizon: string }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-1.5 flex items-center gap-1.5">
+      <span className="h-3 w-0.5 rounded-full bg-accent" />
+      <span className="text-[10px] font-extrabold uppercase tracking-widest text-accent">{children}</span>
+    </div>
+  );
+}
+
+function RatingDefinitionRow({ horizon }: { horizon: string }) {
   const h = horizon || "the stated horizon";
   const rows: [string, string][] = [
-    ["Buy / Positive", `Expected to deliver more than +15% return over ${h}`],
-    ["Hold / Neutral", `Expected to deliver -5% to +15% return over ${h}`],
-    ["Reduce / Book out", `Expected to deliver -15% to -5% return over ${h}`],
-    ["Book Profits", "Stock has met or is close to its target price; recommend booking profits"],
-    ["Under Review", "Rating under review pending new information or events"],
-    ["Subscribe", "Recommendation to apply for an IPO/NFO offering"],
+    ["Buy/Positive", `>+15% over ${h}`],
+    ["Hold/Neutral", `-5% to +15% over ${h}`],
+    ["Reduce/Book out", `-15% to -5% over ${h}`],
+    ["Book Profits", "Near/at target price"],
+    ["Under Review", "Pending new information"],
+    ["Subscribe", "Apply for IPO/NFO"],
   ];
   return (
-    <table className="w-full border-collapse text-[10px]">
-      <thead>
-        <tr className="bg-surface-2">
-          <th className="border border-border px-2 py-1 text-left font-semibold text-foreground">Rating</th>
-          <th className="border border-border px-2 py-1 text-left font-semibold text-foreground">Definition</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map(([label, def]) => (
-          <tr key={label}>
-            <td className="border border-border px-2 py-1 font-semibold text-foreground">{label}</td>
-            <td className="border border-border px-2 py-1 text-muted-foreground">{def}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-[9px] sm:grid-cols-6">
+      {rows.map(([label, def]) => (
+        <div key={label} className="rounded-md bg-surface-2 px-1.5 py-1">
+          <div className="font-bold text-foreground">{label}</div>
+          <div className="text-subtle-foreground">{def}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FactRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 border-b border-border/60 py-1 last:border-0">
+      <span className="text-[10px] font-medium text-subtle-foreground">{label}</span>
+      <span className="text-[11px] font-semibold text-foreground">{value}</span>
+    </div>
   );
 }
 
@@ -114,6 +132,8 @@ function OnePagerForm_() {
           timeHorizon: form.timeHorizon,
           recentDevelopments: form.recentDevelopments,
           threeYearFinancials: formatFinancialsForPrompt(form.financials),
+          fiiPct: form.fiiPct,
+          diiPct: form.diiPct,
         }),
       });
       const json = await res.json();
@@ -132,7 +152,7 @@ function OnePagerForm_() {
     try {
       const { exportReportToPdf } = await import("../../lib/exportPdf");
       const slug = (result.facts.companyName || result.facts.symbol).toLowerCase().replace(/\s+/g, "-");
-      await exportReportToPdf([{ node: previewRef.current, mode: "fit" }], `${slug}-one-pager-${form.symbol}.pdf`);
+      await exportReportToPdf([{ node: previewRef.current, mode: "fitA4" }], `${slug}-one-pager-${form.symbol}.pdf`);
     } finally {
       setExporting(false);
     }
@@ -229,6 +249,23 @@ function OnePagerForm_() {
         </Card>
 
         <Card className="p-5">
+          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Shareholding pattern</h3>
+          <p className="mb-3 text-xs text-subtle-foreground">
+            Promoter vs Public auto-fills live from NSE on generate. FII/DII (optional, no free source) further split the Public slice.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-subtle-foreground">FII holding (%, optional)</span>
+              <Input value={form.fiiPct} onChange={(e) => setForm((f) => ({ ...f, fiiPct: e.target.value }))} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-subtle-foreground">DII holding (%, optional)</span>
+              <Input value={form.diiPct} onChange={(e) => setForm((f) => ({ ...f, diiPct: e.target.value }))} />
+            </label>
+          </div>
+        </Card>
+
+        <Card className="p-5">
           <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">3-year financial summary</h3>
           <p className="mb-3 text-xs text-subtle-foreground">Not available from any free feed — enter the 3 most recent consecutive fiscal years.</p>
           <div className="overflow-x-auto">
@@ -292,30 +329,71 @@ function OnePagerForm_() {
           {result && (
             <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting}>
               {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              {exporting ? "Exporting…" : "Export PDF (one page)"}
+              {exporting ? "Exporting…" : "Export PDF (A4)"}
             </Button>
           )}
         </div>
-        <Card className="max-h-[85vh] overflow-y-auto p-6">
+        <Card className="max-h-[85vh] overflow-auto p-6">
           {!result ? (
             <p className="py-16 text-center text-sm text-subtle-foreground">
               Fill in the ticker and rating, then click "Generate One Pager".
             </p>
           ) : (
-            <div ref={previewRef} className="flex flex-col gap-3 bg-surface p-4 text-[13px]">
-              <div className="flex items-center justify-between border-b border-border pb-2">
+            <div ref={previewRef} className="mx-auto w-[780px] overflow-hidden bg-surface text-[13px] shadow-sm">
+              {/* Masthead */}
+              <div className="flex items-center justify-between bg-accent px-6 py-2.5 text-accent-foreground">
+                <span className="text-[10px] font-bold uppercase tracking-[0.15em]">
+                  Initial Research Report · {result.reportDateLabel}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.15em]">Sharewealth Securities</span>
+              </div>
+
+              {/* Title band */}
+              <div className="flex items-start justify-between gap-4 border-b border-border px-6 pb-4 pt-4">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-subtle-foreground">
-                    Initial Research Report — {result.reportDateLabel}
-                  </div>
-                  <h2 className="text-lg font-extrabold tracking-tight text-foreground">
-                    {result.facts.companyName} ({result.facts.symbol}) - {result.rating}
+                  <h2 className="text-[22px] font-extrabold leading-tight tracking-tight text-foreground">
+                    {result.facts.companyName}
                   </h2>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-semibold">{result.facts.symbol}</span>
+                    <span className="text-subtle-foreground">·</span>
+                    <span>{result.facts.sector}</span>
+                    <span className="text-subtle-foreground">·</span>
+                    <span>{result.facts.exchange}</span>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <Badge variant={RATING_BADGE_VARIANT[result.rating] ?? "default"} size="md" className="text-[13px] px-3 py-1">
+                    {result.rating}
+                  </Badge>
+                  <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-1.5">
+                    <div className="text-right">
+                      <div className="text-[9px] uppercase tracking-wide text-subtle-foreground">CMP</div>
+                      <div className="text-sm font-bold text-foreground">{fmtRs(result.facts.cmp)}</div>
+                    </div>
+                    <div className="h-6 w-px bg-border" />
+                    <div className="text-right">
+                      <div className="text-[9px] uppercase tracking-wide text-subtle-foreground">Target</div>
+                      <div className="text-sm font-bold text-accent">{result.targetPrice != null ? fmtRs(result.targetPrice) : "—"}</div>
+                    </div>
+                    {result.upsidePct != null && (
+                      <>
+                        <div className="h-6 w-px bg-border" />
+                        <div
+                          className={`flex items-center gap-0.5 text-sm font-bold ${result.upsidePct >= 0 ? "text-bullish" : "text-bearish"}`}
+                        >
+                          {result.upsidePct >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                          {result.upsidePct >= 0 ? "+" : ""}
+                          {result.upsidePct}%
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {result.facts.equityCheck && !result.facts.equityCheck.reconciles && (
-                <div className="flex items-start gap-2 rounded-lg border border-bearish/30 bg-bearish/10 p-2 text-xs text-bearish">
+                <div className="mx-6 mt-3 flex items-start gap-2 rounded-lg border border-bearish/30 bg-bearish/10 p-2 text-xs text-bearish">
                   <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                   <span>
                     Market cap doesn't reconcile: reported ₹{result.facts.equityCheck.reportedMarketCapCr?.toLocaleString("en-IN")} cr vs
@@ -324,139 +402,126 @@ function OnePagerForm_() {
                 </div>
               )}
 
-              <table className="w-full border-collapse text-[11px]">
-                <tbody>
-                  <tr>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">ISIN</td>
-                    <td className="border border-border px-2 py-1">{result.facts.isin || "—"}</td>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">BSE Code</td>
-                    <td className="border border-border px-2 py-1">{result.facts.bseCode || "—"}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">Sector</td>
-                    <td className="border border-border px-2 py-1">{result.facts.sector || "—"}</td>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">Type / Exchange</td>
-                    <td className="border border-border px-2 py-1">Equity / {result.facts.exchange}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">Market Cap</td>
-                    <td className="border border-border px-2 py-1">{fmtCr(result.facts.marketCapCr)}</td>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">CMP</td>
-                    <td className="border border-border px-2 py-1">{fmtRs(result.facts.cmp)}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">Face Value</td>
-                    <td className="border border-border px-2 py-1">{fmtRs(result.facts.faceValue)}</td>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">Equity (paid-up)</td>
-                    <td className="border border-border px-2 py-1">{fmtCr(result.facts.equityCr)}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">Book Value</td>
-                    <td className="border border-border px-2 py-1">{fmtRs(result.facts.bookValue)}</td>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">EPS (TTM)</td>
-                    <td className="border border-border px-2 py-1">{fmtRs(result.facts.epsTtm)}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">P/E (TTM)</td>
-                    <td className="border border-border px-2 py-1">{result.facts.peTtm ?? "—"}</td>
-                    <td className="border border-border px-2 py-1 font-semibold text-foreground">52W High/Low</td>
-                    <td className="border border-border px-2 py-1">
-                      {fmtRs(result.facts.fiftyTwoWeekHigh)} / {fmtRs(result.facts.fiftyTwoWeekLow)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              {/* Two-column body */}
+              <div className="grid grid-cols-[1.35fr_1fr] gap-5 px-6 py-4">
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <SectionLabel>Security Details</SectionLabel>
+                    <div className="grid grid-cols-2 gap-x-4">
+                      <div>
+                        <FactRow label="ISIN" value={result.facts.isin || "—"} />
+                        <FactRow label="BSE Code" value={result.facts.bseCode || "—"} />
+                        <FactRow label="Face Value" value={fmtRs(result.facts.faceValue)} />
+                        <FactRow label="Book Value" value={fmtRs(result.facts.bookValue)} />
+                      </div>
+                      <div>
+                        <FactRow label="Market Cap" value={fmtCr(result.facts.marketCapCr)} />
+                        <FactRow label="Equity (paid-up)" value={fmtCr(result.facts.equityCr)} />
+                        <FactRow label="P/E (TTM)" value={result.facts.peTtm ?? "—"} />
+                        <FactRow label="EPS (TTM)" value={fmtRs(result.facts.epsTtm)} />
+                      </div>
+                    </div>
+                    <FactRow
+                      label="52-Week High / Low"
+                      value={`${fmtRs(result.facts.fiftyTwoWeekHigh)} / ${fmtRs(result.facts.fiftyTwoWeekLow)}`}
+                    />
+                  </div>
 
-              <OnePagerChart stock={result.chart.stock} nifty={result.chart.nifty} symbol={result.facts.symbol} />
+                  <div>
+                    <SectionLabel>Company Overview</SectionLabel>
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">{result.narrative.companyOverview}</p>
+                  </div>
 
-              <div>
-                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-subtle-foreground">Company Overview</div>
-                <p className="text-muted-foreground">{result.narrative.companyOverview}</p>
-              </div>
+                  <div>
+                    <SectionLabel>Investment Rationale</SectionLabel>
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">{result.narrative.investmentRationale}</p>
+                  </div>
 
-              <div>
-                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-subtle-foreground">Financial Summary (Consolidated)</div>
-                <table className="w-full border-collapse text-[10px]">
-                  <thead>
-                    <tr className="bg-surface-2">
-                      <th className="border border-border px-1.5 py-1 text-left">FY</th>
-                      <th className="border border-border px-1.5 py-1 text-left">Revenue</th>
-                      <th className="border border-border px-1.5 py-1 text-left">EBITDA %</th>
-                      <th className="border border-border px-1.5 py-1 text-left">PAT</th>
-                      <th className="border border-border px-1.5 py-1 text-left">RoE %</th>
-                      <th className="border border-border px-1.5 py-1 text-left">RoA %</th>
-                      <th className="border border-border px-1.5 py-1 text-left">D/E %</th>
-                      <th className="border border-border px-1.5 py-1 text-left">Div yield %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {form.financials
-                      .filter((f) => f.year.trim())
-                      .map((f) => (
-                        <tr key={f.year}>
-                          <td className="border border-border px-1.5 py-1 font-semibold">{f.year}</td>
-                          <td className="border border-border px-1.5 py-1">{f.revenue || "—"}</td>
-                          <td className="border border-border px-1.5 py-1">{f.ebitdaMargin || "—"}</td>
-                          <td className="border border-border px-1.5 py-1">{f.pat || "—"}</td>
-                          <td className="border border-border px-1.5 py-1">{f.roe || "—"}</td>
-                          <td className="border border-border px-1.5 py-1">{f.roa || "—"}</td>
-                          <td className="border border-border px-1.5 py-1">{f.debtEquity || "—"}</td>
-                          <td className="border border-border px-1.5 py-1">{f.divYield || "—"}</td>
-                        </tr>
+                  <div>
+                    <SectionLabel>Risk Factors</SectionLabel>
+                    <ul className="flex flex-col gap-0.5">
+                      {result.narrative.riskFactors.map((r, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-[12px] leading-snug text-muted-foreground">
+                          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-bearish" />
+                          {r}
+                        </li>
                       ))}
-                  </tbody>
-                </table>
-              </div>
+                    </ul>
+                  </div>
+                </div>
 
-              <div>
-                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-subtle-foreground">Investment Rationale</div>
-                <p className="text-muted-foreground">{result.narrative.investmentRationale}</p>
-              </div>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <SectionLabel>1-Year Price Performance</SectionLabel>
+                    <OnePagerChart stock={result.chart.stock} nifty={result.chart.nifty} symbol={result.facts.symbol} />
+                  </div>
 
-              <div>
-                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-subtle-foreground">Risk Factors</div>
-                <ul className="list-disc pl-4 text-muted-foreground">
-                  {result.narrative.riskFactors.map((r, i) => (
-                    <li key={i}>{r}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-subtle-foreground">Valuation</div>
-                <p className="text-muted-foreground">
-                  {result.narrative.valuationNote}{" "}
-                  {result.targetPrice != null && (
-                    <>
-                      Target Price: <strong className="text-foreground">₹{result.targetPrice}</strong>
-                      {result.upsidePct != null && (
-                        <> ({result.upsidePct >= 0 ? "+" : ""}{result.upsidePct}% {result.upsidePct >= 0 ? "upside" : "downside"} from CMP)</>
-                      )}.
-                    </>
+                  {result.facts.shareholding && (
+                    <div>
+                      <SectionLabel>Shareholding Pattern</SectionLabel>
+                      <OnePagerPieChart slices={result.facts.shareholding.slices} asOfDate={result.facts.shareholding.asOfDate} />
+                    </div>
                   )}
-                </p>
-                <p className="mt-1 text-xs text-subtle-foreground">
-                  Time Horizon: {result.timeHorizon} · Strategy Fit: {result.narrative.strategyFit}
-                </p>
+
+                  <div>
+                    <SectionLabel>Financial Summary (Consolidated)</SectionLabel>
+                    <table className="w-full border-collapse text-[9.5px]">
+                      <thead>
+                        <tr className="bg-surface-2">
+                          <th className="border border-border px-1 py-1 text-left">FY</th>
+                          <th className="border border-border px-1 py-1 text-left">Rev.</th>
+                          <th className="border border-border px-1 py-1 text-left">EBITDA%</th>
+                          <th className="border border-border px-1 py-1 text-left">PAT</th>
+                          <th className="border border-border px-1 py-1 text-left">RoE%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.financials
+                          .filter((f) => f.year.trim())
+                          .map((f) => (
+                            <tr key={f.year}>
+                              <td className="border border-border px-1 py-1 font-semibold">{f.year}</td>
+                              <td className="border border-border px-1 py-1">{f.revenue || "—"}</td>
+                              <td className="border border-border px-1 py-1">{f.ebitdaMargin || "—"}</td>
+                              <td className="border border-border px-1 py-1">{f.pat || "—"}</td>
+                              <td className="border border-border px-1 py-1">{f.roe || "—"}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="rounded-lg border border-accent/30 bg-accent-bg p-3">
+                    <SectionLabel>Valuation</SectionLabel>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">{result.narrative.valuationNote}</p>
+                    <p className="mt-1.5 text-[10px] text-subtle-foreground">
+                      <span className="font-semibold text-foreground">Time Horizon:</span> {result.timeHorizon}
+                      <br />
+                      <span className="font-semibold text-foreground">Strategy Fit:</span> {result.narrative.strategyFit}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-subtle-foreground">Rating Definitions</div>
-                <RatingDefinitionTable horizon={result.timeHorizon} />
+              {/* Footer: rating definitions + disclosures */}
+              <div className="border-t border-border px-6 py-3">
+                <SectionLabel>Rating Definitions</SectionLabel>
+                <RatingDefinitionRow horizon={result.timeHorizon} />
               </div>
 
-              <div className="mt-2 border-t border-border pt-2">
-                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-subtle-foreground">Disclosure &amp; Disclaimer</div>
+              <div className="border-t border-border bg-surface-2 px-6 py-3">
                 <div className="mb-1.5 text-[10px] text-muted-foreground">
                   <span className="font-semibold text-foreground">{ANALYST.name}</span> · {ANALYST.regLine} · {ANALYST.title}
                 </div>
-                <div className="flex flex-col gap-1 text-[9px] leading-snug text-subtle-foreground">
+                <div className="columns-2 gap-4 text-[7.5px] leading-[1.35] text-subtle-foreground [column-fill:balance]">
                   {DISCLAIMER_PARAGRAPHS.map((p, i) => (
-                    <p key={i}>{p}</p>
+                    <p key={i} className="mb-1 break-inside-avoid-column">
+                      {p}
+                    </p>
                   ))}
                 </div>
-                <p className="mt-1.5 text-[9px] italic text-subtle-foreground">{CLOSING_NOTE}</p>
-                <p className="mt-1.5 text-[9px] text-subtle-foreground">
+                <p className="mt-1.5 text-[7.5px] italic text-subtle-foreground">{CLOSING_NOTE}</p>
+                <p className="mt-1 text-[7.5px] text-subtle-foreground">
                   {CONTACT.email} · {CONTACT.phone} · {CONTACT.address}
                 </p>
               </div>

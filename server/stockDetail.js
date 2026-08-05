@@ -43,6 +43,29 @@ async function fetchNseQuote(symbol) {
   };
 }
 
+// NSE's own quarterly shareholding-pattern filing feed — real, free, no
+// scraping. Only carries the Promoter vs Public split (no FII/DII
+// sub-breakdown), so the One Pager still lets the analyst optionally
+// enter FII/DII to further split the Public slice. Returns null (not a
+// thrown error) on failure — this is an enrichment, not a hard dependency.
+async function fetchShareholding(symbol) {
+  try {
+    const res = await fetchNseJson(
+      `/api/corporate-share-holdings-master?index=equities&symbol=${encodeURIComponent(symbol)}`,
+      `https://www.nseindia.com/get-quotes/equity?symbol=${encodeURIComponent(symbol)}`,
+    );
+    const latest = Array.isArray(res) ? res[0] : null;
+    if (!latest || latest.pr_and_prgrp == null || latest.public_val == null) return null;
+    return {
+      promoterPct: Number(latest.pr_and_prgrp),
+      publicPct: Number(latest.public_val),
+      asOfDate: latest.date ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function computeMaxPain(strikes) {
   let bestStrike = null;
   let minPain = Infinity;
@@ -132,7 +155,10 @@ async function fetchStockDetailFresh(symbol) {
     fetchStockOptionChain(symbol).catch(() => null),
     fetchNseQuote(symbol).catch(() => null),
   ]);
-  const bseCode = await fetchBseCode(symbol, nseQuote?.isin ?? null);
+  const [bseCode, shareholding] = await Promise.all([
+    fetchBseCode(symbol, nseQuote?.isin ?? null),
+    fetchShareholding(symbol),
+  ]);
 
   return {
     symbol,
@@ -164,6 +190,7 @@ async function fetchStockDetailFresh(symbol) {
       (cachedPrice?.price ?? liveQuote?.price) && nseQuote?.peRatio
         ? +((cachedPrice?.price ?? liveQuote?.price) / nseQuote.peRatio).toFixed(2)
         : null,
+    shareholding,
     history,
     optionChain,
   };

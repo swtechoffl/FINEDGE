@@ -76,6 +76,26 @@ export async function generateOnePager(symbol, manual) {
     };
   }
 
+  // NSE's shareholding feed only carries Promoter vs Public — real and free,
+  // but not the FII/DII split real one-pagers usually show. If the analyst
+  // supplied FII/DII (optional, no free source for that split), carve those
+  // out of the Public slice; otherwise the pie just shows Promoter/Public.
+  let shareholding = null;
+  if (detail.shareholding) {
+    const { promoterPct, publicPct, asOfDate } = detail.shareholding;
+    const fiiPct = manual.fiiPct ? Number(manual.fiiPct) : null;
+    const diiPct = manual.diiPct ? Number(manual.diiPct) : null;
+    const slices = [{ label: "Promoter", pct: promoterPct }];
+    if (fiiPct != null && diiPct != null && fiiPct + diiPct <= publicPct) {
+      slices.push({ label: "FII", pct: fiiPct }, { label: "DII", pct: diiPct });
+      const otherPublic = +(publicPct - fiiPct - diiPct).toFixed(2);
+      if (otherPublic > 0.05) slices.push({ label: "Public / Others", pct: otherPublic });
+    } else {
+      slices.push({ label: "Public / Others", pct: publicPct });
+    }
+    shareholding = { asOfDate, slices };
+  }
+
   const facts = {
     companyName: detail.name,
     symbol: detail.symbol,
@@ -95,6 +115,7 @@ export async function generateOnePager(symbol, manual) {
     fiftyTwoWeekHigh: detail.fiftyTwoWeekHigh,
     fiftyTwoWeekLow: detail.fiftyTwoWeekLow,
     equityCheck,
+    shareholding,
   };
 
   const narrative = await generateOnePagerNarrative({
