@@ -780,7 +780,16 @@ function OnePagerForm_() {
 
               {/* Two-column body */}
               <div className="grid grid-cols-[1.35fr_1fr] gap-5 px-6 py-4">
-                <div className="flex flex-col gap-4">
+                {/* grid-cols-1, not flex-col — the PDF export's page-break
+                    logic treats every direct child of a .grid as a safe
+                    break point unconditionally, vs. a flex-col list only
+                    once it has 5+ items. This column is a handful of
+                    different sections, not a repeating list, so a break
+                    should be allowed before any of them regardless of
+                    count — otherwise a short paste (few optional sections)
+                    could still get a page break mid-paragraph instead of
+                    landing cleanly before the next section. */}
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <SectionLabel>Security Details</SectionLabel>
                     <div className="grid grid-cols-2 gap-x-4">
@@ -893,7 +902,7 @@ function OnePagerForm_() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <SectionLabel>1-Year Price Performance</SectionLabel>
                     <OnePagerChart stock={result.chart.stock} nifty={result.chart.nifty} symbol={result.facts.symbol} />
@@ -956,8 +965,11 @@ function OnePagerForm_() {
                 <div className="border-t border-border px-6 py-3">
                   <SectionLabel>Financial Statements — Key Line Items (₹cr, last 3 FY)</SectionLabel>
                   {/* One statement per row, full width — a 4-across grid squeezed each
-                      table too narrow to keep its own columns aligned. */}
-                  <div className="flex flex-col gap-3">
+                      table too narrow to keep its own columns aligned. grid-cols-1
+                      (not flex-col) so a page break can land between statement
+                      tables even though there are only up to 4 of them — see the
+                      note on the two-column body above for why. */}
+                  <div className="grid grid-cols-1 gap-3">
                     {([
                       ["Income Statement", resultFinancialStatements.incomeStatement],
                       ["Balance Sheet", resultFinancialStatements.balanceSheet],
@@ -978,9 +990,9 @@ function OnePagerForm_() {
                             <div className="mb-0.5 text-[9px] font-bold text-foreground">{label}</div>
                             <table className="w-full table-fixed border-collapse text-[8.5px]">
                               <colgroup>
-                                <col style={{ width: "34%" }} />
+                                <col style={{ width: "22%" }} />
                                 {Array.from({ length: Math.max(colCount, 1) }).map((_, i) => (
-                                  <col key={i} style={{ width: `${66 / Math.max(colCount, 1)}%` }} />
+                                  <col key={i} style={{ width: `${78 / Math.max(colCount, 1)}%` }} />
                                 ))}
                               </colgroup>
                               {headers.length > 0 && (
