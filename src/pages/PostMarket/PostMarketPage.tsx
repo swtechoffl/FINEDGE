@@ -291,7 +291,7 @@ export function PostMarketPage() {
       await exportReportToPdf(
         [
           { node: reportRef.current },
-          { node: disclaimerRef.current },
+          { node: disclaimerRef.current, mode: "fit" },
         ],
         `stoqtrade-postmarket-report-${dateStr}.pdf`,
       );

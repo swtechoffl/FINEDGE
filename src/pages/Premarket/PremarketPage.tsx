@@ -119,7 +119,7 @@ export function PremarketPage() {
       await exportReportToPdf(
         [
           { node: reportRef.current },
-          { node: disclaimerRef.current },
+          { node: disclaimerRef.current, mode: "fit" },
         ],
         `stoqtrade-premarket-report-${dateStr}.pdf`,
       );

@@ -345,6 +345,12 @@ export function FlowchartCanvas({ boardId }: { boardId: string }) {
       const clone = viewportEl.cloneNode(true) as HTMLElement;
       clone.querySelectorAll(".flowchart-shape--selected").forEach((el) => el.classList.remove("flowchart-shape--selected"));
       clone.querySelectorAll(".flowchart-shape__delete").forEach((el) => el.remove());
+      // NodeResizer renders its blue outline + green corner handles as
+      // siblings of the shape div (react-flow__resize-control), not inside
+      // it — stripping .flowchart-shape--selected above doesn't touch them,
+      // so a shape left selected at export time was baking a bounding box
+      // and green squares into the image. Remove them outright.
+      clone.querySelectorAll(".react-flow__resize-control").forEach((el) => el.remove());
       // Edge color/width come from CSS custom properties (e.g.
       // --xy-edge-stroke-default) scoped to the .react-flow class, which
       // this clone doesn't carry since we only cloned .react-flow__viewport

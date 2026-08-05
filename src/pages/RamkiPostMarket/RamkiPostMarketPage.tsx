@@ -292,7 +292,7 @@ export function RamkiPostMarketPage() {
       await exportReportToPdf(
         [
           { node: reportRef.current },
-          { node: disclaimerRef.current },
+          { node: disclaimerRef.current, mode: "fit" },
         ],
         `stoqtrade-ramki-postmarket-report-${dateStr}.pdf`,
       );

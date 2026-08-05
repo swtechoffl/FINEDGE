@@ -180,6 +180,27 @@ async function measureLayout(page, selector) {
   );
 }
 
+// Screenshots `selector` as a single image and places it on exactly one PDF
+// page sized to the content's own height (at the standard A4 width) —
+// mirrors the "fit" mode in src/lib/exportPdf.ts. Used for the disclaimer,
+// which should never split across pages or leave a page mostly blank; the
+// page grows/shrinks to the content instead of shrinking the content to
+// fit a fixed A4 height.
+async function addFitNodeToPdf(page, pdfDoc, selector) {
+  const layout = await measureLayout(page, selector);
+  if (!layout) return;
+
+  const clipBuffer = await page.screenshot({
+    type: "png",
+    clip: { x: layout.x, y: layout.y, width: layout.width, height: layout.height },
+  });
+  const image = await pdfDoc.embedPng(clipBuffer);
+  const drawWidth = USABLE_WIDTH_PT;
+  const drawHeight = USABLE_WIDTH_PT * (layout.height / layout.width);
+  const pdfPage = pdfDoc.addPage([A4_WIDTH_PT, drawHeight + PAGE_MARGIN_PT * 2]);
+  pdfPage.drawImage(image, { x: PAGE_MARGIN_PT, y: PAGE_MARGIN_PT, width: drawWidth, height: drawHeight });
+}
+
 // Measures `selector`'s own bounding box plus every safe page-break
 // candidate inside it (the top edge of each of its direct children, and of
 // each direct child of any CSS grid nested inside it — i.e. every bento
@@ -268,7 +289,7 @@ export async function captureReportPdf(origin, reportKey) {
     await addPaginatedNodeToPdf(page, pdfDoc, '[data-export-node="report"]');
 
     const hasDisclaimer = await page.$('[data-export-node="disclaimer"]');
-    if (hasDisclaimer) await addPaginatedNodeToPdf(page, pdfDoc, '[data-export-node="disclaimer"]');
+    if (hasDisclaimer) await addFitNodeToPdf(page, pdfDoc, '[data-export-node="disclaimer"]');
 
     await drawPageNumbers(pdfDoc);
 

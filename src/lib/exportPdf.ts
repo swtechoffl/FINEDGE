@@ -222,6 +222,15 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 export interface ReportSection {
   node: HTMLElement;
+  // "paginate" (default) splits tall content across as many standard A4
+  // pages as it needs, snapping breaks to card/paragraph edges. "fit" keeps
+  // it as exactly one page sized to the content's own height (still at the
+  // standard A4 width, so it lines up with the report's other pages) —
+  // for shorter, linear content (the disclaimer) that should never split
+  // across pages or leave a page mostly blank. Unlike a scale-to-fit-A4
+  // approach, the page grows/shrinks to the content instead of shrinking
+  // the content (and its text) to fit a fixed A4 height.
+  mode?: "paginate" | "fit";
 }
 
 // Stamps "Page X of Y" centered in the bottom margin of every page already
@@ -307,9 +316,19 @@ export async function exportReportToPdf(sections: ReportSection[], filename: str
 
   const pdfDoc = await PDFDocument.create();
 
-  for (const { node } of sections) {
+  for (const { node, mode = "paginate" } of sections) {
     const fullImage = await rasterizeNode(node, toBlob, backgroundColor, pixelRatio);
     const contentRect = node.getBoundingClientRect();
+
+    if (mode === "fit") {
+      const canvas = cropToCanvas(fullImage, 0, fullImage.height, fullImage.width, fullImage.height);
+      const image = await canvasToPdfImage(canvas, pdfDoc);
+      const drawWidth = USABLE_WIDTH_PT;
+      const drawHeight = USABLE_WIDTH_PT * (contentRect.height / contentRect.width);
+      const page = pdfDoc.addPage([A4_WIDTH_PT, drawHeight + PAGE_MARGIN_PT * 2]);
+      page.drawImage(image, { x: PAGE_MARGIN_PT, y: PAGE_MARGIN_PT, width: drawWidth, height: drawHeight });
+      continue;
+    }
 
     const safeBreaksPx = findSafeBreaks(node);
     const lineBreaksPx = findLineBreaks(node);
