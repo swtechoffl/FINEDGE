@@ -1096,13 +1096,13 @@ function OnePagerForm_() {
                 </div>
                 <div className="columns-2 gap-4 text-[9px] leading-[1.4] text-subtle-foreground [column-fill:balance]">
                   {DISCLAIMER_PARAGRAPHS.map((p, i) => (
-                    <p key={i} className="mb-1 break-inside-avoid-column">
+                    <p key={i} className="mb-1 break-inside-avoid-column text-justify">
                       {p}
                     </p>
                   ))}
                 </div>
-                <p className="mt-1.5 text-[9px] italic text-subtle-foreground">{CLOSING_NOTE}</p>
-                <p className="mt-1 text-[9px] text-subtle-foreground">
+                <p className="mt-1.5 text-justify text-[9px] italic text-subtle-foreground">{CLOSING_NOTE}</p>
+                <p className="mt-1 text-justify text-[9px] text-subtle-foreground">
                   {CONTACT.email} · {CONTACT.phone} · {CONTACT.address}
                 </p>
               </div>
