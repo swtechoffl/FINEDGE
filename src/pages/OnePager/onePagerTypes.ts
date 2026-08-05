@@ -184,6 +184,35 @@ export function formatFinancialStatementsForPrompt(fs: OnePagerFinancialStatemen
   return lines.join("\n\n");
 }
 
+export interface StatementRow {
+  label: string;
+  values: string[];
+}
+
+// Renders a financial statement block as a table rather than a raw text
+// dump. Expects (and the research prompt asks for) one line item per line
+// in "Label: v1 | v2 | v3" form — same convention as a screener.in paste,
+// which is also what free-typed manual entry tends to look like already.
+// A line with no ":" still renders, as a single-column note row, rather
+// than being dropped — raw pastes aren't guaranteed to be this tidy.
+export function parseStatementRows(raw: string): StatementRow[] {
+  return raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "")
+    .map((line) => {
+      const colonIdx = line.indexOf(":");
+      if (colonIdx === -1) return { label: line, values: [] };
+      const label = line.slice(0, colonIdx).trim();
+      const values = line
+        .slice(colonIdx + 1)
+        .split("|")
+        .map((v) => v.trim())
+        .filter((v) => v !== "");
+      return { label: label || line, values };
+    });
+}
+
 export function formatFinancialsForPrompt(financials: FinancialYear[]): string {
   const rows = financials.filter((f) => f.year.trim());
   if (rows.length === 0) return "";

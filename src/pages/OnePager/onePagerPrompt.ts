@@ -110,14 +110,14 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
     '    "productWise": "<1 sentence or \\"NA\\">", "debtBalanceSheet": "<1 sentence or \\"NA\\">", "other": "<1 sentence or \\"NA\\">"',
     "  },",
     '  "financialStatements": {',
-    '    "incomeStatement": "<3-5 key line items, last 3 FY, one per line: e.g. \'Revenue: 12000 | 13500 | 15200\'>",',
-    '    "balanceSheet": "<3-5 key line items, last 3 FY>",',
-    '    "ratios": "<3-5 key ratios, last 3 FY>",',
-    '    "cashFlow": "<3-5 key line items, last 3 FY>"',
+    '    "incomeStatement": "<3-5 line items, ONE PER LINE, exact format \'Label: value1 | value2 | value3\' for the 3 fiscal years oldest-to-newest, e.g. \'Revenue: 12000 | 13500 | 15200\\\\nEBITDA: 2400 | 2700 | 3100\'>",',
+    '    "balanceSheet": "<same \'Label: v1 | v2 | v3\' format, one line per item, 3-5 items>",',
+    '    "ratios": "<same \'Label: v1 | v2 | v3\' format, one line per item, 3-5 items>",',
+    '    "cashFlow": "<same \'Label: v1 | v2 | v3\' format, one line per item, 3-5 items>"',
     "  }",
     "}",
     "",
-    "For \"financials\", use the 3 most recent consecutive fiscal years actually reported (consolidated figures where available). \"quarterly\", \"segments\", \"commentary\" and \"financialStatements\" are all optional — include only what you actually found; use \"NA\" for individual fields you can't verify, and omit a whole key only if you found nothing for it at all. Keep \"financialStatements\" to a few key line items each, not the full raw statement — this is for a one-page report, not a research note.",
+    "For \"financials\", use the 3 most recent consecutive fiscal years actually reported (consolidated figures where available). \"quarterly\", \"segments\", \"commentary\" and \"financialStatements\" are all optional — include only what you actually found; use \"NA\" for individual fields you can't verify, and omit a whole key only if you found nothing for it at all. Every line inside \"financialStatements\" MUST follow the exact 'Label: value1 | value2 | value3' format — it gets parsed into a table, so free-form prose or a different separator will not render correctly. Keep it to a few key line items each, not the full raw statement — this is for a one-page report, not a research note.",
   );
   return lines.join("\n");
 }

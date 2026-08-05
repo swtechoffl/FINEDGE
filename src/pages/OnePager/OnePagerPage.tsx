@@ -19,6 +19,7 @@ import {
   formatFinancialStatementsForPrompt,
   formatQuarterlyForPrompt,
   formatSegmentsForPrompt,
+  parseStatementRows,
   type FinancialYear,
   type OnePagerCommentary,
   type OnePagerFinancialStatements,
@@ -117,6 +118,16 @@ function OnePagerForm_() {
   const [resultFinancialStatements, setResultFinancialStatements] = useState<OnePagerFinancialStatements | null>(null);
   const [exporting, setExporting] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+
+  // Whether each optional detail section renders in the actual report —
+  // independent of whether the data exists, so filling something in (or
+  // Claude researching it) doesn't force it into the one-pager unasked.
+  // Read live at render time, not snapshotted at generate, so toggling
+  // after generating updates the preview/export immediately.
+  const [showQuarterly, setShowQuarterly] = useState(true);
+  const [showSegments, setShowSegments] = useState(true);
+  const [showCommentary, setShowCommentary] = useState(true);
+  const [showFinancialStatements, setShowFinancialStatements] = useState(true);
 
   // Manual entry and paste-from-Claude are two fully independent data
   // paths for narrative + shareholding % + 3yr financials — switching
@@ -591,19 +602,43 @@ function OnePagerForm_() {
 
             <Card className="p-5">
               <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Full financial statements</h3>
-              <p className="mb-3 text-xs text-subtle-foreground">Optional — paste as-is (e.g. copied from screener.in); feeds the narrative only, not rendered directly.</p>
+              <p className="mb-3 text-xs text-subtle-foreground">
+                Optional — feeds the narrative and renders as a table on the report (toggle it off below if you'd rather
+                it didn't). One line per item, exactly <code className="rounded bg-surface-2 px-1">Label: value1 | value2 | value3</code> —
+                anything else still shows, just without the per-year columns.
+              </p>
               <div className="flex flex-col gap-3">
                 <Field label="Income statement">
-                  <Textarea rows={4} value={form.financialStatements.incomeStatement} onChange={(e) => setFinancialStatements("incomeStatement", e.target.value)} />
+                  <Textarea
+                    rows={4}
+                    value={form.financialStatements.incomeStatement}
+                    onChange={(e) => setFinancialStatements("incomeStatement", e.target.value)}
+                    placeholder={"Revenue: 12000 | 13500 | 15200\nEBITDA: 2400 | 2700 | 3100"}
+                  />
                 </Field>
                 <Field label="Balance sheet">
-                  <Textarea rows={4} value={form.financialStatements.balanceSheet} onChange={(e) => setFinancialStatements("balanceSheet", e.target.value)} />
+                  <Textarea
+                    rows={4}
+                    value={form.financialStatements.balanceSheet}
+                    onChange={(e) => setFinancialStatements("balanceSheet", e.target.value)}
+                    placeholder={"Total assets: 45000 | 49000 | 53000\nNet worth: 22000 | 24500 | 27000"}
+                  />
                 </Field>
                 <Field label="Ratios">
-                  <Textarea rows={4} value={form.financialStatements.ratios} onChange={(e) => setFinancialStatements("ratios", e.target.value)} />
+                  <Textarea
+                    rows={4}
+                    value={form.financialStatements.ratios}
+                    onChange={(e) => setFinancialStatements("ratios", e.target.value)}
+                    placeholder={"P/E: 22 | 19 | 17\nROCE: 18% | 20% | 21%"}
+                  />
                 </Field>
                 <Field label="Cash flow statement">
-                  <Textarea rows={4} value={form.financialStatements.cashFlow} onChange={(e) => setFinancialStatements("cashFlow", e.target.value)} />
+                  <Textarea
+                    rows={4}
+                    value={form.financialStatements.cashFlow}
+                    onChange={(e) => setFinancialStatements("cashFlow", e.target.value)}
+                    placeholder={"CFO: 3200 | 3600 | 4100\nCapex: -900 | -1100 | -1250"}
+                  />
                 </Field>
               </div>
             </Card>
@@ -619,6 +654,29 @@ function OnePagerForm_() {
             </p>
           </Card>
         )}
+
+        <Card className="p-5">
+          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Show in report</h3>
+          <p className="mb-3 text-xs text-subtle-foreground">
+            Filling something in (or Claude researching it) doesn't force it into the one-pager — untick anything you
+            don't want rendered. Takes effect immediately, even after generating.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ["Quarterly Snapshot", showQuarterly, setShowQuarterly],
+                ["Segment / Geography Mix", showSegments, setShowSegments],
+                ["Management Commentary", showCommentary, setShowCommentary],
+                ["Financial Statements", showFinancialStatements, setShowFinancialStatements],
+              ] as [string, boolean, (v: boolean) => void][]
+            ).map(([label, checked, setChecked]) => (
+              <label key={label} className="flex items-center gap-2 text-xs font-medium text-foreground">
+                <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </Card>
 
         <Button
           onClick={handleGenerate}
@@ -736,7 +794,7 @@ function OnePagerForm_() {
                     />
                   </div>
 
-                  {resultQuarterly && (
+                  {resultQuarterly && showQuarterly && (
                     <div>
                       <SectionLabel>Quarterly Snapshot</SectionLabel>
                       <div className="grid grid-cols-2 gap-x-4">
@@ -756,7 +814,7 @@ function OnePagerForm_() {
                     </div>
                   )}
 
-                  {resultSegments.length > 0 && (
+                  {resultSegments.length > 0 && showSegments && (
                     <div>
                       <SectionLabel>Segment / Geography Mix</SectionLabel>
                       <table className="w-full border-collapse text-[9.5px]">
@@ -790,7 +848,7 @@ function OnePagerForm_() {
                     <p className="text-[12px] leading-relaxed text-muted-foreground">{result.narrative.investmentRationale}</p>
                   </div>
 
-                  {resultCommentary && (
+                  {resultCommentary && showCommentary && (
                     <div>
                       <SectionLabel>Management Commentary</SectionLabel>
                       <ul className="flex flex-col gap-0.5">
@@ -885,10 +943,10 @@ function OnePagerForm_() {
                 </div>
               </div>
 
-              {resultFinancialStatements && (
+              {resultFinancialStatements && showFinancialStatements && (
                 <div className="border-t border-border px-6 py-3">
                   <SectionLabel>Financial Statements — Key Line Items (₹cr, last 3 FY)</SectionLabel>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[9px] leading-snug text-muted-foreground sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
                     {([
                       ["Income Statement", resultFinancialStatements.incomeStatement],
                       ["Balance Sheet", resultFinancialStatements.balanceSheet],
@@ -896,12 +954,42 @@ function OnePagerForm_() {
                       ["Ratios", resultFinancialStatements.ratios],
                     ] as [string, string][])
                       .filter(([, v]) => v.trim())
-                      .map(([label, v]) => (
-                        <div key={label}>
-                          <div className="mb-0.5 text-[9px] font-bold text-foreground">{label}</div>
-                          <pre className="whitespace-pre-wrap break-words font-sans text-[9px] leading-snug text-muted-foreground">{v}</pre>
-                        </div>
-                      ))}
+                      .map(([label, v]) => {
+                        const rows = parseStatementRows(v);
+                        const colCount = Math.max(0, ...rows.map((r) => r.values.length));
+                        const years = resultFinancials.filter((f) => f.year.trim()).map((f) => f.year);
+                        const headers =
+                          colCount > 0
+                            ? Array.from({ length: colCount }, (_, i) => years[years.length - colCount + i] ?? `Yr ${i + 1}`)
+                            : [];
+                        return (
+                          <div key={label}>
+                            <div className="mb-0.5 text-[9px] font-bold text-foreground">{label}</div>
+                            <table className="w-full border-collapse text-[8px]">
+                              {headers.length > 0 && (
+                                <thead>
+                                  <tr className="bg-surface-2">
+                                    <th className="border border-border px-1 py-0.5 text-left">Item</th>
+                                    {headers.map((h, i) => (
+                                      <th key={i} className="border border-border px-1 py-0.5 text-left">{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                              )}
+                              <tbody>
+                                {rows.map((r, i) => (
+                                  <tr key={i}>
+                                    <td className="border border-border px-1 py-0.5 font-semibold text-foreground">{r.label}</td>
+                                    {r.values.map((val, vi) => (
+                                      <td key={vi} className="border border-border px-1 py-0.5 text-muted-foreground">{val}</td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}
