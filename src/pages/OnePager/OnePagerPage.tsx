@@ -111,6 +111,10 @@ function OnePagerForm_() {
   // the manual table after a paste-mode generate, can never retroactively
   // change what's shown in an already-generated report.
   const [resultFinancials, setResultFinancials] = useState<FinancialYear[]>([]);
+  const [resultQuarterly, setResultQuarterly] = useState<OnePagerQuarterly | null>(null);
+  const [resultSegments, setResultSegments] = useState<OnePagerForm["segments"]>([]);
+  const [resultCommentary, setResultCommentary] = useState<OnePagerCommentary | null>(null);
+  const [resultFinancialStatements, setResultFinancialStatements] = useState<OnePagerFinancialStatements | null>(null);
   const [exporting, setExporting] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -179,6 +183,10 @@ function OnePagerForm_() {
     let narrative: OnePagerNarrative | undefined;
     let aiShareholding: { promoterPct: number; fiiPct: number | null; diiPct: number | null; publicPct: number | null; asOfDate: string | null } | undefined;
     let financialsForResult: FinancialYear[] = [];
+    let quarterlyForResult: OnePagerQuarterly | null = null;
+    let segmentsForResult: OnePagerForm["segments"] = [];
+    let commentaryForResult: OnePagerCommentary | null = null;
+    let statementsForResult: OnePagerFinancialStatements | null = null;
 
     if (dataMode === "paste") {
       const parsed = parseOnePagerNarrative(pastedNarrative);
@@ -189,8 +197,16 @@ function OnePagerForm_() {
       narrative = parsed.narrative;
       aiShareholding = parsed.shareholding ?? undefined;
       financialsForResult = parsed.financials ?? [];
+      quarterlyForResult = parsed.quarterly;
+      segmentsForResult = parsed.segments ?? [];
+      commentaryForResult = parsed.commentary;
+      statementsForResult = parsed.financialStatements;
     } else {
       financialsForResult = form.financials;
+      quarterlyForResult = Object.values(form.quarterly).some((v) => v.trim()) ? form.quarterly : null;
+      segmentsForResult = form.segments.filter((s) => s.name.trim());
+      commentaryForResult = Object.values(form.commentary).some((v) => v.trim()) ? form.commentary : null;
+      statementsForResult = Object.values(form.financialStatements).some((v) => v.trim()) ? form.financialStatements : null;
     }
 
     setGenerating(true);
@@ -232,6 +248,10 @@ function OnePagerForm_() {
       if (!res.ok || json.error) throw new Error(json.detail || json.error || "Generation failed");
       setResult(json as OnePagerResult);
       setResultFinancials(financialsForResult);
+      setResultQuarterly(quarterlyForResult);
+      setResultSegments(segmentsForResult);
+      setResultCommentary(commentaryForResult);
+      setResultFinancialStatements(statementsForResult);
     } catch (err) {
       setGenError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -716,6 +736,50 @@ function OnePagerForm_() {
                     />
                   </div>
 
+                  {resultQuarterly && (
+                    <div>
+                      <SectionLabel>Quarterly Snapshot</SectionLabel>
+                      <div className="grid grid-cols-2 gap-x-4">
+                        <div>
+                          {resultQuarterly.revenueActual && <FactRow label="Revenue" value={resultQuarterly.revenueActual} />}
+                          {resultQuarterly.revenueGrowth && <FactRow label="Revenue growth" value={resultQuarterly.revenueGrowth} />}
+                          {resultQuarterly.ebitda && <FactRow label="EBITDA" value={resultQuarterly.ebitda} />}
+                          {resultQuarterly.ebitdaMargin && <FactRow label="EBITDA margin" value={resultQuarterly.ebitdaMargin} />}
+                        </div>
+                        <div>
+                          {resultQuarterly.patAdjusted && <FactRow label="PAT (adj.)" value={resultQuarterly.patAdjusted} />}
+                          {resultQuarterly.netDebt && <FactRow label="Net debt" value={resultQuarterly.netDebt} />}
+                          {resultQuarterly.cfo && <FactRow label="CFO" value={resultQuarterly.cfo} />}
+                          {resultQuarterly.workingCapitalDays && <FactRow label="Working capital" value={resultQuarterly.workingCapitalDays} />}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {resultSegments.length > 0 && (
+                    <div>
+                      <SectionLabel>Segment / Geography Mix</SectionLabel>
+                      <table className="w-full border-collapse text-[9.5px]">
+                        <thead>
+                          <tr className="bg-surface-2">
+                            <th className="border border-border px-1 py-1 text-left">Segment</th>
+                            <th className="border border-border px-1 py-1 text-left">Revenue</th>
+                            <th className="border border-border px-1 py-1 text-left">YoY%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {resultSegments.map((s) => (
+                            <tr key={s.name}>
+                              <td className="border border-border px-1 py-1 font-semibold">{s.name}</td>
+                              <td className="border border-border px-1 py-1">{s.revenue || "—"}</td>
+                              <td className="border border-border px-1 py-1">{s.yoyGrowth || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
                   <div>
                     <SectionLabel>Company Overview</SectionLabel>
                     <p className="text-[12px] leading-relaxed text-muted-foreground">{result.narrative.companyOverview}</p>
@@ -725,6 +789,29 @@ function OnePagerForm_() {
                     <SectionLabel>Investment Rationale</SectionLabel>
                     <p className="text-[12px] leading-relaxed text-muted-foreground">{result.narrative.investmentRationale}</p>
                   </div>
+
+                  {resultCommentary && (
+                    <div>
+                      <SectionLabel>Management Commentary</SectionLabel>
+                      <ul className="flex flex-col gap-0.5">
+                        {([
+                          ["Outlook & guidance", resultCommentary.outlookGuidance],
+                          ["Regional", resultCommentary.regional],
+                          ["Business-unit", resultCommentary.businessUnit],
+                          ["Product-wise", resultCommentary.productWise],
+                          ["Debt & balance sheet", resultCommentary.debtBalanceSheet],
+                          ["Other", resultCommentary.other],
+                        ] as [string, string][])
+                          .filter(([, v]) => v.trim())
+                          .map(([label, v]) => (
+                            <li key={label} className="text-[11px] leading-snug text-muted-foreground">
+                              <span className="font-semibold text-foreground">{label}: </span>
+                              {v}
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                  )}
 
                   <div>
                     <SectionLabel>Risk Factors</SectionLabel>
@@ -754,7 +841,7 @@ function OnePagerForm_() {
 
                   <div>
                     <SectionLabel>Financial Summary (Consolidated)</SectionLabel>
-                    <table className="w-full border-collapse text-[9.5px]">
+                    <table className="w-full border-collapse text-[8.5px]">
                       <thead>
                         <tr className="bg-surface-2">
                           <th className="border border-border px-1 py-1 text-left">FY</th>
@@ -762,6 +849,9 @@ function OnePagerForm_() {
                           <th className="border border-border px-1 py-1 text-left">EBITDA%</th>
                           <th className="border border-border px-1 py-1 text-left">PAT</th>
                           <th className="border border-border px-1 py-1 text-left">RoE%</th>
+                          <th className="border border-border px-1 py-1 text-left">RoA%</th>
+                          <th className="border border-border px-1 py-1 text-left">D/E%</th>
+                          <th className="border border-border px-1 py-1 text-left">Div%</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -774,6 +864,9 @@ function OnePagerForm_() {
                               <td className="border border-border px-1 py-1">{f.ebitdaMargin || "—"}</td>
                               <td className="border border-border px-1 py-1">{f.pat || "—"}</td>
                               <td className="border border-border px-1 py-1">{f.roe || "—"}</td>
+                              <td className="border border-border px-1 py-1">{f.roa || "—"}</td>
+                              <td className="border border-border px-1 py-1">{f.debtEquity || "—"}</td>
+                              <td className="border border-border px-1 py-1">{f.divYield || "—"}</td>
                             </tr>
                           ))}
                       </tbody>
@@ -791,6 +884,27 @@ function OnePagerForm_() {
                   </div>
                 </div>
               </div>
+
+              {resultFinancialStatements && (
+                <div className="border-t border-border px-6 py-3">
+                  <SectionLabel>Financial Statements — Key Line Items (₹cr, last 3 FY)</SectionLabel>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[9px] leading-snug text-muted-foreground sm:grid-cols-4">
+                    {([
+                      ["Income Statement", resultFinancialStatements.incomeStatement],
+                      ["Balance Sheet", resultFinancialStatements.balanceSheet],
+                      ["Cash Flow Statement", resultFinancialStatements.cashFlow],
+                      ["Ratios", resultFinancialStatements.ratios],
+                    ] as [string, string][])
+                      .filter(([, v]) => v.trim())
+                      .map(([label, v]) => (
+                        <div key={label}>
+                          <div className="mb-0.5 text-[9px] font-bold text-foreground">{label}</div>
+                          <pre className="whitespace-pre-wrap break-words font-sans text-[9px] leading-snug text-muted-foreground">{v}</pre>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
 
               {/* Footer: rating definitions + disclosures */}
               <div className="border-t border-border px-6 py-3">

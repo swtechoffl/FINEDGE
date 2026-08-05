@@ -1,4 +1,12 @@
-import type { FinancialYear, OnePagerForm, OnePagerNarrative } from "./onePagerTypes";
+import type {
+  FinancialYear,
+  OnePagerCommentary,
+  OnePagerFinancialStatements,
+  OnePagerForm,
+  OnePagerNarrative,
+  OnePagerQuarterly,
+  OnePagerSegmentRow,
+} from "./onePagerTypes";
 import {
   formatCommentaryForPrompt,
   formatFinancialsForPrompt,
@@ -19,6 +27,10 @@ export interface OnePagerClaudeResponse {
   narrative: OnePagerNarrative;
   shareholding: ClaudeShareholding | null;
   financials: FinancialYear[] | null;
+  quarterly: OnePagerQuarterly | null;
+  segments: OnePagerSegmentRow[] | null;
+  commentary: OnePagerCommentary | null;
+  financialStatements: OnePagerFinancialStatements | null;
 }
 
 // Mirrors ONE_PAGER_SYSTEM_PROMPT in server/groq.js field-for-field for the
@@ -84,10 +96,28 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
     '    {"year": "FY24", "revenue": "<₹cr>", "ebitdaMargin": "<%>", "pat": "<₹cr>", "roe": "<%>", "roa": "<%>", "debtEquity": "<%>", "divYield": "<%>"},',
     '    {"year": "FY25", "revenue": "...", "ebitdaMargin": "...", "pat": "...", "roe": "...", "roa": "...", "debtEquity": "...", "divYield": "..."},',
     '    {"year": "FY26", "revenue": "...", "ebitdaMargin": "...", "pat": "...", "roe": "...", "roa": "...", "debtEquity": "...", "divYield": "..."}',
-    "  ]",
+    "  ],",
+    '  "quarterly": {',
+    '    "revenueActual": "<₹cr, latest reported quarter>", "revenueEstimate": "<₹cr, consensus if you found one, else \\"NA\\">",',
+    '    "revenueGrowth": "<e.g. \'+9.2% YoY / +2.1% QoQ\'>", "growthSplit": "<volume/price/forex split if disclosed, else \\"NA\\">",',
+    '    "ebitda": "<₹cr actual / estimate>", "ebitdaMargin": "<e.g. \'21.4%, +80bps YoY\'>",',
+    '    "patAdjusted": "<₹cr actual / estimate / YoY%>", "patReported": "<₹cr, name any one-off adjustment items>",',
+    '    "netDebt": "<₹cr, latest / YoY / QoQ>", "workingCapitalDays": "<movement if disclosed, else \\"NA\\">", "cfo": "<₹cr, YoY>"',
+    "  },",
+    '  "segments": [{"name": "<segment/geography>", "revenue": "<₹cr, this quarter>", "yoyGrowth": "<%>"}],',
+    '  "commentary": {',
+    '    "outlookGuidance": "<1 sentence>", "regional": "<1 sentence or \\"NA\\">", "businessUnit": "<1 sentence or \\"NA\\">",',
+    '    "productWise": "<1 sentence or \\"NA\\">", "debtBalanceSheet": "<1 sentence or \\"NA\\">", "other": "<1 sentence or \\"NA\\">"',
+    "  },",
+    '  "financialStatements": {',
+    '    "incomeStatement": "<3-5 key line items, last 3 FY, one per line: e.g. \'Revenue: 12000 | 13500 | 15200\'>",',
+    '    "balanceSheet": "<3-5 key line items, last 3 FY>",',
+    '    "ratios": "<3-5 key ratios, last 3 FY>",',
+    '    "cashFlow": "<3-5 key line items, last 3 FY>"',
+    "  }",
     "}",
     "",
-    "For \"financials\", use the 3 most recent consecutive fiscal years actually reported (consolidated figures where available).",
+    "For \"financials\", use the 3 most recent consecutive fiscal years actually reported (consolidated figures where available). \"quarterly\", \"segments\", \"commentary\" and \"financialStatements\" are all optional — include only what you actually found; use \"NA\" for individual fields you can't verify, and omit a whole key only if you found nothing for it at all. Keep \"financialStatements\" to a few key line items each, not the full raw statement — this is for a one-page report, not a research note.",
   );
   return lines.join("\n");
 }
@@ -134,6 +164,60 @@ function parseFinancials(raw: unknown): FinancialYear[] | null {
     }))
     .filter((r) => r.year !== "");
   return rows.length > 0 ? rows : null;
+}
+
+function parseQuarterly(raw: unknown): OnePagerQuarterly | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const s = raw as Record<string, unknown>;
+  const q: OnePagerQuarterly = {
+    revenueActual: toFieldString(s.revenueActual),
+    revenueEstimate: toFieldString(s.revenueEstimate),
+    revenueGrowth: toFieldString(s.revenueGrowth),
+    growthSplit: toFieldString(s.growthSplit),
+    ebitda: toFieldString(s.ebitda),
+    ebitdaMargin: toFieldString(s.ebitdaMargin),
+    patAdjusted: toFieldString(s.patAdjusted),
+    patReported: toFieldString(s.patReported),
+    netDebt: toFieldString(s.netDebt),
+    workingCapitalDays: toFieldString(s.workingCapitalDays),
+    cfo: toFieldString(s.cfo),
+  };
+  return Object.values(q).some((v) => v !== "") ? q : null;
+}
+
+function parseSegments(raw: unknown): OnePagerSegmentRow[] | null {
+  if (!Array.isArray(raw)) return null;
+  const rows = raw
+    .filter((r): r is Record<string, unknown> => typeof r === "object" && r !== null)
+    .map((r) => ({ name: toFieldString(r.name), revenue: toFieldString(r.revenue), yoyGrowth: toFieldString(r.yoyGrowth) }))
+    .filter((r) => r.name !== "");
+  return rows.length > 0 ? rows : null;
+}
+
+function parseCommentary(raw: unknown): OnePagerCommentary | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const s = raw as Record<string, unknown>;
+  const c: OnePagerCommentary = {
+    outlookGuidance: toFieldString(s.outlookGuidance),
+    regional: toFieldString(s.regional),
+    businessUnit: toFieldString(s.businessUnit),
+    productWise: toFieldString(s.productWise),
+    debtBalanceSheet: toFieldString(s.debtBalanceSheet),
+    other: toFieldString(s.other),
+  };
+  return Object.values(c).some((v) => v !== "") ? c : null;
+}
+
+function parseFinancialStatements(raw: unknown): OnePagerFinancialStatements | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const s = raw as Record<string, unknown>;
+  const fs: OnePagerFinancialStatements = {
+    incomeStatement: toFieldString(s.incomeStatement),
+    balanceSheet: toFieldString(s.balanceSheet),
+    ratios: toFieldString(s.ratios),
+    cashFlow: toFieldString(s.cashFlow),
+  };
+  return Object.values(fs).some((v) => v !== "") ? fs : null;
 }
 
 // Accepts whatever an AI chat surface hands back — usually the bare JSON
@@ -187,5 +271,9 @@ export function parseOnePagerNarrative(raw: string): OnePagerClaudeResponse | { 
     narrative: { companyOverview, investmentRationale, riskFactors, valuationNote, strategyFit },
     shareholding: parseShareholding(p.shareholding),
     financials: parseFinancials(p.financials),
+    quarterly: parseQuarterly(p.quarterly),
+    segments: parseSegments(p.segments),
+    commentary: parseCommentary(p.commentary),
+    financialStatements: parseFinancialStatements(p.financialStatements),
   };
 }
