@@ -67,6 +67,7 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
     "Analyst inputs (given — do not contradict, cite exactly, do not alter or round the numbers):",
     `- Rating: ${form.rating}`,
     `- Target price: ₹${form.targetPrice || "<not set>"}`,
+    `- Stop loss: ${form.stopLoss ? `₹${form.stopLoss}` : "<not set>"}`,
     `- Valuation method: ${form.valuationMethod}`,
     `- Time horizon: ${form.timeHorizon}`,
   ];
@@ -83,7 +84,7 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
     '  "companyOverview": "1 short paragraph — business description, key operations/geographies, ownership status, cite strategic developments only if grounded in your research or the analyst inputs above",',
     '  "investmentRationale": "1 paragraph — growth drivers, competitive positioning, and expansion plans, grounded in your research or the analyst inputs above",',
     '  "riskFactors": ["3 to 5 short, one-sentence, company- and sector-specific risks — e.g. commodity/input cyclicality, demand concentration, regulatory or government-ownership overhang, execution risk, competitive intensity, forex/export exposure — pick what actually fits this company"],',
-    '  "valuationNote": "1-2 sentences stating the valuation method, target price, and implied upside/downside using the exact numbers given above",',
+    '  "valuationNote": "1-2 sentences stating the valuation method, target price, implied upside/downside, and stop loss (if given) using the exact numbers given above",',
     '  "strategyFit": "1 line — who this fits (e.g. long-term growth investor, value investor) given the rating and sector",',
     '  "shareholding": {',
     '    "promoterPct": <number, latest reported promoter holding %>,',

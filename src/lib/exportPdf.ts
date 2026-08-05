@@ -145,6 +145,44 @@ function findLineBreaks(root: HTMLElement): number[] {
     .sort((a, b) => a - b);
 }
 
+// Second-tier fallback, tried before the raw line-break fallback — the top
+// of every text line that starts a new sentence (right after a `.`/`!`/`?`
+// plus whitespace) rather than every wrapped line. Prefers this over a
+// same-paragraph mid-sentence line so a page never ends part-way through a
+// sentence when a sentence boundary is available nearby; falls back to
+// findLineBreaks only when no sentence boundary is close enough, so it
+// still never cuts mid-word. Only finds boundaries within a single text
+// node — a sentence that ends right at an inline element boundary (rare in
+// this app's content — narrative paragraphs render as one text node) won't
+// be detected, which just means it falls through to the line-break tier
+// for that one spot rather than failing outright.
+function findSentenceBreaks(root: HTMLElement): number[] {
+  const rootTop = root.getBoundingClientRect().top;
+  const candidates = new Set<number>();
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => (node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+  });
+  const range = document.createRange();
+  const sentenceEnd = /[.!?]+[)"'”’]?\s+/g;
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const text = node.textContent ?? "";
+    sentenceEnd.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = sentenceEnd.exec(text))) {
+      const nextSentenceStart = match.index + match[0].length;
+      if (nextSentenceStart >= text.length) continue;
+      range.setStart(node, nextSentenceStart);
+      range.setEnd(node, nextSentenceStart + 1);
+      const rects = range.getClientRects();
+      if (rects.length > 0) candidates.add(rects[0].top - rootTop);
+    }
+  }
+  return Array.from(candidates)
+    .filter((y) => y > 0)
+    .sort((a, b) => a - b);
+}
+
 // A trailing final page shorter than this fraction of a full page looks
 // broken (mostly blank with one stray item), so paginate() rebalances it
 // against the page before it rather than leaving it this sparse.
@@ -153,18 +191,23 @@ const MIN_TRAILING_PAGE_RATIO = 0.3;
 // Walks down the content in target increments of `pageHeight`, snapping
 // each cut to the latest safe break at or before that target — unless doing
 // so would leave a page mostly empty (no safe break within `SLACK` of the
-// target), in which case it falls back to the nearest text-line boundary
-// (see findLineBreaks) so it still never cuts through the middle of a line,
-// and only cuts at the raw target if even that isn't available. The final
-// page always runs straight to the true end of the content rather than
-// snapping to an earlier safe break, so a small tail (e.g. a disclaimer's
-// closing note) doesn't get split into its own near-empty extra page — but
-// when the true remainder still doesn't fill a whole page on its own (the
-// content just doesn't divide evenly), the last two pages are rebalanced
-// to split their combined content near the midpoint instead of leaving a
+// target), in which case it prefers the nearest sentence boundary (see
+// findSentenceBreaks) within that same slack window, so a page break lands
+// after a complete sentence rather than part-way through one whenever
+// there's a sentence end nearby; only when neither is close enough does it
+// fall back to the nearest text-line boundary (see findLineBreaks, which
+// never cuts through the middle of a line, just possibly mid-sentence), and
+// only cuts at the raw target if even that isn't available. The final page
+// always runs straight to the true end of the content rather than snapping
+// to an earlier safe break, so a small tail (e.g. a disclaimer's closing
+// note) doesn't get split into its own near-empty extra page — but when the
+// true remainder still doesn't fill a whole page on its own (the content
+// just doesn't divide evenly), the last two pages are rebalanced to split
+// their combined content near the midpoint instead of leaving a
 // nearly-blank final page.
 function paginate(
   safeBreaks: number[],
+  sentenceBreaks: number[],
   lineBreaks: number[],
   contentHeight: number,
   pageHeight: number,
@@ -182,8 +225,13 @@ function paginate(
       if (candidates.length > 0) {
         cut = candidates[candidates.length - 1];
       } else {
-        const lineCandidates = lineBreaks.filter((y) => y > cursor + 1 && y <= target);
-        if (lineCandidates.length > 0) cut = lineCandidates[lineCandidates.length - 1];
+        const sentenceCandidates = sentenceBreaks.filter((y) => y > cursor + 1 && y <= target && target - y <= SLACK);
+        if (sentenceCandidates.length > 0) {
+          cut = sentenceCandidates[sentenceCandidates.length - 1];
+        } else {
+          const lineCandidates = lineBreaks.filter((y) => y > cursor + 1 && y <= target);
+          if (lineCandidates.length > 0) cut = lineCandidates[lineCandidates.length - 1];
+        }
       }
     }
     slices.push([cursor, Math.min(cut, contentHeight)]);
@@ -201,8 +249,9 @@ function paginate(
       const closestTo = (arr: number[]) =>
         arr.length > 0 ? arr.reduce((best, y) => (Math.abs(y - midpoint) < Math.abs(best - midpoint) ? y : best)) : null;
       const nearbySafe = safeBreaks.filter((y) => y > combinedStart + 1 && y < combinedEnd - 1);
+      const nearbySentence = sentenceBreaks.filter((y) => y > combinedStart + 1 && y < combinedEnd - 1);
       const nearbyLine = lineBreaks.filter((y) => y > combinedStart + 1 && y < combinedEnd - 1);
-      const newCut = closestTo(nearbySafe) ?? closestTo(nearbyLine) ?? midpoint;
+      const newCut = closestTo(nearbySafe) ?? closestTo(nearbySentence) ?? closestTo(nearbyLine) ?? midpoint;
       slices[slices.length - 2] = [combinedStart, newCut];
       slices[slices.length - 1] = [newCut, combinedEnd];
     }
@@ -357,9 +406,10 @@ export async function exportReportToPdf(sections: ReportSection[], filename: str
     }
 
     const safeBreaksPx = findSafeBreaks(node);
+    const sentenceBreaksPx = findSentenceBreaks(node);
     const lineBreaksPx = findLineBreaks(node);
     const pageHeightPx = USABLE_HEIGHT_PT * (contentRect.width / USABLE_WIDTH_PT);
-    const slices = paginate(safeBreaksPx, lineBreaksPx, contentRect.height, pageHeightPx);
+    const slices = paginate(safeBreaksPx, sentenceBreaksPx, lineBreaksPx, contentRect.height, pageHeightPx);
 
     for (const [startPx, endPx] of slices) {
       const sliceHeightPx = endPx - startPx;

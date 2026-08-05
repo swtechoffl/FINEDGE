@@ -154,7 +154,7 @@ Respond with a single JSON object, no markdown, no code fences, exactly these ke
   "companyOverview": "1 short paragraph — business description, key operations/geographies, ownership status (PSU/private), and only cite strategic developments/growth ambitions if given in 'Recent developments'",
   "investmentRationale": "1 paragraph — growth drivers, competitive positioning, and expansion plans; ground every claim in the supplied financials/facts or 'Recent developments', not invented specifics",
   "riskFactors": ["3 to 5 short, one-sentence, company- and sector-specific risks — e.g. commodity/input cyclicality, demand concentration, regulatory or government-ownership overhang, execution risk on expansion, competitive intensity, forex/export exposure — pick the ones that actually fit this company's sector"],
-  "valuationNote": "1-2 sentences stating the valuation method, target price, and implied upside/downside using the exact numbers given — do not alter or round them",
+  "valuationNote": "1-2 sentences stating the valuation method, target price, implied upside/downside, and stop loss (if given) using the exact numbers given — do not alter or round them",
   "strategyFit": "1 line — who this fits (e.g. long-term growth investor, value investor) given the rating and sector"
 }
 
@@ -178,6 +178,7 @@ export async function generateOnePagerNarrative(input) {
   lines.push("\n=== ANALYST INPUTS ===");
   add("Rating", input.rating);
   add("Target price", input.targetPrice);
+  add("Stop loss", input.stopLoss);
   add("Implied upside/downside", input.upsidePct !== null ? `${input.upsidePct}%` : null);
   add("Valuation method", input.valuationMethod);
   add("Time horizon", input.timeHorizon);

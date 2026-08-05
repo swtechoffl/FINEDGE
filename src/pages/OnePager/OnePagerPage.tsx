@@ -234,6 +234,7 @@ function OnePagerForm_() {
           bookValue: form.bookValue,
           rating: form.rating,
           targetPrice: form.targetPrice,
+          stopLoss: form.stopLoss,
           valuationMethod: form.valuationMethod,
           timeHorizon: form.timeHorizon,
           recentDevelopments: form.recentDevelopments,
@@ -426,6 +427,10 @@ function OnePagerForm_() {
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-subtle-foreground">Target price (₹)</span>
                 <Input value={form.targetPrice} onChange={(e) => setForm((f) => ({ ...f, targetPrice: e.target.value }))} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-subtle-foreground">Stop loss (₹)</span>
+                <Input value={form.stopLoss} onChange={(e) => setForm((f) => ({ ...f, stopLoss: e.target.value }))} />
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-subtle-foreground">Time horizon</span>
@@ -752,6 +757,15 @@ function OnePagerForm_() {
                       <div className="text-[9px] uppercase tracking-wide text-subtle-foreground">Target</div>
                       <div className="text-sm font-bold text-accent">{result.targetPrice != null ? fmtRs(result.targetPrice) : "—"}</div>
                     </div>
+                    {result.stopLoss != null && (
+                      <>
+                        <div className="h-6 w-px bg-border" />
+                        <div className="text-right">
+                          <div className="text-[9px] uppercase tracking-wide text-subtle-foreground">Stop Loss</div>
+                          <div className="text-sm font-bold text-bearish">{fmtRs(result.stopLoss)}</div>
+                        </div>
+                      </>
+                    )}
                     {result.upsidePct != null && (
                       <>
                         <div className="h-6 w-px bg-border" />
@@ -789,7 +803,14 @@ function OnePagerForm_() {
                     count — otherwise a short paste (few optional sections)
                     could still get a page break mid-paragraph instead of
                     landing cleanly before the next section. */}
-                <div className="grid grid-cols-1 gap-4">
+                {/* content-start items-start: CSS Grid's default align-content
+                    ("normal") computes to "stretch", so without this the
+                    outer 2-column grid stretching this column to match the
+                    other column's height would then get distributed across
+                    THIS grid's own rows too — visibly inflating whichever
+                    box happens to be last (e.g. the Valuation box) with
+                    blank space, unlike flex-col which never did this. */}
+                <div className="grid grid-cols-1 content-start items-start gap-4">
                   <div>
                     <SectionLabel>Security Details</SectionLabel>
                     <div className="grid grid-cols-2 gap-x-4">
@@ -902,7 +923,14 @@ function OnePagerForm_() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                {/* content-start items-start: CSS Grid's default align-content
+                    ("normal") computes to "stretch", so without this the
+                    outer 2-column grid stretching this column to match the
+                    other column's height would then get distributed across
+                    THIS grid's own rows too — visibly inflating whichever
+                    box happens to be last (e.g. the Valuation box) with
+                    blank space, unlike flex-col which never did this. */}
+                <div className="grid grid-cols-1 content-start items-start gap-4">
                   <div>
                     <SectionLabel>1-Year Price Performance</SectionLabel>
                     <OnePagerChart stock={result.chart.stock} nifty={result.chart.nifty} symbol={result.facts.symbol} />
@@ -955,6 +983,12 @@ function OnePagerForm_() {
                     <p className="mt-1.5 text-[10px] text-subtle-foreground">
                       <span className="font-semibold text-foreground">Time Horizon:</span> {result.timeHorizon}
                       <br />
+                      {result.stopLoss != null && (
+                        <>
+                          <span className="font-semibold text-foreground">Stop Loss:</span> {fmtRs(result.stopLoss)}
+                          <br />
+                        </>
+                      )}
                       <span className="font-semibold text-foreground">Strategy Fit:</span> {result.narrative.strategyFit}
                     </p>
                   </div>
@@ -969,7 +1003,7 @@ function OnePagerForm_() {
                       (not flex-col) so a page break can land between statement
                       tables even though there are only up to 4 of them — see the
                       note on the two-column body above for why. */}
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 content-start items-start gap-3">
                     {([
                       ["Income Statement", resultFinancialStatements.incomeStatement],
                       ["Balance Sheet", resultFinancialStatements.balanceSheet],
@@ -1042,15 +1076,15 @@ function OnePagerForm_() {
                 <div className="mb-1.5 text-[10px] text-muted-foreground">
                   <span className="font-semibold text-foreground">{ANALYST.name}</span> · {ANALYST.regLine} · {ANALYST.title}
                 </div>
-                <div className="columns-2 gap-4 text-[7.5px] leading-[1.35] text-subtle-foreground [column-fill:balance]">
+                <div className="columns-2 gap-4 text-[9px] leading-[1.4] text-subtle-foreground [column-fill:balance]">
                   {DISCLAIMER_PARAGRAPHS.map((p, i) => (
                     <p key={i} className="mb-1 break-inside-avoid-column">
                       {p}
                     </p>
                   ))}
                 </div>
-                <p className="mt-1.5 text-[7.5px] italic text-subtle-foreground">{CLOSING_NOTE}</p>
-                <p className="mt-1 text-[7.5px] text-subtle-foreground">
+                <p className="mt-1.5 text-[9px] italic text-subtle-foreground">{CLOSING_NOTE}</p>
+                <p className="mt-1 text-[9px] text-subtle-foreground">
                   {CONTACT.email} · {CONTACT.phone} · {CONTACT.address}
                 </p>
               </div>

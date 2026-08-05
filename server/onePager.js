@@ -53,6 +53,7 @@ export async function generateOnePager(symbol, manual) {
 
   const cmp = detail.price;
   const targetPrice = manual.targetPrice ? Number(manual.targetPrice) : null;
+  const stopLoss = manual.stopLoss ? Number(manual.stopLoss) : null;
   const upsidePct = cmp && targetPrice ? +(((targetPrice - cmp) / cmp) * 100).toFixed(1) : null;
 
   // Cross-check called out explicitly in the template: market cap should
@@ -143,6 +144,7 @@ export async function generateOnePager(symbol, manual) {
         facts,
         rating: manual.rating,
         targetPrice,
+        stopLoss,
         upsidePct,
         valuationMethod: manual.valuationMethod,
         timeHorizon: manual.timeHorizon,
@@ -159,6 +161,7 @@ export async function generateOnePager(symbol, manual) {
     facts,
     rating: manual.rating,
     targetPrice,
+    stopLoss,
     upsidePct,
     valuationMethod: manual.valuationMethod,
     timeHorizon: manual.timeHorizon,

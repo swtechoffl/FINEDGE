@@ -84,6 +84,7 @@ export interface OnePagerForm {
   bookValue: string;
   rating: "BUY" | "HOLD" | "REDUCE";
   targetPrice: string;
+  stopLoss: string;
   valuationMethod: string;
   timeHorizon: string;
   recentDevelopments: string;
@@ -117,6 +118,7 @@ export function emptyOnePagerForm(): OnePagerForm {
     bookValue: "",
     rating: "BUY",
     targetPrice: "",
+    stopLoss: "",
     valuationMethod: "P/E multiple on forward EPS",
     timeHorizon: "12 months",
     recentDevelopments: "",
@@ -282,6 +284,7 @@ export interface OnePagerResult {
   facts: OnePagerFacts;
   rating: string;
   targetPrice: number | null;
+  stopLoss: number | null;
   upsidePct: number | null;
   valuationMethod: string;
   timeHorizon: string;
