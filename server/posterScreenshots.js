@@ -4,13 +4,17 @@ import puppeteer from "puppeteer-core";
 // order they should appear in the Telegram album. Deliberately excludes
 // index-option-chain and market-breadth from that same component — those
 // read as intraday/prior-session data rather than a pre-market briefing.
-const TELEGRAM_POSTER_IDS = [
+const GLOBAL_POSTER_IDS = [
   "gift-nifty-vix-currency",
   "global-indices",
   "commodities",
   "nifty-pivot-levels",
   "fii-dii-activity",
 ];
+
+// The 5 "stock movers" posters from PremarketPosters.tsx — same /posters
+// page, rendered above the global-context set above it.
+const MOVER_POSTER_IDS = ["stocks-to-watch", "upcoming-earnings", "corporate-actions", "ipo-watch", "volume-gainers"];
 
 // Windows/macOS/Linux default Chrome install locations, checked in order —
 // used only for local dev; production always goes through @sparticuz/chromium.
@@ -47,13 +51,14 @@ export async function launchBrowser() {
   return puppeteer.launch({ executablePath, headless: true });
 }
 
-// Screenshots the "Classic 5" pre-market posters straight off the live
-// /posters page — same DOM and Tailwind styles the Share/Save buttons
-// capture with html-to-image, just captured by a real browser engine
-// instead of html-to-image's SVG-rasterizing approach (that library exists
-// only because an ordinary webpage can't call a native screenshot API on
-// itself; a headless browser driving the page can).
-export async function capturePremarketPosters(origin) {
+// Screenshots both poster sets straight off the live /posters page — same
+// DOM and Tailwind styles the Share/Save buttons capture with html-to-image,
+// just captured by a real browser engine instead of html-to-image's
+// SVG-rasterizing approach (that library exists only because an ordinary
+// webpage can't call a native screenshot API on itself; a headless browser
+// driving the page can). Both sets live on the same page, so one browser
+// session captures both instead of paying for two page loads.
+export async function captureAllPosters(origin) {
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
@@ -91,13 +96,20 @@ export async function capturePremarketPosters(origin) {
       timeout: 15_000,
     });
 
-    const results = [];
-    for (const posterId of TELEGRAM_POSTER_IDS) {
-      const handle = await page.$(`[data-poster="${posterId}"]`);
-      if (!handle) continue; // that poster's source data wasn't available today — skip it, don't fail the whole run
-      results.push({ posterId, buffer: await handle.screenshot({ type: "png" }) });
-    }
-    return results;
+    const captureSet = async (posterIds) => {
+      const results = [];
+      for (const posterId of posterIds) {
+        const handle = await page.$(`[data-poster="${posterId}"]`);
+        if (!handle) continue; // that poster's source data wasn't available today — skip it, don't fail the whole run
+        results.push({ posterId, buffer: await handle.screenshot({ type: "png" }) });
+      }
+      return results;
+    };
+
+    return {
+      global: await captureSet(GLOBAL_POSTER_IDS),
+      movers: await captureSet(MOVER_POSTER_IDS),
+    };
   } finally {
     await browser.close();
   }

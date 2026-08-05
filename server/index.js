@@ -11,7 +11,7 @@ import { getPremarket, startPremarketPolling } from "./premarket.js";
 import { getMarketMovers, startMarketMoversPolling } from "./marketMovers.js";
 import { getMarketInternals, startMarketInternalsPolling } from "./marketInternals.js";
 import { getStockDetail } from "./stockDetail.js";
-import { capturePremarketPosters } from "./posterScreenshots.js";
+import { captureAllPosters } from "./posterScreenshots.js";
 import { captureReportPdf, REPORT_CAPTURE_CONFIG } from "./reportScreenshots.js";
 import { sendTelegramPosterAlbum, sendTelegramDocument } from "./telegram.js";
 
@@ -329,14 +329,26 @@ app.get("/api/stock/:symbol", async (req, res) => {
   }
 });
 
+// Sends each poster set (global market context, stock movers) as its own
+// Telegram album with its own caption rather than merging them into one —
+// they read as two distinct briefings, and either can be empty on a given
+// day (e.g. no IPOs/earnings) independent of the other.
 async function deliverTelegramPosters(origin, captionSuffix) {
-  const posters = await capturePremarketPosters(origin);
-  if (posters.length === 0) {
+  const { global, movers } = await captureAllPosters(origin);
+  if (global.length === 0 && movers.length === 0) {
     return { sent: false, reason: "no pre-market poster data available yet" };
   }
   const dateLabel = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-  await sendTelegramPosterAlbum(posters, `Pre-Market Briefing — ${dateLabel}${captionSuffix ?? ""}`);
-  return { sent: true, posters: posters.map((p) => p.posterId) };
+  const sentPosterIds = [];
+  if (global.length > 0) {
+    await sendTelegramPosterAlbum(global, `Pre-Market Briefing — ${dateLabel}${captionSuffix ?? ""}`);
+    sentPosterIds.push(...global.map((p) => p.posterId));
+  }
+  if (movers.length > 0) {
+    await sendTelegramPosterAlbum(movers, `Stocks to Watch — ${dateLabel}${captionSuffix ?? ""}`);
+    sentPosterIds.push(...movers.map((p) => p.posterId));
+  }
+  return { sent: true, posters: sentPosterIds };
 }
 
 // Triggered by the Vercel Cron in vercel.json at 03:00 UTC (08:30 IST).
