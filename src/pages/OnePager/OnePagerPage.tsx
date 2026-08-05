@@ -339,7 +339,7 @@ function OnePagerForm_() {
               Fill in the ticker and rating, then click "Generate One Pager".
             </p>
           ) : (
-            <div ref={previewRef} className="mx-auto w-[780px] overflow-hidden bg-surface text-[13px] shadow-sm">
+            <div ref={previewRef} className="mx-auto w-[865px] overflow-hidden bg-surface text-[13px] shadow-sm">
               {/* Masthead */}
               <div className="flex items-center justify-between bg-accent px-6 py-2.5 text-accent-foreground">
                 <span className="text-[10px] font-bold uppercase tracking-[0.15em]">
