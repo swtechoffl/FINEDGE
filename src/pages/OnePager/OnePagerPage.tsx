@@ -1094,15 +1094,15 @@ function OnePagerForm_() {
                 <div className="mb-1.5 text-[10px] text-muted-foreground">
                   <span className="font-semibold text-foreground">{ANALYST.name}</span> · {ANALYST.regLine} · {ANALYST.title}
                 </div>
-                <div className="text-[9px] leading-[1.4] text-subtle-foreground">
+                <div className="text-[11px] leading-[1.5] text-subtle-foreground">
                   {DISCLAIMER_PARAGRAPHS.map((p, i) => (
-                    <p key={i} className="mb-1 text-justify">
+                    <p key={i} className="mb-1.5 text-justify">
                       {p}
                     </p>
                   ))}
                 </div>
-                <p className="mt-1.5 text-justify text-[9px] italic text-subtle-foreground">{CLOSING_NOTE}</p>
-                <p className="mt-1 text-justify text-[9px] text-subtle-foreground">
+                <p className="mt-1.5 text-justify text-[11px] italic text-subtle-foreground">{CLOSING_NOTE}</p>
+                <p className="mt-1 text-justify text-[11px] text-subtle-foreground">
                   {CONTACT.email} · {CONTACT.phone} · {CONTACT.address}
                 </p>
               </div>
