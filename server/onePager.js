@@ -150,6 +150,7 @@ export async function generateOnePager(symbol, manual) {
         quarterlyContext: manual.quarterlyContext,
         segmentContext: manual.segmentContext,
         managementCommentary: manual.managementCommentary,
+        financialStatementsContext: manual.financialStatementsContext,
         recentDevelopments: manual.recentDevelopments,
       });
 

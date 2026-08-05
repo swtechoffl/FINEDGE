@@ -28,7 +28,7 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
   const lines: string[] = [
     `You are drafting an "Initial Research Report" one-pager for ${symbol}, an NSE-listed Indian company.`,
     "",
-    "Research the company using web search: business description, key operations/geographies, ownership status (PSU/private), recent developments, financial trends, growth drivers, competitive positioning, sector-specific risks, latest shareholding pattern, and the last 3 fiscal years of financials. Ground every claim and every number in real, current, sourced information — never invent a fact, statistic, or event. Where you can't verify a specific figure, use the literal string \"NA\" rather than guessing.",
+    "Research the company using web search — cover all of: business description, key operations/geographies, ownership status (PSU/private); latest quarterly results (revenue/EBITDA/PAT vs YoY and QoQ, beat/miss vs consensus if available); segment/geography revenue mix; recent management commentary and outlook/guidance; the last 3 fiscal years of income statement, balance sheet, ratios and cash flow trends; growth drivers, competitive positioning, sector-specific risks; and the latest shareholding pattern. Ground every claim and every number in real, current, sourced information — never invent a fact, statistic, or event. Where you can't verify a specific figure, use the literal string \"NA\" rather than guessing.",
     "",
     "Analyst inputs (given — do not contradict, cite exactly, do not alter or round the numbers):",
     `- Rating: ${form.rating}`,
@@ -37,9 +37,6 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
     `- Time horizon: ${form.timeHorizon}`,
   ];
   if (financials) lines.push(`- 3-year financial summary already on hand (fill any gaps, don't contradict): ${financials}`);
-  if (form.quarterlyContext.trim()) lines.push(`- Quarterly performance (analyst-supplied): ${form.quarterlyContext.trim()}`);
-  if (form.segmentContext.trim()) lines.push(`- Segment / geography mix (analyst-supplied): ${form.segmentContext.trim()}`);
-  if (form.managementCommentary.trim()) lines.push(`- Management commentary / outlook (analyst-supplied): ${form.managementCommentary.trim()}`);
   lines.push(`- Recent developments (analyst-supplied, safe to cite): ${form.recentDevelopments.trim() || "none supplied"}`);
   lines.push(
     "",

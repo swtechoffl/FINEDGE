@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { Loader2, Sparkles, Download, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, Copy, Check, ClipboardPaste } from "lucide-react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { Loader2, Sparkles, Download, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, Copy, Check, ClipboardPaste, Plus, Trash2 } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -13,10 +13,18 @@ import { OnePagerPieChart } from "./OnePagerPieChart";
 import { buildOnePagerResearchPrompt, parseOnePagerNarrative } from "./onePagerPrompt";
 import {
   emptyOnePagerForm,
+  emptyOnePagerSegmentRow,
+  formatCommentaryForPrompt,
   formatFinancialsForPrompt,
+  formatFinancialStatementsForPrompt,
+  formatQuarterlyForPrompt,
+  formatSegmentsForPrompt,
   type FinancialYear,
+  type OnePagerCommentary,
+  type OnePagerFinancialStatements,
   type OnePagerForm,
   type OnePagerNarrative,
+  type OnePagerQuarterly,
   type OnePagerResult,
 } from "./onePagerTypes";
 
@@ -81,6 +89,15 @@ function FactRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs font-semibold text-subtle-foreground">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 function OnePagerForm_() {
   const [form, setForm] = useState<OnePagerForm>(emptyOnePagerForm);
   const [fetching, setFetching] = useState(false);
@@ -117,6 +134,25 @@ function OnePagerForm_() {
 
   function updateFinancial(i: number, key: keyof OnePagerForm["financials"][number], value: string) {
     setForm((f) => ({ ...f, financials: f.financials.map((row, idx) => (idx === i ? { ...row, [key]: value } : row)) }));
+  }
+
+  function setQuarterly<K extends keyof OnePagerQuarterly>(key: K, value: OnePagerQuarterly[K]) {
+    setForm((f) => ({ ...f, quarterly: { ...f.quarterly, [key]: value } }));
+  }
+  function setCommentary<K extends keyof OnePagerCommentary>(key: K, value: OnePagerCommentary[K]) {
+    setForm((f) => ({ ...f, commentary: { ...f.commentary, [key]: value } }));
+  }
+  function setFinancialStatements<K extends keyof OnePagerFinancialStatements>(key: K, value: OnePagerFinancialStatements[K]) {
+    setForm((f) => ({ ...f, financialStatements: { ...f.financialStatements, [key]: value } }));
+  }
+  function updateSegment(i: number, key: keyof OnePagerForm["segments"][number], value: string) {
+    setForm((f) => ({ ...f, segments: f.segments.map((row, idx) => (idx === i ? { ...row, [key]: value } : row)) }));
+  }
+  function addSegment() {
+    setForm((f) => ({ ...f, segments: [...f.segments, emptyOnePagerSegmentRow()] }));
+  }
+  function removeSegment(i: number) {
+    setForm((f) => ({ ...f, segments: f.segments.filter((_, idx) => idx !== i) }));
   }
 
   async function handleFetchLiveData() {
@@ -174,14 +210,21 @@ function OnePagerForm_() {
           valuationMethod: form.valuationMethod,
           timeHorizon: form.timeHorizon,
           recentDevelopments: form.recentDevelopments,
-          quarterlyContext: form.quarterlyContext,
-          segmentContext: form.segmentContext,
-          managementCommentary: form.managementCommentary,
-          // Manual mode only — paste mode sources shareholding and
-          // financials entirely from the parsed paste instead, never from
-          // these form fields, so the two paths never blend.
+          // Manual mode only — Groq has no web search, so it needs these
+          // typed in directly. Paste mode sends none of this: the copied
+          // prompt already tells Claude to research all of it itself, and
+          // the narrative it drafts already reflects that research, so
+          // there's nothing left for the server to do with these fields.
           ...(dataMode === "manual"
-            ? { threeYearFinancials: formatFinancialsForPrompt(form.financials), fiiPct: form.fiiPct, diiPct: form.diiPct }
+            ? {
+                threeYearFinancials: formatFinancialsForPrompt(form.financials),
+                fiiPct: form.fiiPct,
+                diiPct: form.diiPct,
+                quarterlyContext: formatQuarterlyForPrompt(form.quarterly),
+                segmentContext: formatSegmentsForPrompt(form.segments),
+                managementCommentary: formatCommentaryForPrompt(form.commentary),
+                financialStatementsContext: formatFinancialStatementsForPrompt(form.financialStatements),
+              }
             : { narrative, aiShareholding }),
         }),
       });
@@ -299,36 +342,14 @@ function OnePagerForm_() {
         </Card>
 
         <Card className="p-5">
-          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Additional research context (optional)</h3>
-          <p className="mb-3 text-xs text-subtle-foreground">
-            Same detail Report Maker asks for, condensed — feeds whichever narrative source you use below (Groq or the
-            copied Claude prompt) so the overview and risks aren't limited to bare facts.
-          </p>
-          <div className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-subtle-foreground">Quarterly performance (revenue/EBITDA/PAT vs YoY, beat/miss)</span>
-              <Textarea rows={2} value={form.quarterlyContext} onChange={(e) => setForm((f) => ({ ...f, quarterlyContext: e.target.value }))} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-subtle-foreground">Segment / geography revenue mix</span>
-              <Textarea rows={2} value={form.segmentContext} onChange={(e) => setForm((f) => ({ ...f, segmentContext: e.target.value }))} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-subtle-foreground">Management commentary / outlook & guidance</span>
-              <Textarea rows={2} value={form.managementCommentary} onChange={(e) => setForm((f) => ({ ...f, managementCommentary: e.target.value }))} />
-            </label>
-          </div>
-        </Card>
-
-        <Card className="p-5">
           <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Report data source</h3>
           <p className="mb-3 text-xs text-subtle-foreground">
-            Two independent paths for the narrative, shareholding % and 3-year financials — pick one, they never mix.
+            Two independent paths for the narrative and every supporting detail — pick one, they never mix.
             <strong className="text-foreground"> Manual entry</strong>: Groq drafts the narrative (free, no web search,
-            tight daily quota) from what you type below.
+            tight daily quota) from quarterly numbers, segments, commentary, financial statements and shareholding % you
+            type in below.
             <strong className="text-foreground"> Paste from Claude</strong>: copy a research prompt into Claude (or any
-            AI with web search), then paste its JSON reply back — it supplies the narrative, shareholding % and
-            financials together, entirely separate from the manual fields.
+            AI with web search) — it researches all of that itself — then paste its JSON reply back.
           </p>
           <div className="mb-3 flex gap-2">
             <Button
@@ -462,13 +483,119 @@ function OnePagerForm_() {
                 </table>
               </div>
             </Card>
+
+            <Card className="p-5">
+              <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Quarterly numbers</h3>
+              <p className="mb-3 text-xs text-subtle-foreground">Optional — this quarter vs YoY/QoQ/estimate, same fields Report Maker asks for. Feeds the narrative only, not rendered directly.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Revenue — actual">
+                  <Input value={form.quarterly.revenueActual} onChange={(e) => setQuarterly("revenueActual", e.target.value)} />
+                </Field>
+                <Field label="Revenue — estimate">
+                  <Input value={form.quarterly.revenueEstimate} onChange={(e) => setQuarterly("revenueEstimate", e.target.value)} />
+                </Field>
+                <Field label="Revenue YoY% / QoQ%">
+                  <Input value={form.quarterly.revenueGrowth} onChange={(e) => setQuarterly("revenueGrowth", e.target.value)} placeholder="+9.2% YoY / +2.1% QoQ" />
+                </Field>
+                <Field label="Volume / Price / Forex growth split (%)">
+                  <Input value={form.quarterly.growthSplit} onChange={(e) => setQuarterly("growthSplit", e.target.value)} />
+                </Field>
+                <Field label="EBITDA — actual / estimate">
+                  <Input value={form.quarterly.ebitda} onChange={(e) => setQuarterly("ebitda", e.target.value)} />
+                </Field>
+                <Field label="EBITDA margin — actual, bps YoY">
+                  <Input value={form.quarterly.ebitdaMargin} onChange={(e) => setQuarterly("ebitdaMargin", e.target.value)} placeholder="21.4%, +80bps YoY" />
+                </Field>
+                <Field label="PAT adjusted — actual / estimate / YoY%">
+                  <Input value={form.quarterly.patAdjusted} onChange={(e) => setQuarterly("patAdjusted", e.target.value)} />
+                </Field>
+                <Field label="PAT reported (name adjustment items)">
+                  <Input value={form.quarterly.patReported} onChange={(e) => setQuarterly("patReported", e.target.value)} />
+                </Field>
+                <Field label="Net debt — latest / YoY / QoQ">
+                  <Input value={form.quarterly.netDebt} onChange={(e) => setQuarterly("netDebt", e.target.value)} />
+                </Field>
+                <Field label="Working capital days movement">
+                  <Input value={form.quarterly.workingCapitalDays} onChange={(e) => setQuarterly("workingCapitalDays", e.target.value)} />
+                </Field>
+                <Field label="CFO — YoY">
+                  <Input value={form.quarterly.cfo} onChange={(e) => setQuarterly("cfo", e.target.value)} />
+                </Field>
+              </div>
+            </Card>
+
+            <Card className="p-5">
+              <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Segment / geography revenue</h3>
+              <p className="mb-3 text-xs text-subtle-foreground">Optional — one row per segment, this quarter's revenue and YoY growth.</p>
+              <div className="flex flex-col gap-2">
+                {form.segments.map((row, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                    <Input placeholder="Segment name" value={row.name} onChange={(e) => updateSegment(i, "name", e.target.value)} />
+                    <Input placeholder="Revenue" value={row.revenue} onChange={(e) => updateSegment(i, "revenue", e.target.value)} />
+                    <Input placeholder="YoY %" value={row.yoyGrowth} onChange={(e) => updateSegment(i, "yoyGrowth", e.target.value)} />
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeSegment(i)} disabled={form.segments.length === 1}>
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={addSegment} className="self-start">
+                  <Plus size={14} /> Add segment
+                </Button>
+              </div>
+            </Card>
+
+            <Card className="p-5">
+              <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Management commentary</h3>
+              <p className="mb-3 text-xs text-subtle-foreground">Optional, all fields — feeds the narrative only, not rendered directly.</p>
+              <div className="flex flex-col gap-3">
+                <Field label="Outlook & guidance">
+                  <Textarea rows={2} value={form.commentary.outlookGuidance} onChange={(e) => setCommentary("outlookGuidance", e.target.value)} />
+                </Field>
+                <Field label="Regional commentary">
+                  <Textarea rows={2} value={form.commentary.regional} onChange={(e) => setCommentary("regional", e.target.value)} />
+                </Field>
+                <Field label="Business-unit commentary">
+                  <Textarea rows={2} value={form.commentary.businessUnit} onChange={(e) => setCommentary("businessUnit", e.target.value)} />
+                </Field>
+                <Field label="Product-wise commentary">
+                  <Textarea rows={2} value={form.commentary.productWise} onChange={(e) => setCommentary("productWise", e.target.value)} />
+                </Field>
+                <Field label="Debt & balance sheet">
+                  <Textarea rows={2} value={form.commentary.debtBalanceSheet} onChange={(e) => setCommentary("debtBalanceSheet", e.target.value)} />
+                </Field>
+                <Field label="Other (leadership, one-offs, JV/associate investments, geopolitical risk)">
+                  <Textarea rows={2} value={form.commentary.other} onChange={(e) => setCommentary("other", e.target.value)} />
+                </Field>
+              </div>
+            </Card>
+
+            <Card className="p-5">
+              <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Full financial statements</h3>
+              <p className="mb-3 text-xs text-subtle-foreground">Optional — paste as-is (e.g. copied from screener.in); feeds the narrative only, not rendered directly.</p>
+              <div className="flex flex-col gap-3">
+                <Field label="Income statement">
+                  <Textarea rows={4} value={form.financialStatements.incomeStatement} onChange={(e) => setFinancialStatements("incomeStatement", e.target.value)} />
+                </Field>
+                <Field label="Balance sheet">
+                  <Textarea rows={4} value={form.financialStatements.balanceSheet} onChange={(e) => setFinancialStatements("balanceSheet", e.target.value)} />
+                </Field>
+                <Field label="Ratios">
+                  <Textarea rows={4} value={form.financialStatements.ratios} onChange={(e) => setFinancialStatements("ratios", e.target.value)} />
+                </Field>
+                <Field label="Cash flow statement">
+                  <Textarea rows={4} value={form.financialStatements.cashFlow} onChange={(e) => setFinancialStatements("cashFlow", e.target.value)} />
+                </Field>
+              </div>
+            </Card>
           </>
         ) : (
           <Card className="p-5">
             <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Shareholding & financials (from paste)</h3>
             <p className="text-xs text-subtle-foreground">
               Sourced entirely from the pasted JSON above — nothing here is typed in manually. Edit the pasted text and
-              re-parse to change it.
+              re-parse to change it. Quarterly numbers, segments, management commentary and full financial statements
+              aren't typed in either — the copied prompt tells Claude to research all of that itself via web search
+              before drafting the narrative.
             </p>
           </Card>
         )}

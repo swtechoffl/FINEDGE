@@ -13,6 +13,70 @@ export function emptyFinancialYear(year = ""): FinancialYear {
   return { year, revenue: "", ebitdaMargin: "", pat: "", roe: "", roa: "", debtEquity: "", divYield: "" };
 }
 
+export interface OnePagerSegmentRow {
+  name: string;
+  revenue: string;
+  yoyGrowth: string;
+}
+
+export function emptyOnePagerSegmentRow(): OnePagerSegmentRow {
+  return { name: "", revenue: "", yoyGrowth: "" };
+}
+
+export interface OnePagerQuarterly {
+  revenueActual: string;
+  revenueEstimate: string;
+  revenueGrowth: string;
+  growthSplit: string;
+  ebitda: string;
+  ebitdaMargin: string;
+  patAdjusted: string;
+  patReported: string;
+  netDebt: string;
+  workingCapitalDays: string;
+  cfo: string;
+}
+
+function emptyOnePagerQuarterly(): OnePagerQuarterly {
+  return {
+    revenueActual: "",
+    revenueEstimate: "",
+    revenueGrowth: "",
+    growthSplit: "",
+    ebitda: "",
+    ebitdaMargin: "",
+    patAdjusted: "",
+    patReported: "",
+    netDebt: "",
+    workingCapitalDays: "",
+    cfo: "",
+  };
+}
+
+export interface OnePagerCommentary {
+  outlookGuidance: string;
+  regional: string;
+  businessUnit: string;
+  productWise: string;
+  debtBalanceSheet: string;
+  other: string;
+}
+
+function emptyOnePagerCommentary(): OnePagerCommentary {
+  return { outlookGuidance: "", regional: "", businessUnit: "", productWise: "", debtBalanceSheet: "", other: "" };
+}
+
+export interface OnePagerFinancialStatements {
+  incomeStatement: string;
+  balanceSheet: string;
+  ratios: string;
+  cashFlow: string;
+}
+
+function emptyOnePagerFinancialStatements(): OnePagerFinancialStatements {
+  return { incomeStatement: "", balanceSheet: "", ratios: "", cashFlow: "" };
+}
+
 export interface OnePagerForm {
   symbol: string;
   bseCode: string;
@@ -30,14 +94,19 @@ export interface OnePagerForm {
   // JSON instead (see OnePagerPage's independent paste/manual toggle).
   fiiPct: string;
   diiPct: string;
-  // Optional extra grounding, same categories Report Maker asks for in
-  // detail (quarterly numbers, segment mix, management commentary) but
-  // condensed to one field each since the one-pager itself has no section
-  // for them — they only enrich the narrative prompt (Groq or the copied
-  // Claude prompt), never rendered directly.
-  quarterlyContext: string;
-  segmentContext: string;
-  managementCommentary: string;
+  // Optional extra grounding — the same detailed categories Report Maker
+  // asks for, reused as-is here. The one-pager itself has no section for
+  // most of these; they only enrich the narrative prompt (Groq or the
+  // copied Claude research prompt), never render directly. equityShares/
+  // avgDailyValue/relativePerformance are the only Report Maker "Company
+  // Snapshot" fields not already covered by this page's live NSE facts.
+  equityShares: string;
+  avgDailyValue: string;
+  relativePerformance: string;
+  quarterly: OnePagerQuarterly;
+  segments: OnePagerSegmentRow[];
+  commentary: OnePagerCommentary;
+  financialStatements: OnePagerFinancialStatements;
 }
 
 export function emptyOnePagerForm(): OnePagerForm {
@@ -54,10 +123,65 @@ export function emptyOnePagerForm(): OnePagerForm {
     financials: [emptyFinancialYear(), emptyFinancialYear(), emptyFinancialYear()],
     fiiPct: "",
     diiPct: "",
-    quarterlyContext: "",
-    segmentContext: "",
-    managementCommentary: "",
+    equityShares: "",
+    avgDailyValue: "",
+    relativePerformance: "",
+    quarterly: emptyOnePagerQuarterly(),
+    segments: [emptyOnePagerSegmentRow()],
+    commentary: emptyOnePagerCommentary(),
+    financialStatements: emptyOnePagerFinancialStatements(),
   };
+}
+
+export function formatQuarterlyForPrompt(q: OnePagerQuarterly): string {
+  const lines: string[] = [];
+  const add = (label: string, v: string) => {
+    if (v.trim()) lines.push(`${label}: ${v.trim()}`);
+  };
+  add("Revenue — actual", q.revenueActual);
+  add("Revenue — estimate", q.revenueEstimate);
+  add("Revenue YoY%/QoQ%", q.revenueGrowth);
+  add("Volume/Price/Forex growth split", q.growthSplit);
+  add("EBITDA — actual/estimate", q.ebitda);
+  add("EBITDA margin", q.ebitdaMargin);
+  add("PAT adjusted — actual/estimate/YoY%", q.patAdjusted);
+  add("PAT reported", q.patReported);
+  add("Net debt", q.netDebt);
+  add("Working capital days movement", q.workingCapitalDays);
+  add("CFO — YoY", q.cfo);
+  return lines.join("\n");
+}
+
+export function formatSegmentsForPrompt(segments: OnePagerSegmentRow[]): string {
+  const rows = segments.filter((s) => s.name.trim());
+  if (rows.length === 0) return "";
+  return rows.map((s) => `${s.name}: revenue ${s.revenue || "NA"}, YoY ${s.yoyGrowth || "NA"}`).join("\n");
+}
+
+export function formatCommentaryForPrompt(c: OnePagerCommentary): string {
+  const lines: string[] = [];
+  const add = (label: string, v: string) => {
+    if (v.trim()) lines.push(`${label}: ${v.trim()}`);
+  };
+  add("Outlook & guidance", c.outlookGuidance);
+  add("Regional", c.regional);
+  add("Business-unit", c.businessUnit);
+  add("Product-wise", c.productWise);
+  add("Debt & balance sheet", c.debtBalanceSheet);
+  add("Other", c.other);
+  return lines.join("\n");
+}
+
+export function formatFinancialStatementsForPrompt(fs: OnePagerFinancialStatements): string {
+  const lines: string[] = [];
+  const add = (label: string, v: string) => {
+    if (v.trim()) lines.push(`${label}:\n${v.trim()}`);
+  };
+  add("Income statement", fs.incomeStatement);
+  add("Balance sheet", fs.balanceSheet);
+  add("Ratios", fs.ratios);
+  add("Cash flow statement", fs.cashFlow);
+  return lines.join("\n\n");
 }
 
 export function formatFinancialsForPrompt(financials: FinancialYear[]): string {
