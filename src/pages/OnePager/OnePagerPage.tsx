@@ -1094,9 +1094,9 @@ function OnePagerForm_() {
                 <div className="mb-1.5 text-[10px] text-muted-foreground">
                   <span className="font-semibold text-foreground">{ANALYST.name}</span> · {ANALYST.regLine} · {ANALYST.title}
                 </div>
-                <div className="columns-2 gap-4 text-[9px] leading-[1.4] text-subtle-foreground [column-fill:balance]">
+                <div className="text-[9px] leading-[1.4] text-subtle-foreground">
                   {DISCLAIMER_PARAGRAPHS.map((p, i) => (
-                    <p key={i} className="mb-1 break-inside-avoid-column text-justify">
+                    <p key={i} className="mb-1 text-justify">
                       {p}
                     </p>
                   ))}
