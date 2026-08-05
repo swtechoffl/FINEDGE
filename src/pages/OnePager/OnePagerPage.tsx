@@ -892,18 +892,18 @@ function OnePagerForm_() {
 
                   <div>
                     <SectionLabel>Company Overview</SectionLabel>
-                    <p className="text-[12px] leading-relaxed text-muted-foreground">{result.narrative.companyOverview}</p>
+                    <p className="text-justify text-[12px] leading-relaxed text-muted-foreground">{result.narrative.companyOverview}</p>
                   </div>
 
                   <div>
                     <SectionLabel>Investment Rationale</SectionLabel>
-                    <p className="text-[12px] leading-relaxed text-muted-foreground">{result.narrative.investmentRationale}</p>
+                    <p className="text-justify text-[12px] leading-relaxed text-muted-foreground">{result.narrative.investmentRationale}</p>
                   </div>
 
                   {resultCommentary && showCommentary && (
                     <div>
                       <SectionLabel>Management Commentary</SectionLabel>
-                      <ul className="flex flex-col gap-0.5">
+                      <ul className="flex flex-col gap-0.5 text-center">
                         {([
                           ["Outlook & guidance", resultCommentary.outlookGuidance],
                           ["Regional", resultCommentary.regional],
@@ -925,11 +925,14 @@ function OnePagerForm_() {
 
                   <div>
                     <SectionLabel>Risk Factors</SectionLabel>
-                    <ul className="flex flex-col gap-0.5">
+                    {/* Plain centered text with an inline bullet, not the
+                        flex+dot layout used elsewhere — a flex row only
+                        centers as a block, it doesn't center-wrap multi-line
+                        text the way plain text-align:center does. */}
+                    <ul className="flex flex-col gap-0.5 text-center">
                       {result.narrative.riskFactors.map((r, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-[12px] leading-snug text-muted-foreground">
-                          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-bearish" />
-                          {r}
+                        <li key={i} className="text-[12px] leading-snug text-muted-foreground">
+                          <span className="text-bearish">•</span> {r}
                         </li>
                       ))}
                     </ul>
@@ -994,7 +997,7 @@ function OnePagerForm_() {
 
                   <div className="rounded-lg border border-accent/30 bg-accent-bg p-3">
                     <SectionLabel>Valuation</SectionLabel>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">{result.narrative.valuationNote}</p>
+                    <p className="text-justify text-[11px] leading-relaxed text-muted-foreground">{result.narrative.valuationNote}</p>
                     <p className="mt-1.5 text-[10px] text-subtle-foreground">
                       <span className="font-semibold text-foreground">Time Horizon:</span> {result.timeHorizon}
                       <br />
