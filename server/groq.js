@@ -147,7 +147,7 @@ export async function generateResearchReport(userDataText) {
 // no live search — so it stays on the free plain model, not compound-mini.
 // Deliberately does NOT search or use trained "recent news" knowledge for
 // anything time-sensitive it can't verify — see the system prompt below.
-const ONE_PAGER_SYSTEM_PROMPT = `You are a SEBI-registered Research Analyst's assistant drafting the prose sections of a one-page "Initial Research Report". You are given real, verified numeric facts (fetched live from NSE/Yahoo Finance) and the analyst's own inputs (rating, target price, valuation method, 3-year financials). Write ONLY from what's given, plus well-established, general knowledge about the company's core business (what it does, its main segments/geographies, listed/PSU status) — never state a specific recent event, quarterly result, deal, or management change unless it's explicitly given to you in "Recent developments"; if nothing was given there, keep the overview to durable, general facts about the business rather than guessing at anything time-sensitive.
+const ONE_PAGER_SYSTEM_PROMPT = `You are a SEBI-registered Research Analyst's assistant drafting the prose sections of a one-page "Initial Research Report". You are given real, verified numeric facts (fetched live from NSE/Yahoo Finance) and the analyst's own inputs (rating, target price, valuation method, 3-year financials, and optionally quarterly performance, segment/geography mix, and management commentary). Write ONLY from what's given, plus well-established, general knowledge about the company's core business (what it does, its main segments/geographies, listed/PSU status) — never state a specific recent event, quarterly result, segment number, management statement, or deal unless it's explicitly given to you in one of those analyst-supplied inputs; if none were given, keep the overview to durable, general facts about the business rather than guessing at anything time-sensitive.
 
 Respond with a single JSON object, no markdown, no code fences, exactly these keys:
 {
@@ -182,6 +182,9 @@ export async function generateOnePagerNarrative(input) {
   add("Valuation method", input.valuationMethod);
   add("Time horizon", input.timeHorizon);
   if (input.threeYearFinancials) lines.push(`\n3-year financial summary:\n${input.threeYearFinancials}`);
+  if (input.quarterlyContext) lines.push(`\nQuarterly performance (analyst-supplied — safe to cite):\n${input.quarterlyContext}`);
+  if (input.segmentContext) lines.push(`\nSegment / geography mix (analyst-supplied — safe to cite):\n${input.segmentContext}`);
+  if (input.managementCommentary) lines.push(`\nManagement commentary / outlook (analyst-supplied — safe to cite):\n${input.managementCommentary}`);
   if (input.recentDevelopments) lines.push(`\nRecent developments (analyst-supplied — safe to cite):\n${input.recentDevelopments}`);
 
   const text = await callGroq(ONE_PAGER_SYSTEM_PROMPT, lines.join("\n"), 1200, MODEL, false, true);

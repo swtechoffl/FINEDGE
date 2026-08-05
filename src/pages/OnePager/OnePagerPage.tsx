@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Loader2, Sparkles, Download, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, Copy, Check, ClipboardPaste } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
@@ -14,6 +14,7 @@ import { buildOnePagerResearchPrompt, parseOnePagerNarrative } from "./onePagerP
 import {
   emptyOnePagerForm,
   formatFinancialsForPrompt,
+  type FinancialYear,
   type OnePagerForm,
   type OnePagerNarrative,
   type OnePagerResult,
@@ -88,33 +89,25 @@ function OnePagerForm_() {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [result, setResult] = useState<OnePagerResult | null>(null);
+  // What actually rendered/exported for the current `result` — kept
+  // separate from `form.financials` so switching data source, or editing
+  // the manual table after a paste-mode generate, can never retroactively
+  // change what's shown in an already-generated report.
+  const [resultFinancials, setResultFinancials] = useState<FinancialYear[]>([]);
   const [exporting, setExporting] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  const [narrativeMode, setNarrativeMode] = useState<"ai" | "paste">("ai");
+  // Manual entry and paste-from-Claude are two fully independent data
+  // paths for narrative + shareholding % + 3yr financials — switching
+  // never reads or overwrites the other mode's fields.
+  const [dataMode, setDataMode] = useState<"manual" | "paste">("manual");
   const [pastedNarrative, setPastedNarrative] = useState("");
   const [promptCopied, setPromptCopied] = useState(false);
 
   const parsedPaste = useMemo(
-    () => (narrativeMode === "paste" && pastedNarrative.trim() ? parseOnePagerNarrative(pastedNarrative) : null),
-    [narrativeMode, pastedNarrative],
+    () => (dataMode === "paste" && pastedNarrative.trim() ? parseOnePagerNarrative(pastedNarrative) : null),
+    [dataMode, pastedNarrative],
   );
-
-  // Claude's reply is the only source for 3yr financials and FII/DII% in
-  // this flow (no free feed covers either), so pull them straight into the
-  // form the moment a paste parses successfully — still editable afterwards,
-  // same as if the analyst had typed them in by hand.
-  useEffect(() => {
-    if (!parsedPaste || "error" in parsedPaste) return;
-    if (parsedPaste.financials || parsedPaste.shareholding) {
-      setForm((f) => ({
-        ...f,
-        financials: parsedPaste.financials ?? f.financials,
-        fiiPct: parsedPaste.shareholding?.fiiPct != null ? String(parsedPaste.shareholding.fiiPct) : f.fiiPct,
-        diiPct: parsedPaste.shareholding?.diiPct != null ? String(parsedPaste.shareholding.diiPct) : f.diiPct,
-      }));
-    }
-  }, [parsedPaste]);
 
   async function handleCopyPrompt() {
     await navigator.clipboard.writeText(buildOnePagerResearchPrompt(form));
@@ -149,18 +142,21 @@ function OnePagerForm_() {
   async function handleGenerate() {
     let narrative: OnePagerNarrative | undefined;
     let aiShareholding: { promoterPct: number; fiiPct: number | null; diiPct: number | null; publicPct: number | null; asOfDate: string | null } | undefined;
-    if (narrativeMode === "paste") {
+    let financialsForResult: FinancialYear[] = [];
+
+    if (dataMode === "paste") {
       const parsed = parseOnePagerNarrative(pastedNarrative);
       if ("error" in parsed) {
         setGenError(parsed.error);
         return;
       }
       narrative = parsed.narrative;
-      // Only sent as a fallback the server uses if NSE itself has no
-      // shareholding data for this stock — when NSE does have it, that stays
-      // authoritative and this is ignored server-side.
       aiShareholding = parsed.shareholding ?? undefined;
+      financialsForResult = parsed.financials ?? [];
+    } else {
+      financialsForResult = form.financials;
     }
+
     setGenerating(true);
     setGenError(null);
     setResult(null);
@@ -178,15 +174,21 @@ function OnePagerForm_() {
           valuationMethod: form.valuationMethod,
           timeHorizon: form.timeHorizon,
           recentDevelopments: form.recentDevelopments,
-          threeYearFinancials: formatFinancialsForPrompt(form.financials),
-          fiiPct: form.fiiPct,
-          diiPct: form.diiPct,
-          ...(narrativeMode === "paste" ? { narrative, aiShareholding } : {}),
+          quarterlyContext: form.quarterlyContext,
+          segmentContext: form.segmentContext,
+          managementCommentary: form.managementCommentary,
+          // Manual mode only — paste mode sources shareholding and
+          // financials entirely from the parsed paste instead, never from
+          // these form fields, so the two paths never blend.
+          ...(dataMode === "manual"
+            ? { threeYearFinancials: formatFinancialsForPrompt(form.financials), fiiPct: form.fiiPct, diiPct: form.diiPct }
+            : { narrative, aiShareholding }),
         }),
       });
       const json = await res.json();
       if (!res.ok || json.error) throw new Error(json.detail || json.error || "Generation failed");
       setResult(json as OnePagerResult);
+      setResultFinancials(financialsForResult);
     } catch (err) {
       setGenError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -297,33 +299,57 @@ function OnePagerForm_() {
         </Card>
 
         <Card className="p-5">
-          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Narrative source</h3>
+          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Additional research context (optional)</h3>
           <p className="mb-3 text-xs text-subtle-foreground">
-            Overview, rationale, risks and valuation note are AI-drafted; the 3-year financials and FII/DII split below have
-            no free live source either. Groq's free tier has no web search and a tight daily quota — for a
-            better-researched report, copy the prompt into Claude (or any AI with web search) and paste its JSON reply
-            back in. It auto-fills the financial table and shareholding % below too — still editable afterwards.
+            Same detail Report Maker asks for, condensed — feeds whichever narrative source you use below (Groq or the
+            copied Claude prompt) so the overview and risks aren't limited to bare facts.
+          </p>
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-subtle-foreground">Quarterly performance (revenue/EBITDA/PAT vs YoY, beat/miss)</span>
+              <Textarea rows={2} value={form.quarterlyContext} onChange={(e) => setForm((f) => ({ ...f, quarterlyContext: e.target.value }))} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-subtle-foreground">Segment / geography revenue mix</span>
+              <Textarea rows={2} value={form.segmentContext} onChange={(e) => setForm((f) => ({ ...f, segmentContext: e.target.value }))} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-subtle-foreground">Management commentary / outlook & guidance</span>
+              <Textarea rows={2} value={form.managementCommentary} onChange={(e) => setForm((f) => ({ ...f, managementCommentary: e.target.value }))} />
+            </label>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Report data source</h3>
+          <p className="mb-3 text-xs text-subtle-foreground">
+            Two independent paths for the narrative, shareholding % and 3-year financials — pick one, they never mix.
+            <strong className="text-foreground"> Manual entry</strong>: Groq drafts the narrative (free, no web search,
+            tight daily quota) from what you type below.
+            <strong className="text-foreground"> Paste from Claude</strong>: copy a research prompt into Claude (or any
+            AI with web search), then paste its JSON reply back — it supplies the narrative, shareholding % and
+            financials together, entirely separate from the manual fields.
           </p>
           <div className="mb-3 flex gap-2">
             <Button
               type="button"
-              variant={narrativeMode === "ai" ? "default" : "outline"}
+              variant={dataMode === "manual" ? "default" : "outline"}
               size="sm"
-              onClick={() => setNarrativeMode("ai")}
+              onClick={() => setDataMode("manual")}
             >
-              Auto (Groq)
+              Manual entry
             </Button>
             <Button
               type="button"
-              variant={narrativeMode === "paste" ? "default" : "outline"}
+              variant={dataMode === "paste" ? "default" : "outline"}
               size="sm"
-              onClick={() => setNarrativeMode("paste")}
+              onClick={() => setDataMode("paste")}
             >
               <ClipboardPaste size={14} />
               Paste from Claude
             </Button>
           </div>
-          {narrativeMode === "paste" && (
+          {dataMode === "paste" && (
             <div className="flex flex-col gap-2">
               <Button type="button" variant="outline" size="sm" onClick={handleCopyPrompt} className="self-start">
                 {promptCopied ? <Check size={14} /> : <Copy size={14} />}
@@ -335,7 +361,7 @@ function OnePagerForm_() {
                   rows={6}
                   value={pastedNarrative}
                   onChange={(e) => setPastedNarrative(e.target.value)}
-                  placeholder='{"companyOverview": "...", "investmentRationale": "...", "riskFactors": ["...", "..."], "valuationNote": "...", "strategyFit": "..."}'
+                  placeholder='{"companyOverview": "...", "investmentRationale": "...", "riskFactors": ["...", "..."], "valuationNote": "...", "strategyFit": "...", "shareholding": {...}, "financials": [...]}'
                   className="font-mono text-xs"
                 />
               </label>
@@ -343,91 +369,113 @@ function OnePagerForm_() {
                 <span className="text-xs font-medium text-bearish">{parsedPaste.error}</span>
               )}
               {parsedPaste && "narrative" in parsedPaste && (
-                <span className="flex items-center gap-1 text-xs font-medium text-bullish">
-                  <Check size={13} /> Parsed — {parsedPaste.narrative.riskFactors.length} risk factors
-                  {parsedPaste.financials && `, ${parsedPaste.financials.length}yr financials`}
-                  {parsedPaste.shareholding && ", shareholding %"} applied to the form below. Ready to generate.
-                </span>
+                <div className="rounded-lg border border-bullish/30 bg-bullish/10 p-2 text-xs text-bullish">
+                  <div className="flex items-center gap-1 font-medium">
+                    <Check size={13} /> Parsed — ready to generate.
+                  </div>
+                  <ul className="mt-1 list-disc pl-4 text-[11px]">
+                    <li>{parsedPaste.narrative.riskFactors.length} risk factors</li>
+                    <li>
+                      Financials:{" "}
+                      {parsedPaste.financials ? `${parsedPaste.financials.length} year(s) supplied` : "none supplied — table stays empty"}
+                    </li>
+                    <li>
+                      Shareholding:{" "}
+                      {parsedPaste.shareholding
+                        ? `Promoter ${parsedPaste.shareholding.promoterPct}%${parsedPaste.shareholding.fiiPct != null ? `, FII ${parsedPaste.shareholding.fiiPct}%` : ""}${parsedPaste.shareholding.diiPct != null ? `, DII ${parsedPaste.shareholding.diiPct}%` : ""}`
+                        : "none supplied — falls back to live NSE data if available"}
+                    </li>
+                  </ul>
+                </div>
               )}
             </div>
           )}
         </Card>
 
-        <Card className="p-5">
-          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Shareholding pattern</h3>
-          <p className="mb-3 text-xs text-subtle-foreground">
-            Promoter vs Public auto-fills live from NSE on generate. FII/DII further split the Public slice — type them in,
-            or use "Paste from Claude" above to fill them from research instead.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-subtle-foreground">FII holding (%, optional)</span>
-              <Input value={form.fiiPct} onChange={(e) => setForm((f) => ({ ...f, fiiPct: e.target.value }))} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-subtle-foreground">DII holding (%, optional)</span>
-              <Input value={form.diiPct} onChange={(e) => setForm((f) => ({ ...f, diiPct: e.target.value }))} />
-            </label>
-          </div>
-        </Card>
+        {dataMode === "manual" ? (
+          <>
+            <Card className="p-5">
+              <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Shareholding pattern</h3>
+              <p className="mb-3 text-xs text-subtle-foreground">
+                Promoter vs Public auto-fills live from NSE on generate. FII/DII (optional, no free source) further
+                split the Public slice.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-subtle-foreground">FII holding (%, optional)</span>
+                  <Input value={form.fiiPct} onChange={(e) => setForm((f) => ({ ...f, fiiPct: e.target.value }))} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-subtle-foreground">DII holding (%, optional)</span>
+                  <Input value={form.diiPct} onChange={(e) => setForm((f) => ({ ...f, diiPct: e.target.value }))} />
+                </label>
+              </div>
+            </Card>
 
-        <Card className="p-5">
-          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">3-year financial summary</h3>
-          <p className="mb-3 text-xs text-subtle-foreground">
-            Not available from any free feed — enter the 3 most recent consecutive fiscal years, or use "Paste from
-            Claude" above to fill this table from research instead.
-          </p>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-xs">
-              <thead>
-                <tr>
-                  <th className="p-1 text-left">FY</th>
-                  <th className="p-1 text-left">Revenue (₹cr)</th>
-                  <th className="p-1 text-left">EBITDA %</th>
-                  <th className="p-1 text-left">PAT (₹cr)</th>
-                  <th className="p-1 text-left">RoE %</th>
-                  <th className="p-1 text-left">RoA %</th>
-                  <th className="p-1 text-left">D/E %</th>
-                  <th className="p-1 text-left">Div yield %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.financials.map((row, i) => (
-                  <tr key={i}>
-                    <td className="p-1">
-                      <Input className="h-8 w-20" value={row.year} onChange={(e) => updateFinancial(i, "year", e.target.value)} placeholder="FY26" />
-                    </td>
-                    <td className="p-1">
-                      <Input className="h-8" value={row.revenue} onChange={(e) => updateFinancial(i, "revenue", e.target.value)} />
-                    </td>
-                    <td className="p-1">
-                      <Input className="h-8" value={row.ebitdaMargin} onChange={(e) => updateFinancial(i, "ebitdaMargin", e.target.value)} />
-                    </td>
-                    <td className="p-1">
-                      <Input className="h-8" value={row.pat} onChange={(e) => updateFinancial(i, "pat", e.target.value)} />
-                    </td>
-                    <td className="p-1">
-                      <Input className="h-8" value={row.roe} onChange={(e) => updateFinancial(i, "roe", e.target.value)} />
-                    </td>
-                    <td className="p-1">
-                      <Input className="h-8" value={row.roa} onChange={(e) => updateFinancial(i, "roa", e.target.value)} />
-                    </td>
-                    <td className="p-1">
-                      <Input className="h-8" value={row.debtEquity} onChange={(e) => updateFinancial(i, "debtEquity", e.target.value)} />
-                    </td>
-                    <td className="p-1">
-                      <Input className="h-8" value={row.divYield} onChange={(e) => updateFinancial(i, "divYield", e.target.value)} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+            <Card className="p-5">
+              <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">3-year financial summary</h3>
+              <p className="mb-3 text-xs text-subtle-foreground">Not available from any free feed — enter the 3 most recent consecutive fiscal years.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] border-collapse text-xs">
+                  <thead>
+                    <tr>
+                      <th className="p-1 text-left">FY</th>
+                      <th className="p-1 text-left">Revenue (₹cr)</th>
+                      <th className="p-1 text-left">EBITDA %</th>
+                      <th className="p-1 text-left">PAT (₹cr)</th>
+                      <th className="p-1 text-left">RoE %</th>
+                      <th className="p-1 text-left">RoA %</th>
+                      <th className="p-1 text-left">D/E %</th>
+                      <th className="p-1 text-left">Div yield %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.financials.map((row, i) => (
+                      <tr key={i}>
+                        <td className="p-1">
+                          <Input className="h-8 w-20" value={row.year} onChange={(e) => updateFinancial(i, "year", e.target.value)} placeholder="FY26" />
+                        </td>
+                        <td className="p-1">
+                          <Input className="h-8" value={row.revenue} onChange={(e) => updateFinancial(i, "revenue", e.target.value)} />
+                        </td>
+                        <td className="p-1">
+                          <Input className="h-8" value={row.ebitdaMargin} onChange={(e) => updateFinancial(i, "ebitdaMargin", e.target.value)} />
+                        </td>
+                        <td className="p-1">
+                          <Input className="h-8" value={row.pat} onChange={(e) => updateFinancial(i, "pat", e.target.value)} />
+                        </td>
+                        <td className="p-1">
+                          <Input className="h-8" value={row.roe} onChange={(e) => updateFinancial(i, "roe", e.target.value)} />
+                        </td>
+                        <td className="p-1">
+                          <Input className="h-8" value={row.roa} onChange={(e) => updateFinancial(i, "roa", e.target.value)} />
+                        </td>
+                        <td className="p-1">
+                          <Input className="h-8" value={row.debtEquity} onChange={(e) => updateFinancial(i, "debtEquity", e.target.value)} />
+                        </td>
+                        <td className="p-1">
+                          <Input className="h-8" value={row.divYield} onChange={(e) => updateFinancial(i, "divYield", e.target.value)} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </>
+        ) : (
+          <Card className="p-5">
+            <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Shareholding & financials (from paste)</h3>
+            <p className="text-xs text-subtle-foreground">
+              Sourced entirely from the pasted JSON above — nothing here is typed in manually. Edit the pasted text and
+              re-parse to change it.
+            </p>
+          </Card>
+        )}
 
         <Button
           onClick={handleGenerate}
-          disabled={generating || !form.symbol.trim() || (narrativeMode === "paste" && (!parsedPaste || "error" in parsedPaste))}
+          disabled={generating || !form.symbol.trim() || (dataMode === "paste" && (!parsedPaste || "error" in parsedPaste))}
           size="lg"
           className="w-full"
         >
@@ -590,7 +638,7 @@ function OnePagerForm_() {
                         </tr>
                       </thead>
                       <tbody>
-                        {form.financials
+                        {resultFinancials
                           .filter((f) => f.year.trim())
                           .map((f) => (
                             <tr key={f.year}>

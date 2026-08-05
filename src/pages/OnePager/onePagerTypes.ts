@@ -25,9 +25,19 @@ export interface OnePagerForm {
   recentDevelopments: string;
   financials: FinancialYear[];
   // Optional — NSE's free feed only gives Promoter vs Public; these further
-  // split the Public slice when the analyst has that detail.
+  // split the Public slice when the analyst has that detail. Manual-entry
+  // mode only — paste mode sources shareholding entirely from the pasted
+  // JSON instead (see OnePagerPage's independent paste/manual toggle).
   fiiPct: string;
   diiPct: string;
+  // Optional extra grounding, same categories Report Maker asks for in
+  // detail (quarterly numbers, segment mix, management commentary) but
+  // condensed to one field each since the one-pager itself has no section
+  // for them — they only enrich the narrative prompt (Groq or the copied
+  // Claude prompt), never rendered directly.
+  quarterlyContext: string;
+  segmentContext: string;
+  managementCommentary: string;
 }
 
 export function emptyOnePagerForm(): OnePagerForm {
@@ -44,6 +54,9 @@ export function emptyOnePagerForm(): OnePagerForm {
     financials: [emptyFinancialYear(), emptyFinancialYear(), emptyFinancialYear()],
     fiiPct: "",
     diiPct: "",
+    quarterlyContext: "",
+    segmentContext: "",
+    managementCommentary: "",
   };
 }
 

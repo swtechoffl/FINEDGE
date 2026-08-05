@@ -76,12 +76,27 @@ export async function generateOnePager(symbol, manual) {
     };
   }
 
-  // NSE's shareholding feed only carries Promoter vs Public — real and free,
-  // but not the FII/DII split real one-pagers usually show. If the analyst
-  // supplied FII/DII (optional, no free source for that split), carve those
-  // out of the Public slice; otherwise the pie just shows Promoter/Public.
+  // Manual entry and paste-from-Claude are independent sources for this —
+  // whichever the client actually used wins, they're never blended. Manual
+  // mode never sends aiShareholding, so it always falls through to the live
+  // NSE branch; paste mode sends aiShareholding whenever the pasted JSON
+  // included it, which then takes priority even if NSE also has data, since
+  // the analyst deliberately chose the paste path for this stock.
   let shareholding = null;
-  if (detail.shareholding) {
+  if (manual.aiShareholding && typeof manual.aiShareholding.promoterPct === "number") {
+    const { promoterPct, fiiPct, diiPct, publicPct, asOfDate } = manual.aiShareholding;
+    const slices = [{ label: "Promoter", pct: promoterPct }];
+    if (typeof fiiPct === "number") slices.push({ label: "FII", pct: fiiPct });
+    if (typeof diiPct === "number") slices.push({ label: "DII", pct: diiPct });
+    const named = slices.reduce((sum, s) => sum + s.pct, 0);
+    const rest = typeof publicPct === "number" ? publicPct : Math.max(0, +(100 - named).toFixed(2));
+    if (rest > 0.05) slices.push({ label: "Public / Others", pct: rest });
+    shareholding = { asOfDate: `${asOfDate || "Unverified"} · AI-sourced, not NSE-verified`, slices };
+  } else if (detail.shareholding) {
+    // NSE's shareholding feed only carries Promoter vs Public — real and
+    // free, but not the FII/DII split real one-pagers usually show. If the
+    // analyst supplied FII/DII (manual mode only, optional), carve those
+    // out of the Public slice; otherwise the pie just shows Promoter/Public.
     const { promoterPct, publicPct, asOfDate } = detail.shareholding;
     const fiiPct = manual.fiiPct ? Number(manual.fiiPct) : null;
     const diiPct = manual.diiPct ? Number(manual.diiPct) : null;
@@ -94,19 +109,6 @@ export async function generateOnePager(symbol, manual) {
       slices.push({ label: "Public / Others", pct: publicPct });
     }
     shareholding = { asOfDate, slices };
-  } else if (manual.aiShareholding && typeof manual.aiShareholding.promoterPct === "number") {
-    // NSE has nothing for this stock at all (common for smaller/newer
-    // listings) — fall back to the AI-researched breakdown from the "Paste
-    // from Claude" flow. Clearly labeled as such since it isn't verified
-    // against a live exchange feed the way the branch above is.
-    const { promoterPct, fiiPct, diiPct, publicPct, asOfDate } = manual.aiShareholding;
-    const slices = [{ label: "Promoter", pct: promoterPct }];
-    if (typeof fiiPct === "number") slices.push({ label: "FII", pct: fiiPct });
-    if (typeof diiPct === "number") slices.push({ label: "DII", pct: diiPct });
-    const named = slices.reduce((sum, s) => sum + s.pct, 0);
-    const rest = typeof publicPct === "number" ? publicPct : Math.max(0, +(100 - named).toFixed(2));
-    if (rest > 0.05) slices.push({ label: "Public / Others", pct: rest });
-    shareholding = { asOfDate: `${asOfDate || "Unverified"} · AI-sourced, not NSE-verified`, slices };
   }
 
   const facts = {
@@ -145,6 +147,9 @@ export async function generateOnePager(symbol, manual) {
         valuationMethod: manual.valuationMethod,
         timeHorizon: manual.timeHorizon,
         threeYearFinancials: manual.threeYearFinancials,
+        quarterlyContext: manual.quarterlyContext,
+        segmentContext: manual.segmentContext,
+        managementCommentary: manual.managementCommentary,
         recentDevelopments: manual.recentDevelopments,
       });
 

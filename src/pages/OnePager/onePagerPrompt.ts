@@ -37,6 +37,9 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
     `- Time horizon: ${form.timeHorizon}`,
   ];
   if (financials) lines.push(`- 3-year financial summary already on hand (fill any gaps, don't contradict): ${financials}`);
+  if (form.quarterlyContext.trim()) lines.push(`- Quarterly performance (analyst-supplied): ${form.quarterlyContext.trim()}`);
+  if (form.segmentContext.trim()) lines.push(`- Segment / geography mix (analyst-supplied): ${form.segmentContext.trim()}`);
+  if (form.managementCommentary.trim()) lines.push(`- Management commentary / outlook (analyst-supplied): ${form.managementCommentary.trim()}`);
   lines.push(`- Recent developments (analyst-supplied, safe to cite): ${form.recentDevelopments.trim() || "none supplied"}`);
   lines.push(
     "",
