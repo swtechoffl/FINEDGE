@@ -177,10 +177,10 @@ export function formatFinancialStatementsForPrompt(fs: OnePagerFinancialStatemen
   const add = (label: string, v: string) => {
     if (v.trim()) lines.push(`${label}:\n${v.trim()}`);
   };
-  add("Income statement", fs.incomeStatement);
-  add("Balance sheet", fs.balanceSheet);
+  add("Income Statement", fs.incomeStatement);
+  add("Balance Sheet", fs.balanceSheet);
   add("Ratios", fs.ratios);
-  add("Cash flow statement", fs.cashFlow);
+  add("Cash Flow Statement", fs.cashFlow);
   return lines.join("\n\n");
 }
 
