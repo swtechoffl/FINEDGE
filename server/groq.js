@@ -5,8 +5,18 @@
 // callers for the caching that keeps volume low).
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MODEL = "llama-3.3-70b-versatile";
+// groq/compound-mini is Groq's own agentic wrapper — same API, same key, but
+// it can autonomously call a built-in web search / visit-website tool
+// server-side before answering. Used only for the research report
+// (generateResearchReport), where filling in gaps from live sources is the
+// whole point; the other two calls below are short, data-already-in-hand
+// summaries that don't need it. The full "groq/compound" (multi-tool-call)
+// variant returns 413 Request Entity Too Large on this account's tier the
+// moment a query actually triggers a search — verified live — so this uses
+// the single-tool-call "-mini" variant instead, which works.
+const COMPOUND_MODEL = "groq/compound-mini";
 
-async function callGroq(systemPrompt, userPrompt, maxTokens) {
+async function callGroq(systemPrompt, userPrompt, maxTokens, model = MODEL, isRetry = false) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY not set");
 
@@ -17,7 +27,7 @@ async function callGroq(systemPrompt, userPrompt, maxTokens) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -29,6 +39,19 @@ async function callGroq(systemPrompt, userPrompt, maxTokens) {
 
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
+    // groq/compound-mini's search step can push a single request right up
+    // against this account's 8,000-tokens-per-minute cap on the underlying
+    // reasoning model — verified live: a search-augmented call needs
+    // 4,000-6,000 tokens, so it's tight even in isolation. Both 429 (rate
+    // limit, with a "try again in Xs" hint) and 413 (over the per-request
+    // ceiling, no hint) are transient here — the window clears in well under
+    // a minute — so retry once rather than fail outright.
+    if (!isRetry && (res.status === 429 || res.status === 413)) {
+      const waitMatch = detail.match(/try again in ([\d.]+)s/i);
+      const waitMs = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) + 500 : 20000;
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      return callGroq(systemPrompt, userPrompt, maxTokens, model, true);
+    }
     throw new Error(`Groq API HTTP ${res.status}: ${detail.slice(0, 200)}`);
   }
 
@@ -65,7 +88,9 @@ export async function generateReportSummary(dataDescription) {
 // RESEARCH_REPORT_SYSTEM_PROMPT's own comments for why several sections
 // (charts, SEBI disclosures) are deliberately constrained rather than left
 // to the model's own judgment.
-const RESEARCH_REPORT_SYSTEM_PROMPT = `You are a senior equity research analyst at a SEBI-registered Research Analyst firm, writing an institutional-grade quarterly Result Update note in the exact house style of Motilal Oswal Financial Services' single-stock result notes. Match structure, tone, density, and formatting precisely. Do not editorialize beyond what the data supports — every claim must be tied to a number the user supplied. Management-attributed statements always start with "Management..." (e.g. "Management reiterated...", "Management expects...") — never presented as your own forecast. Currency unit consistency: use whatever unit (₹cr or ₹b) the input data uses, and hold it through the entire document.
+const RESEARCH_REPORT_SYSTEM_PROMPT = `You are a senior equity research analyst at a SEBI-registered Research Analyst firm, writing an institutional-grade quarterly Result Update note in the exact house style of Motilal Oswal Financial Services' single-stock result notes. Match structure, tone, density, and formatting precisely. Do not editorialize beyond what the data supports — every claim must be tied to a real number, either supplied by the user or found via your web search/visit-website tools. Management-attributed statements always start with "Management..." (e.g. "Management reiterated...", "Management expects...") — never presented as your own forecast. Currency unit consistency: use whatever unit (₹cr or ₹b) the input data uses, and hold it through the entire document.
+
+You have live web search and page-visit tools — use them to fill in whatever the user's input left blank: current CMP, 52-week range, market cap, recent quarterly results, segment revenue, shareholding pattern, management commentary from the latest earnings call or investor presentation, recent news. Prefer screener.in, the company's own investor relations page, BSE/NSE filings, and mainstream financial press (Economic Times, Mint, Moneycontrol, Business Standard). Cite what you found inline as "[Source: <site>, <date>]" so the analyst can verify it. Only write "[data not supplied]" for a specific figure after a search for it turns up nothing usable — never for a whole section just because the form field was empty. The ONE exception is the SEBI disclosures section (see the FINAL PAGES instructions below) — never search for or invent facts there; use only what's given in the FIRM & COMPLIANCE FACTS block.
 
 Output valid GFM Markdown (headers, bold, tables with | pipes). Follow this exact section order, using "## " for each numbered page-section below:
 
@@ -95,15 +120,21 @@ PAGES 6-7 — DETAILED COMMENTARY
 20. Regional commentary → business-unit commentary → product-wise commentary → Debt/Balance Sheet/Working Capital → Other (leadership changes, associate investments, geopolitical risk) → condensed "Valuation and view" repeat → "Our revised estimates" table (Old vs New FY estimates for Revenue/EBITDA/Adj. PAT, % change) — only include this table if the input marks the note as a revision.
 
 PAGES 9-10 — FULL FINANCIALS
-21-26. "Financials and valuations": Consolidated Income Statement, Balance Sheet, Ratios (Basic/Valuation/Return/Working Capital/Leverage), Cash Flow Statement — reproduce as markdown tables from whatever the user pasted, in the same period columns they gave. If the user's pasted text isn't a clean table, parse it as best you can into one; note "[data not supplied]" for statements the user left blank rather than inventing figures. End with: "Investment in securities market are subject to market risks. Read all the related documents carefully before investing."
+21-26. "Financials and valuations": Consolidated Income Statement, Balance Sheet, Ratios (Basic/Valuation/Return/Working Capital/Leverage), Cash Flow Statement — reproduce as markdown tables from whatever the user pasted, in the same period columns they gave. If the user's pasted text isn't a clean table, parse it as best you can into one; if a statement was left blank, search for it (e.g. screener.in's "Financials" tabs, the company's investor relations page) before falling back to "[data not supplied]". End with: "Investment in securities market are subject to market risks. Read all the related documents carefully before investing."
 
 FINAL PAGES — SEBI DISCLOSURES (MANDATORY, do not omit)
 27. "Explanation of Investment Rating" table: BUY ≥15%, SELL <-10%, NEUTRAL -10% to 15%, UNDER REVIEW, NOT RATED.
 28-31. "Disclosures", "Specific Disclosures" (numbered 1-10, Yes/No), "Analyst Certification", "Terms & Conditions" / "Disclaimer". CRITICAL: use ONLY the analyst/firm facts given to you in the user message's "FIRM & COMPLIANCE FACTS" block, reproduced verbatim — do not invent a registration number, ownership %, compensation fact, or any Specific Disclosures answer that isn't given to you. Where an item isn't covered by the facts given, write "[CONFIRM]" as a placeholder instead of guessing.
 32. Registered office address, compliance officer contact — from the same FIRM & COMPLIANCE FACTS block only.
 
-If the user's input is missing data for a section (e.g. no segment breakdown given, no debt data), write "[data not supplied]" for that specific piece rather than fabricating numbers — but still include every section header from the structure above so the document's shape stays intact.`;
+If a piece of data is missing from the user's input, search for it before writing "[data not supplied]" — only fall back to that placeholder once a real search has turned up nothing usable (or for the SEBI disclosures exception above, where searching is never appropriate). Still include every section header from the structure above so the document's shape stays intact.`;
 
+// This account's Groq tier caps openai/gpt-oss-120b (the model compound-mini
+// reasons with under the hood) at 8,000 tokens-per-minute — verified live.
+// The system prompt alone runs ~3,700 tokens, so max_tokens has to leave
+// enough of that budget for the prompt itself or the request gets rejected
+// (429/413) before generation even starts. 3500 is what reliably fits
+// alongside the prompt; a paid Groq Dev Tier plan would lift this ceiling.
 export async function generateResearchReport(userDataText) {
-  return callGroq(RESEARCH_REPORT_SYSTEM_PROMPT, userDataText, 8000);
+  return callGroq(RESEARCH_REPORT_SYSTEM_PROMPT, userDataText, 3500, COMPOUND_MODEL);
 }
