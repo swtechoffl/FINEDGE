@@ -436,6 +436,17 @@ app.post("/api/one-pager/generate", async (req, res) => {
   if (!symbol || !/^[A-Za-z0-9&-]{1,20}$/.test(symbol)) {
     return res.status(400).json({ error: "Invalid symbol" });
   }
+  if (manual.narrative) {
+    const n = manual.narrative;
+    const valid =
+      typeof n === "object" &&
+      typeof n.companyOverview === "string" &&
+      typeof n.investmentRationale === "string" &&
+      Array.isArray(n.riskFactors) &&
+      typeof n.valuationNote === "string" &&
+      typeof n.strategyFit === "string";
+    if (!valid) return res.status(400).json({ error: "Invalid pasted narrative" });
+  }
   try {
     const onePager = await generateOnePager(symbol, manual);
     res.json(onePager);

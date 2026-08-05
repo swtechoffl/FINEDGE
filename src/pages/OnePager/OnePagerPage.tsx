@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Loader2, Sparkles, Download, RefreshCw, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Loader2, Sparkles, Download, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, Copy, Check, ClipboardPaste } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -10,10 +10,12 @@ import { PinGate } from "../../components/PinGate";
 import { ANALYST, CONTACT, CLOSING_NOTE, DISCLAIMER_PARAGRAPHS } from "../Disclosure/disclaimerContent";
 import { OnePagerChart } from "./OnePagerChart";
 import { OnePagerPieChart } from "./OnePagerPieChart";
+import { buildOnePagerResearchPrompt, parseOnePagerNarrative } from "./onePagerPrompt";
 import {
   emptyOnePagerForm,
   formatFinancialsForPrompt,
   type OnePagerForm,
+  type OnePagerNarrative,
   type OnePagerResult,
 } from "./onePagerTypes";
 
@@ -89,6 +91,21 @@ function OnePagerForm_() {
   const [exporting, setExporting] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
+  const [narrativeMode, setNarrativeMode] = useState<"ai" | "paste">("ai");
+  const [pastedNarrative, setPastedNarrative] = useState("");
+  const [promptCopied, setPromptCopied] = useState(false);
+
+  const parsedPaste = useMemo(
+    () => (narrativeMode === "paste" && pastedNarrative.trim() ? parseOnePagerNarrative(pastedNarrative) : null),
+    [narrativeMode, pastedNarrative],
+  );
+
+  async function handleCopyPrompt() {
+    await navigator.clipboard.writeText(buildOnePagerResearchPrompt(form));
+    setPromptCopied(true);
+    setTimeout(() => setPromptCopied(false), 2000);
+  }
+
   function updateFinancial(i: number, key: keyof OnePagerForm["financials"][number], value: string) {
     setForm((f) => ({ ...f, financials: f.financials.map((row, idx) => (idx === i ? { ...row, [key]: value } : row)) }));
   }
@@ -114,6 +131,15 @@ function OnePagerForm_() {
   }
 
   async function handleGenerate() {
+    let narrative: OnePagerNarrative | undefined;
+    if (narrativeMode === "paste") {
+      const parsed = parseOnePagerNarrative(pastedNarrative);
+      if ("error" in parsed) {
+        setGenError(parsed.error);
+        return;
+      }
+      narrative = parsed.narrative;
+    }
     setGenerating(true);
     setGenError(null);
     setResult(null);
@@ -134,6 +160,7 @@ function OnePagerForm_() {
           threeYearFinancials: formatFinancialsForPrompt(form.financials),
           fiiPct: form.fiiPct,
           diiPct: form.diiPct,
+          ...(narrativeMode === "paste" ? { narrative } : {}),
         }),
       });
       const json = await res.json();
@@ -249,6 +276,60 @@ function OnePagerForm_() {
         </Card>
 
         <Card className="p-5">
+          <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Narrative source</h3>
+          <p className="mb-3 text-xs text-subtle-foreground">
+            Overview, rationale, risks and valuation note are AI-drafted. Groq's free tier has no live search and a tight
+            daily quota — for a better-researched report, copy the prompt below into Claude (or any AI with web search),
+            then paste its JSON reply back in.
+          </p>
+          <div className="mb-3 flex gap-2">
+            <Button
+              type="button"
+              variant={narrativeMode === "ai" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setNarrativeMode("ai")}
+            >
+              Auto (Groq)
+            </Button>
+            <Button
+              type="button"
+              variant={narrativeMode === "paste" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setNarrativeMode("paste")}
+            >
+              <ClipboardPaste size={14} />
+              Paste from Claude
+            </Button>
+          </div>
+          {narrativeMode === "paste" && (
+            <div className="flex flex-col gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={handleCopyPrompt} className="self-start">
+                {promptCopied ? <Check size={14} /> : <Copy size={14} />}
+                {promptCopied ? "Copied!" : "Copy research prompt"}
+              </Button>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-subtle-foreground">Paste the AI's JSON reply here</span>
+                <Textarea
+                  rows={6}
+                  value={pastedNarrative}
+                  onChange={(e) => setPastedNarrative(e.target.value)}
+                  placeholder='{"companyOverview": "...", "investmentRationale": "...", "riskFactors": ["...", "..."], "valuationNote": "...", "strategyFit": "..."}'
+                  className="font-mono text-xs"
+                />
+              </label>
+              {parsedPaste && "error" in parsedPaste && (
+                <span className="text-xs font-medium text-bearish">{parsedPaste.error}</span>
+              )}
+              {parsedPaste && "narrative" in parsedPaste && (
+                <span className="flex items-center gap-1 text-xs font-medium text-bullish">
+                  <Check size={13} /> Parsed — {parsedPaste.narrative.riskFactors.length} risk factors found. Ready to generate.
+                </span>
+              )}
+            </div>
+          )}
+        </Card>
+
+        <Card className="p-5">
           <h3 className="mb-1 text-sm font-extrabold tracking-tight text-foreground">Shareholding pattern</h3>
           <p className="mb-3 text-xs text-subtle-foreground">
             Promoter vs Public auto-fills live from NSE on generate. FII/DII (optional, no free source) further split the Public slice.
@@ -316,7 +397,12 @@ function OnePagerForm_() {
           </div>
         </Card>
 
-        <Button onClick={handleGenerate} disabled={generating || !form.symbol.trim()} size="lg" className="w-full">
+        <Button
+          onClick={handleGenerate}
+          disabled={generating || !form.symbol.trim() || (narrativeMode === "paste" && (!parsedPaste || "error" in parsedPaste))}
+          size="lg"
+          className="w-full"
+        >
           {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           {generating ? "Generating…" : "Generate One Pager"}
         </Button>

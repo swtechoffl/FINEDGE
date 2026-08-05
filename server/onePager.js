@@ -118,16 +118,22 @@ export async function generateOnePager(symbol, manual) {
     shareholding,
   };
 
-  const narrative = await generateOnePagerNarrative({
-    facts,
-    rating: manual.rating,
-    targetPrice,
-    upsidePct,
-    valuationMethod: manual.valuationMethod,
-    timeHorizon: manual.timeHorizon,
-    threeYearFinancials: manual.threeYearFinancials,
-    recentDevelopments: manual.recentDevelopments,
-  });
+  // If the client already parsed a narrative out of a pasted external AI
+  // response (see OnePagerPage's "Paste from Claude" toggle), use it as-is
+  // and skip the Groq call — this is the whole point of that path, since
+  // Groq's free-tier quota is what pushed the paste flow to exist.
+  const narrative = manual.narrative
+    ? manual.narrative
+    : await generateOnePagerNarrative({
+        facts,
+        rating: manual.rating,
+        targetPrice,
+        upsidePct,
+        valuationMethod: manual.valuationMethod,
+        timeHorizon: manual.timeHorizon,
+        threeYearFinancials: manual.threeYearFinancials,
+        recentDevelopments: manual.recentDevelopments,
+      });
 
   return {
     reportDateLabel: formatReportDate(new Date()),
