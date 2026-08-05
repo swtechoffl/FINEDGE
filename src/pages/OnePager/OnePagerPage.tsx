@@ -292,6 +292,13 @@ function OnePagerForm_() {
     }
   }
 
+  // When there's no 3yr financial summary to show, the right column's only
+  // real content is the chart, an optional shareholding pie, and the
+  // valuation box — far less than the left column's paragraphs. Rather than
+  // leave the text squeezed into a ~58%-width column beside mostly empty
+  // space, the whole body collapses to one full-width column instead.
+  const hasFinancialSummary = resultFinancials.some((f) => f.year.trim());
+
   return (
     <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 px-6 py-6 xl:grid-cols-2">
       <div className="flex flex-col gap-4">
@@ -792,8 +799,9 @@ function OnePagerForm_() {
                 </div>
               )}
 
-              {/* Two-column body */}
-              <div className="grid grid-cols-[1.35fr_1fr] gap-5 px-6 py-4">
+              {/* Two-column body — collapses to one full-width column when
+                  there's no financial summary table (see hasFinancialSummary). */}
+              <div className={`grid gap-5 px-6 py-4 ${hasFinancialSummary ? "grid-cols-[1.35fr_1fr]" : "grid-cols-1"}`}>
                 {/* grid-cols-1, not flex-col — the PDF export's page-break
                     logic treats every direct child of a .grid as a safe
                     break point unconditionally, vs. a flex-col list only
@@ -853,29 +861,34 @@ function OnePagerForm_() {
                     </div>
                   )}
 
-                  {resultSegments.length > 0 && showSegments && (
-                    <div>
-                      <SectionLabel>Segment / Geography Mix</SectionLabel>
-                      <table className="w-full border-collapse text-[9.5px]">
-                        <thead>
-                          <tr className="bg-surface-2">
-                            <th className="border border-border px-1 py-1 text-left">Segment</th>
-                            <th className="border border-border px-1 py-1 text-left">Revenue</th>
-                            <th className="border border-border px-1 py-1 text-left">YoY%</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {resultSegments.map((s) => (
-                            <tr key={s.name}>
-                              <td className="border border-border px-1 py-1 font-semibold">{s.name}</td>
-                              <td className="border border-border px-1 py-1">{s.revenue || "—"}</td>
-                              <td className="border border-border px-1 py-1">{s.yoyGrowth || "—"}</td>
+                  {resultSegments.length > 0 && showSegments && (() => {
+                    // Only shown if at least one segment actually has a
+                    // YoY% — otherwise the whole column would just be dashes.
+                    const hasYoyData = resultSegments.some((s) => s.yoyGrowth.trim());
+                    return (
+                      <div>
+                        <SectionLabel>Segment / Geography Mix</SectionLabel>
+                        <table className="w-full border-collapse text-[9.5px]">
+                          <thead>
+                            <tr className="bg-surface-2">
+                              <th className="border border-border px-1 py-1 text-left">Segment</th>
+                              <th className="border border-border px-1 py-1 text-left">Revenue</th>
+                              {hasYoyData && <th className="border border-border px-1 py-1 text-left">YoY%</th>}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                          </thead>
+                          <tbody>
+                            {resultSegments.map((s) => (
+                              <tr key={s.name}>
+                                <td className="border border-border px-1 py-1 font-semibold">{s.name}</td>
+                                <td className="border border-border px-1 py-1">{s.revenue || "—"}</td>
+                                {hasYoyData && <td className="border border-border px-1 py-1">{s.yoyGrowth || "—"}</td>}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
 
                   <div>
                     <SectionLabel>Company Overview</SectionLabel>
@@ -943,39 +956,41 @@ function OnePagerForm_() {
                     </div>
                   )}
 
-                  <div>
-                    <SectionLabel>Financial Summary (Consolidated)</SectionLabel>
-                    <table className="w-full border-collapse text-[8.5px]">
-                      <thead>
-                        <tr className="bg-surface-2">
-                          <th className="border border-border px-1 py-1 text-left">FY</th>
-                          <th className="border border-border px-1 py-1 text-left">Rev.</th>
-                          <th className="border border-border px-1 py-1 text-left">EBITDA%</th>
-                          <th className="border border-border px-1 py-1 text-left">PAT</th>
-                          <th className="border border-border px-1 py-1 text-left">RoE%</th>
-                          <th className="border border-border px-1 py-1 text-left">RoA%</th>
-                          <th className="border border-border px-1 py-1 text-left">D/E%</th>
-                          <th className="border border-border px-1 py-1 text-left">Div%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {resultFinancials
-                          .filter((f) => f.year.trim())
-                          .map((f) => (
-                            <tr key={f.year}>
-                              <td className="border border-border px-1 py-1 font-semibold">{f.year}</td>
-                              <td className="border border-border px-1 py-1">{f.revenue || "—"}</td>
-                              <td className="border border-border px-1 py-1">{f.ebitdaMargin || "—"}</td>
-                              <td className="border border-border px-1 py-1">{f.pat || "—"}</td>
-                              <td className="border border-border px-1 py-1">{f.roe || "—"}</td>
-                              <td className="border border-border px-1 py-1">{f.roa || "—"}</td>
-                              <td className="border border-border px-1 py-1">{f.debtEquity || "—"}</td>
-                              <td className="border border-border px-1 py-1">{f.divYield || "—"}</td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  {hasFinancialSummary && (
+                    <div>
+                      <SectionLabel>Financial Summary (Consolidated)</SectionLabel>
+                      <table className="w-full border-collapse text-[8.5px]">
+                        <thead>
+                          <tr className="bg-surface-2">
+                            <th className="border border-border px-1 py-1 text-left">FY</th>
+                            <th className="border border-border px-1 py-1 text-left">Rev.</th>
+                            <th className="border border-border px-1 py-1 text-left">EBITDA%</th>
+                            <th className="border border-border px-1 py-1 text-left">PAT</th>
+                            <th className="border border-border px-1 py-1 text-left">RoE%</th>
+                            <th className="border border-border px-1 py-1 text-left">RoA%</th>
+                            <th className="border border-border px-1 py-1 text-left">D/E%</th>
+                            <th className="border border-border px-1 py-1 text-left">Div%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {resultFinancials
+                            .filter((f) => f.year.trim())
+                            .map((f) => (
+                              <tr key={f.year}>
+                                <td className="border border-border px-1 py-1 font-semibold">{f.year}</td>
+                                <td className="border border-border px-1 py-1">{f.revenue || "—"}</td>
+                                <td className="border border-border px-1 py-1">{f.ebitdaMargin || "—"}</td>
+                                <td className="border border-border px-1 py-1">{f.pat || "—"}</td>
+                                <td className="border border-border px-1 py-1">{f.roe || "—"}</td>
+                                <td className="border border-border px-1 py-1">{f.roa || "—"}</td>
+                                <td className="border border-border px-1 py-1">{f.debtEquity || "—"}</td>
+                                <td className="border border-border px-1 py-1">{f.divYield || "—"}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
 
                   <div className="rounded-lg border border-accent/30 bg-accent-bg p-3">
                     <SectionLabel>Valuation</SectionLabel>
