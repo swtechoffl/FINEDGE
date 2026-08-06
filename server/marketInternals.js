@@ -1,6 +1,7 @@
 import { fetchParticipantOi, fetchParticipantVolume } from "./participantOi.js";
 import { fetchBulkDeals, fetchBlockDeals, fetchShortSelling } from "./deals.js";
 import { fetchIndexOptionChains } from "./optionChain.js";
+import { fetchFnoBan } from "./fnoBan.js";
 
 // These are all daily-granularity datasets (participant OI/volume and deals
 // only publish once per trading day; option chain OI moves faster but not
@@ -15,17 +16,19 @@ let cache = {
   blockDeals: [],
   shortSelling: [],
   optionChains: [],
+  fnoBan: null,
 };
 let inFlight = null;
 
 async function refreshInternals() {
-  const [poiResult, pvolResult, bulkResult, blockResult, shortResult, ocResult] = await Promise.all([
+  const [poiResult, pvolResult, bulkResult, blockResult, shortResult, ocResult, fnoBanResult] = await Promise.all([
     fetchParticipantOi().catch((err) => ({ error: err.message })),
     fetchParticipantVolume().catch((err) => ({ error: err.message })),
     fetchBulkDeals().catch(() => []),
     fetchBlockDeals().catch(() => []),
     fetchShortSelling().catch(() => []),
     fetchIndexOptionChains().catch(() => []),
+    fetchFnoBan().catch((err) => ({ error: err.message })),
   ]);
 
   cache = {
@@ -36,6 +39,7 @@ async function refreshInternals() {
     blockDeals: Array.isArray(blockResult) ? blockResult : [],
     shortSelling: Array.isArray(shortResult) ? shortResult : [],
     optionChains: Array.isArray(ocResult) ? ocResult : [],
+    fnoBan: fnoBanResult && !fnoBanResult.error ? fnoBanResult : null,
   };
   return cache;
 }
@@ -54,7 +58,7 @@ function summarize(c) {
   return (
     `participantOi=${!!c.participantOi}, participantVolume=${!!c.participantVolume}, ` +
     `bulk=${c.bulkDeals.length}, block=${c.blockDeals.length}, short=${c.shortSelling.length}, ` +
-    `optionChains=${c.optionChains.length}`
+    `optionChains=${c.optionChains.length}, fnoBan=${c.fnoBan?.symbols.length ?? "n/a"}`
   );
 }
 

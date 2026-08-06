@@ -41,17 +41,29 @@ function IpoPosterRow({
   symbol,
   company,
   sub,
+  isSme,
   density,
 }: {
   symbol: string;
   company: string;
   sub: string;
+  isSme: boolean;
   density: RowDensity;
 }) {
   return (
     <div className={cn("rounded-lg bg-white/10", density.padding)}>
       <div className="flex items-center justify-between gap-2">
-        <span className={cn("font-bold text-white", density.primaryText)}>{symbol}</span>
+        <div className="flex items-center gap-1.5">
+          <span className={cn("font-bold text-white", density.primaryText)}>{symbol}</span>
+          <span
+            className={cn(
+              "shrink-0 rounded px-1 py-px text-[7px] font-bold uppercase tracking-wide",
+              isSme ? "bg-amber-400/25 text-amber-200" : "bg-sky-400/25 text-sky-200",
+            )}
+          >
+            {isSme ? "SME" : "Main"}
+          </span>
+        </div>
         <span className={cn("shrink-0 font-semibold text-white/70", density.secondaryText)}>{sub}</span>
       </div>
       <div className={cn("truncate text-white/55", density.secondaryText)}>{company}</div>
@@ -245,6 +257,7 @@ export function PremarketPosters({
                         symbol={item.symbol}
                         company={item.company}
                         sub={`Open till ${item.endDate.replace(/-\d{4}$/, "")}`}
+                        isSme={item.isSme}
                         density={ipoDensity}
                       />
                     ))}
@@ -254,6 +267,7 @@ export function PremarketPosters({
                         symbol={item.symbol}
                         company={item.company}
                         sub={item.startDate.replace(/-\d{4}$/, "")}
+                        isSme={item.isSme}
                         density={ipoDensity}
                       />
                     ))}

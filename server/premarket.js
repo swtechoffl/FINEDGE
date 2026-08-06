@@ -51,6 +51,20 @@ const SYMBOL_GROUPS = {
     { symbol: "000001.SS", label: "Shanghai Composite" },
     { symbol: "^KS11", label: "KOSPI" },
   ],
+  // NYSE/Nasdaq-listed ADRs of Indian companies — trade through the US
+  // session (India's overnight), so their move is a same-day pre-market
+  // read the same way GIFT Nifty and US indices are. Tata Motors' ADR
+  // (TTM) and Azure Power (AZRE) were excluded — both delisted (TTM in the
+  // 2024 DVR merger, AZRE when it went private in 2023).
+  adr: [
+    { symbol: "INFY", label: "Infosys" },
+    { symbol: "WIT", label: "Wipro" },
+    { symbol: "IBN", label: "ICICI Bank" },
+    { symbol: "HDB", label: "HDFC Bank" },
+    { symbol: "RDY", label: "Dr Reddy's" },
+    { symbol: "SIFY", label: "Sify" },
+    { symbol: "YTRA", label: "Yatra Online" },
+  ],
 };
 
 // GIFT Nifty (NSE IX / India International Exchange, GIFT City — the
@@ -179,6 +193,7 @@ async function fetchIpoListings() {
       startDate: r.issueStartDate,
       endDate: r.issueEndDate,
       subscriptionTimes: r.noOfTime ? +parseFloat(r.noOfTime).toFixed(2) : null,
+      isSme: r.series === "SME",
     }));
 
   const lookaheadCutoff = new Date(today);
@@ -200,6 +215,7 @@ async function fetchIpoListings() {
       priceRange: r.issuePrice,
       startDate: r.issueStartDate,
       endDate: r.issueEndDate,
+      isSme: r.series === "SME",
     }));
 
   const past = (Array.isArray(pastRows) ? pastRows : [])
@@ -213,6 +229,7 @@ async function fetchIpoListings() {
       priceRange: r.priceRange,
       endDate: r.ipoEndDate,
       listingDate: r.listingDate && r.listingDate !== "-" ? r.listingDate : null,
+      isSme: r.securityType === "SME",
     }));
 
   return { current, upcoming, past };

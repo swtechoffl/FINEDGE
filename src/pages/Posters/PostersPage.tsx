@@ -46,10 +46,11 @@ export function PostersPage() {
     moversData.corporateActionsAll.length > 0 ||
     Boolean(premarketData.giftNifty) ||
     Boolean(premarketData.niftyPivots) ||
+    Boolean(premarketData.bankNiftyPivots) ||
     Boolean(premarketData.fiiDii) ||
     internalsData.optionChains.length > 0 ||
+    Boolean(internalsData.fnoBan) ||
     moversData.volumeGainers.length > 0 ||
-    Boolean(moversData.advanceDecline) ||
     premarketData.ipos.current.length > 0 ||
     premarketData.ipos.upcoming.length > 0 ||
     Object.values(premarketData.groups).some((g) => g.length > 0);
@@ -119,9 +120,10 @@ export function PostersPage() {
               giftNifty={premarketData.giftNifty}
               groups={premarketData.groups}
               niftyPivots={premarketData.niftyPivots}
+              bankNiftyPivots={premarketData.bankNiftyPivots}
               fiiDii={premarketData.fiiDii}
               optionChains={internalsData.optionChains}
-              advanceDecline={moversData.advanceDecline}
+              fnoBan={internalsData.fnoBan}
               branding={branding}
               links={socialLinks}
               setField={setSocialField}

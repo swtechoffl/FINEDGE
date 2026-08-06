@@ -46,6 +46,11 @@ export interface OptionChainSummary {
   topPutOi: StrikeOi[];
 }
 
+export interface FnoBanData {
+  date: string | null;
+  symbols: string[];
+}
+
 export interface MarketInternalsData {
   fetchedAt: number;
   participantOi: ParticipantSeries | null;
@@ -54,6 +59,7 @@ export interface MarketInternalsData {
   blockDeals: DealRow[];
   shortSelling: ShortSellingRow[];
   optionChains: OptionChainSummary[];
+  fnoBan: FnoBanData | null;
 }
 
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
@@ -66,6 +72,7 @@ const EMPTY: MarketInternalsData = {
   blockDeals: [],
   shortSelling: [],
   optionChains: [],
+  fnoBan: null,
 };
 
 export function useMarketInternals() {

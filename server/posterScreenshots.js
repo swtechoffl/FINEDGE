@@ -1,15 +1,17 @@
 import puppeteer from "puppeteer-core";
 
-// The 5 "pre-market context" posters from GlobalMarketPosters.tsx, in the
+// The "pre-market context" posters from GlobalMarketPosters.tsx, in the
 // order they should appear in the Telegram album. Deliberately excludes
-// index-option-chain and market-breadth from that same component — those
-// read as intraday/prior-session data rather than a pre-market briefing.
+// index-option-chain from that same component — it reads as intraday/
+// prior-session data rather than a pre-market briefing.
 const GLOBAL_POSTER_IDS = [
   "gift-nifty-vix-currency",
   "global-indices",
+  "indian-adrs",
   "commodities",
-  "nifty-pivot-levels",
+  "nifty-banknifty-pivot-levels",
   "fii-dii-activity",
+  "fno-ban-list",
 ];
 
 // The 5 "stock movers" posters from PremarketPosters.tsx — same /posters

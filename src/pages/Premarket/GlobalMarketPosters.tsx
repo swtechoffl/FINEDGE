@@ -1,13 +1,12 @@
 import { useRef } from "react";
-import { Gauge, Globe2, Boxes, Target, Landmark, BarChart3, Scale } from "lucide-react";
+import { Gauge, Globe2, Boxes, Target, Landmark, BarChart3, Building2, ShieldBan } from "lucide-react";
 import type { GiftNiftyData, PremarketQuote, NiftyPivotData, FiiDiiData, FiiDiiSide } from "./usePremarket";
-import type { OptionChainSummary } from "../MarketInternals/useMarketInternals";
-import type { AdvanceDeclineData } from "../PostMarket/usePostMarket";
+import type { OptionChainSummary, FnoBanData } from "../MarketInternals/useMarketInternals";
 import type { ReportBranding } from "./useReportBranding";
 import type { SocialLinks } from "./useSocialLinks";
 import { SocialLinksEditor } from "./SocialLinksEditor";
 import { Card } from "../../components/ui/Card";
-import { PosterFrame, PosterActions } from "./posterShared";
+import { PosterFrame, PosterActions, MAX_POSTER_ROWS, rowDensityFor, type RowDensity } from "./posterShared";
 import { cn } from "../../lib/utils";
 
 // Poster rows have limited width — a trailing "(WTI)"-style qualifier is the
@@ -81,30 +80,39 @@ function GiftNiftyHeadline({ giftNifty }: { giftNifty: GiftNiftyData }) {
   );
 }
 
-function PivotLevelsBlock({ data }: { data: NiftyPivotData }) {
+function PivotIndexBlock({ label, data }: { label: string; data: NiftyPivotData }) {
   const { levels } = data;
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="rounded-lg bg-white/15 px-3 py-2 text-center">
-        <div className="text-[8px] font-bold uppercase tracking-wide text-white/60">Pivot</div>
-        <div className="text-lg font-extrabold text-white">{levels.pivot.toLocaleString("en-IN")}</div>
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center justify-between rounded-lg bg-white/15 px-2.5 py-1">
+        <span className="text-[8.5px] font-bold uppercase tracking-wide text-white/70">{label}</span>
+        <span className="text-[13px] font-extrabold text-white">{levels.pivot.toLocaleString("en-IN")}</span>
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-3 gap-1">
         {[levels.r1, levels.r2, levels.r3].map((v, i) => (
-          <div key={i} className="rounded-lg bg-white/10 px-1.5 py-1.5 text-center">
-            <div className="text-[8px] font-semibold uppercase text-white/50">R{i + 1}</div>
-            <div className="text-[11px] font-bold text-emerald-300">{v.toLocaleString("en-IN")}</div>
+          <div key={i} className="rounded-md bg-white/10 px-1 py-0.5 text-center">
+            <div className="text-[6.5px] font-semibold uppercase text-white/50">R{i + 1}</div>
+            <div className="text-[9.5px] font-bold text-emerald-300">{v.toLocaleString("en-IN")}</div>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-3 gap-1">
         {[levels.s1, levels.s2, levels.s3].map((v, i) => (
-          <div key={i} className="rounded-lg bg-white/10 px-1.5 py-1.5 text-center">
-            <div className="text-[8px] font-semibold uppercase text-white/50">S{i + 1}</div>
-            <div className="text-[11px] font-bold text-red-300">{v.toLocaleString("en-IN")}</div>
+          <div key={i} className="rounded-md bg-white/10 px-1 py-0.5 text-center">
+            <div className="text-[6.5px] font-semibold uppercase text-white/50">S{i + 1}</div>
+            <div className="text-[9.5px] font-bold text-red-300">{v.toLocaleString("en-IN")}</div>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function PivotLevelsBlock({ nifty, bankNifty }: { nifty: NiftyPivotData | null; bankNifty: NiftyPivotData | null }) {
+  return (
+    <div className="flex flex-col gap-1">
+      {nifty && <PivotIndexBlock label="Nifty" data={nifty} />}
+      {bankNifty && <PivotIndexBlock label="Bank Nifty" data={bankNifty} />}
     </div>
   );
 }
@@ -156,27 +164,10 @@ function OptionChainBlock({ chain }: { chain: OptionChainSummary }) {
   );
 }
 
-function AdvanceDeclinePosterBlock({ data }: { data: AdvanceDeclineData }) {
-  const advPct = data.total > 0 ? (data.advances / data.total) * 100 : 50;
+function FnoBanChip({ symbol, density }: { symbol: string; density: RowDensity }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg bg-white/10 px-3 py-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-lg font-extrabold leading-tight text-emerald-300">{data.advances}</div>
-          <div className="text-[9px] font-semibold uppercase tracking-wide text-white/50">Advances</div>
-        </div>
-        <div className="text-right">
-          <div className="text-lg font-extrabold leading-tight text-red-300">{data.declines}</div>
-          <div className="text-[9px] font-semibold uppercase tracking-wide text-white/50">Declines</div>
-        </div>
-      </div>
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-white/15">
-        <div className="h-full bg-emerald-400" style={{ width: `${advPct}%` }} />
-        <div className="h-full bg-red-400" style={{ width: `${100 - advPct}%` }} />
-      </div>
-      <div className="text-[9px] text-white/60">
-        {data.unchanged} unchanged · {data.total} total securities traded
-      </div>
+    <div className={cn("flex items-center justify-center rounded-lg bg-white/10", density.padding)}>
+      <span className={cn("font-bold text-white", density.primaryText)}>{symbol}</span>
     </div>
   );
 }
@@ -185,9 +176,10 @@ export function GlobalMarketPosters({
   giftNifty,
   groups,
   niftyPivots,
+  bankNiftyPivots,
   fiiDii,
   optionChains,
-  advanceDecline,
+  fnoBan,
   branding,
   links,
   setField,
@@ -196,9 +188,10 @@ export function GlobalMarketPosters({
   giftNifty: GiftNiftyData | null;
   groups: Record<string, PremarketQuote[]>;
   niftyPivots: NiftyPivotData | null;
+  bankNiftyPivots: NiftyPivotData | null;
   fiiDii: FiiDiiData | null;
   optionChains: OptionChainSummary[];
-  advanceDecline: AdvanceDeclineData | null;
+  fnoBan: FnoBanData | null;
   branding: ReportBranding;
   links: SocialLinks;
   setField: (field: keyof SocialLinks, value: string) => void;
@@ -210,7 +203,8 @@ export function GlobalMarketPosters({
   const pivotRef = useRef<HTMLDivElement>(null);
   const fiiDiiRef = useRef<HTMLDivElement>(null);
   const optionChainRef = useRef<HTMLDivElement>(null);
-  const breadthRef = useRef<HTMLDivElement>(null);
+  const adrRef = useRef<HTMLDivElement>(null);
+  const fnoBanRef = useRef<HTMLDivElement>(null);
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const vix = groups.domestic || [];
@@ -219,16 +213,29 @@ export function GlobalMarketPosters({
   const us = groups.us || [];
   const europe = groups.europe || [];
   const asia = groups.asia || [];
+  const adrs = groups.adr || [];
 
   const hasGift = Boolean(giftNifty) || vix.length > 0 || currency.length > 0;
   const hasIndices = us.length > 0 || europe.length > 0 || asia.length > 0;
   const hasCommodities = commodities.length > 0;
-  const hasPivots = Boolean(niftyPivots);
+  const hasPivots = Boolean(niftyPivots) || Boolean(bankNiftyPivots);
   const hasFiiDii = Boolean(fiiDii && (fiiDii.fii || fiiDii.dii));
   const hasOptionChains = optionChains.length > 0;
-  const hasBreadth = Boolean(advanceDecline);
+  const hasAdrs = adrs.length > 0;
+  const hasFnoBan = Boolean(fnoBan);
+  const fnoBanItems = (fnoBan?.symbols ?? []).slice(0, MAX_POSTER_ROWS);
+  const fnoBanDensity = rowDensityFor(fnoBanItems.length);
 
-  if (!hasGift && !hasIndices && !hasCommodities && !hasPivots && !hasFiiDii && !hasOptionChains && !hasBreadth)
+  if (
+    !hasGift &&
+    !hasIndices &&
+    !hasCommodities &&
+    !hasPivots &&
+    !hasFiiDii &&
+    !hasOptionChains &&
+    !hasAdrs &&
+    !hasFnoBan
+  )
     return null;
 
   return (
@@ -330,6 +337,34 @@ export function GlobalMarketPosters({
             </div>
           )}
 
+          {hasAdrs && (
+            <div className="flex shrink-0 snap-start flex-col">
+              <div className="overflow-hidden rounded-2xl shadow-md">
+                <PosterFrame
+                  ref={adrRef}
+                  posterId="indian-adrs"
+                  gradient="linear-gradient(160deg, #831843 0%, #0c0508 70%)"
+                  icon={<Building2 size={26} />}
+                  title="Indian ADRs"
+                  subtitle="NYSE / Nasdaq · Overnight Cues"
+                  branding={branding}
+                  links={links}
+                >
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {adrs.map((q) => (
+                      <QuoteRow key={q.symbol} quote={q} compact />
+                    ))}
+                  </div>
+                </PosterFrame>
+              </div>
+              <PosterActions
+                nodeRef={adrRef}
+                filename={`stoqtrade-indian-adrs-${dateStr}.png`}
+                shareTitle="Indian ADRs — NYSE/Nasdaq"
+              />
+            </div>
+          )}
+
           {hasCommodities && (
             <div className="flex shrink-0 snap-start flex-col">
               <div className="overflow-hidden rounded-2xl shadow-md">
@@ -356,26 +391,26 @@ export function GlobalMarketPosters({
             </div>
           )}
 
-          {hasPivots && niftyPivots && (
+          {hasPivots && (
             <div className="flex shrink-0 snap-start flex-col">
               <div className="overflow-hidden rounded-2xl shadow-md">
                 <PosterFrame
                   ref={pivotRef}
-                  posterId="nifty-pivot-levels"
+                  posterId="nifty-banknifty-pivot-levels"
                   gradient="linear-gradient(160deg, #3730a3 0%, #0a0a14 70%)"
                   icon={<Target size={26} />}
-                  title="Nifty Pivot Levels"
+                  title="Nifty & BankNifty Pivot Levels"
                   subtitle="Support & Resistance"
                   branding={branding}
                   links={links}
                 >
-                  <PivotLevelsBlock data={niftyPivots} />
+                  <PivotLevelsBlock nifty={niftyPivots} bankNifty={bankNiftyPivots} />
                 </PosterFrame>
               </div>
               <PosterActions
                 nodeRef={pivotRef}
-                filename={`stoqtrade-nifty-pivot-levels-${dateStr}.png`}
-                shareTitle="Nifty Pivot Levels"
+                filename={`stoqtrade-nifty-banknifty-pivot-levels-${dateStr}.png`}
+                shareTitle="Nifty & BankNifty Pivot Levels"
               />
             </div>
           )}
@@ -431,26 +466,36 @@ export function GlobalMarketPosters({
             </div>
           )}
 
-          {hasBreadth && advanceDecline && (
+          {hasFnoBan && (
             <div className="flex shrink-0 snap-start flex-col">
               <div className="overflow-hidden rounded-2xl shadow-md">
                 <PosterFrame
-                  ref={breadthRef}
-                  posterId="market-breadth"
-                  gradient="linear-gradient(160deg, #134e4a 0%, #08120f 70%)"
-                  icon={<Scale size={26} />}
-                  title="Market Breadth"
-                  subtitle="Advance / Decline"
+                  ref={fnoBanRef}
+                  posterId="fno-ban-list"
+                  gradient="linear-gradient(160deg, #7f1d1d 0%, #0c0505 70%)"
+                  icon={<ShieldBan size={26} />}
+                  title="F&O Ban List"
+                  subtitle={fnoBan?.date ? `Trade Date ${fnoBan.date}` : "Securities Under Ban"}
                   branding={branding}
                   links={links}
                 >
-                  <AdvanceDeclinePosterBlock data={advanceDecline} />
+                  {fnoBanItems.length > 0 ? (
+                    <div className={cn("grid grid-cols-2", fnoBanDensity.gap)}>
+                      {fnoBanItems.map((symbol) => (
+                        <FnoBanChip key={symbol} symbol={symbol} density={fnoBanDensity} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg bg-white/10 px-3 py-2.5 text-center text-[11px] font-semibold text-white/70">
+                      No stocks in the F&O ban today
+                    </div>
+                  )}
                 </PosterFrame>
               </div>
               <PosterActions
-                nodeRef={breadthRef}
-                filename={`stoqtrade-market-breadth-${dateStr}.png`}
-                shareTitle="Market Breadth — Advance / Decline"
+                nodeRef={fnoBanRef}
+                filename={`stoqtrade-fno-ban-list-${dateStr}.png`}
+                shareTitle="F&O Ban List"
               />
             </div>
           )}

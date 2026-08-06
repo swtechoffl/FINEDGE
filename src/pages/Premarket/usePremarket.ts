@@ -60,6 +60,7 @@ export interface CurrentIpo {
   startDate: string;
   endDate: string;
   subscriptionTimes: number | null;
+  isSme: boolean;
 }
 
 export interface UpcomingIpo {
@@ -68,6 +69,7 @@ export interface UpcomingIpo {
   priceRange: string;
   startDate: string;
   endDate: string;
+  isSme: boolean;
 }
 
 export interface PastIpo {
@@ -76,6 +78,7 @@ export interface PastIpo {
   priceRange: string;
   endDate: string;
   listingDate: string | null;
+  isSme: boolean;
 }
 
 export interface IpoListings {
