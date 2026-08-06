@@ -1,4 +1,4 @@
-import { forwardRef, useState, type ReactNode } from "react";
+import { forwardRef, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Download, Share2 } from "lucide-react";
 import type { ReportBranding } from "./useReportBranding";
 import { socialDisplay, SOCIAL_META, type SocialLinks } from "./useSocialLinks";
@@ -31,6 +31,35 @@ export function rowDensityFor(count: number): RowDensity {
 // Max items a poster list section will ever show, even if more data exists
 // — keeps the smallest density tier from becoming illegibly tiny.
 export const MAX_POSTER_ROWS = 10;
+
+// The content area a PosterFrame at POSTER_WIDTH normally budgets for its
+// children, once the fixed header (logo/title) and footer (brand strip) are
+// accounted for — measured directly off a rendered frame. Poster sections
+// that must never truncate (e.g. IPO Watch, where omitting a listing is
+// worse than a taller image) use this to detect when their content would
+// overflow that budget and grow the frame instead of letting it clip.
+const DEFAULT_POSTER_CONTENT_HEIGHT = 206;
+
+// Measures `contentRef`'s actual rendered height and, if it exceeds what a
+// standard aspect-[9/16] frame at `width` budgets for, returns a `height`
+// override that grows the frame downward by exactly the overflow — so
+// PosterFrame never needs to clip this section's content. Returns
+// `height: undefined` (falls back to the normal aspect ratio) otherwise.
+export function useAutoGrowHeight(width: number = POSTER_WIDTH) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const needed = el.scrollHeight;
+    const overflow = needed - DEFAULT_POSTER_CONTENT_HEIGHT;
+    const nextHeight = overflow > 0 ? (width * 16) / 9 + overflow : undefined;
+    setHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  });
+
+  return { contentRef, height };
+}
 
 function todayLabel() {
   return new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -87,14 +116,17 @@ export const PosterFrame = forwardRef<
     links: SocialLinks;
     children: ReactNode;
     width?: number;
+    // Explicit pixel override for sections that must never truncate — see
+    // useAutoGrowHeight. Omit to keep the default aspect-[9/16] sizing.
+    height?: number;
   }
->(function PosterFrame({ posterId, gradient, icon, title, subtitle, branding, links, children, width }, ref) {
+>(function PosterFrame({ posterId, gradient, icon, title, subtitle, branding, links, children, width, height }, ref) {
   return (
     <div
       ref={ref}
       data-poster={posterId}
       className="relative flex aspect-[9/16] flex-col overflow-hidden p-4"
-      style={{ width: width ?? POSTER_WIDTH, background: gradient }}
+      style={{ width: width ?? POSTER_WIDTH, height, background: gradient }}
     >
       <div className="flex items-center justify-between gap-2">
         <img src="/logo.png" alt="Finedge" className="h-6 w-auto shrink-0" />

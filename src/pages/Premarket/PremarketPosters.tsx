@@ -6,7 +6,14 @@ import type { ReportBranding } from "./useReportBranding";
 import type { SocialLinks } from "./useSocialLinks";
 import { SocialLinksEditor } from "./SocialLinksEditor";
 import { Card } from "../../components/ui/Card";
-import { PosterFrame, PosterActions, MAX_POSTER_ROWS, rowDensityFor, type RowDensity } from "./posterShared";
+import {
+  PosterFrame,
+  PosterActions,
+  MAX_POSTER_ROWS,
+  rowDensityFor,
+  useAutoGrowHeight,
+  type RowDensity,
+} from "./posterShared";
 import { cn } from "../../lib/utils";
 
 function StockRow({ item, density }: { item: Week52Entry; density: RowDensity }) {
@@ -124,10 +131,15 @@ export function PremarketPosters({
   const actionsDensity = rowDensityFor(actionItems.length);
   const hasActions = actionItems.length > 0;
 
-  const ipoCurrentItems = ipos.current.slice(0, MAX_POSTER_ROWS);
-  const ipoUpcomingItems = ipos.upcoming.slice(0, Math.max(0, MAX_POSTER_ROWS - ipoCurrentItems.length));
+  // Unlike the other list sections, IPO Watch never truncates — omitting a
+  // live or upcoming issue is worse than a taller poster image. The frame
+  // grows to fit via useAutoGrowHeight below instead of slicing to
+  // MAX_POSTER_ROWS.
+  const ipoCurrentItems = ipos.current;
+  const ipoUpcomingItems = ipos.upcoming;
   const ipoDensity = rowDensityFor(ipoCurrentItems.length + ipoUpcomingItems.length);
   const hasIpos = ipoCurrentItems.length + ipoUpcomingItems.length > 0;
+  const { contentRef: ipoContentRef, height: ipoFrameHeight } = useAutoGrowHeight();
 
   const volumeItems = volumeGainers.slice(0, MAX_POSTER_ROWS);
   const volumeDensity = rowDensityFor(volumeItems.length);
@@ -249,8 +261,9 @@ export function PremarketPosters({
                   subtitle="Current & Upcoming"
                   branding={branding}
                   links={links}
+                  height={ipoFrameHeight}
                 >
-                  <div className={cn("flex flex-col", ipoDensity.gap)}>
+                  <div ref={ipoContentRef} className={cn("flex flex-col", ipoDensity.gap)}>
                     {ipoCurrentItems.map((item) => (
                       <IpoPosterRow
                         key={item.symbol}
