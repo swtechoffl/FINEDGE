@@ -13,6 +13,8 @@ import { MarketingPosterEditor } from "./MarketingPosterEditor";
 import { useMarketingPosterOverrides } from "./useMarketingPosterOverrides";
 import { MARKETING_POSTER_TEMPLATES, type MarketingPosterTemplate } from "./marketingPosterTemplates";
 import { PostMarketSummaryPoster } from "./PostMarketSummaryPoster";
+import { PostMarketSummaryEditor } from "./PostMarketSummaryEditor";
+import { usePostMarketSummaryOverrides } from "./usePostMarketSummaryOverrides";
 
 function MarketingPosterCard({
   template,
@@ -64,12 +66,18 @@ function MarketingPosterCard({
 }
 
 const POST_MARKET_POSTER_WIDTH = 480;
+const POST_MARKET_DEFAULTS = {
+  titleLine1: "Closing",
+  titleLine2: "Bell",
+  subtitle: "Market Insights. Smarter Decisions.",
+};
 
 function PostMarketSummaryCard() {
   const ref = useRef<HTMLDivElement>(null);
   const dateStr = new Date().toISOString().slice(0, 10);
   const { data: premarketData } = usePremarket();
   const { data: postMarketData } = usePostMarket();
+  const { override, setOverride, reset } = usePostMarketSummaryOverrides();
 
   const findIndex = (symbol: string) => {
     const entry = postMarketData.indexClose.find((e) => e.symbol === symbol);
@@ -80,6 +88,11 @@ function PostMarketSummaryCard() {
   const hasData = postMarketData.indexClose.length > 0;
   if (!hasData) return null;
 
+  const titleLine1 = override.titleLine1 ?? POST_MARKET_DEFAULTS.titleLine1;
+  const titleLine2 = override.titleLine2 ?? POST_MARKET_DEFAULTS.titleLine2;
+  const subtitle = override.subtitle ?? POST_MARKET_DEFAULTS.subtitle;
+  const moodOverride = override.moodOverride ?? null;
+
   return (
     <div className="flex flex-col items-start">
       <div className="overflow-hidden rounded-2xl shadow-md">
@@ -87,6 +100,10 @@ function PostMarketSummaryCard() {
           ref={ref}
           posterId="post-market-summary"
           width={POST_MARKET_POSTER_WIDTH}
+          titleLine1={titleLine1}
+          titleLine2={titleLine2}
+          subtitle={subtitle}
+          moodOverride={moodOverride}
           goldRateInrPerGram={premarketData.goldRateInrPerGram}
           nifty={findIndex("^NSEI")}
           sensex={findIndex("^BSESN")}
@@ -99,6 +116,17 @@ function PostMarketSummaryCard() {
             niftyNxt50: findOi("NIFTYNXT50"),
             bankNifty: findOi("BANKNIFTY"),
           }}
+        />
+      </div>
+      <div className="mt-2" style={{ width: POST_MARKET_POSTER_WIDTH }}>
+        <PostMarketSummaryEditor
+          titleLine1={titleLine1}
+          titleLine2={titleLine2}
+          subtitle={subtitle}
+          moodOverride={moodOverride}
+          hasOverride={Object.keys(override).length > 0}
+          onChange={setOverride}
+          onReset={reset}
         />
       </div>
       <PosterActions
