@@ -22,7 +22,7 @@ function resolveMood(niftyChangePct: number | null): keyof typeof MOOD_IMAGES {
 export function MarketMoodMotif({ niftyChangePct }: { niftyChangePct: number | null }) {
   const mood = resolveMood(niftyChangePct);
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black">
+    <div className="overflow-hidden rounded-xl" style={{ border: "1px solid #27272a", background: "#0a0a0b" }}>
       <img src={MOOD_IMAGES[mood]} alt={`${mood} market`} className="block w-full" style={{ aspectRatio: "1774 / 887" }} />
     </div>
   );
