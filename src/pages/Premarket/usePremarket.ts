@@ -94,7 +94,6 @@ export interface PremarketData {
   fiiDii: FiiDiiData | null;
   niftyPivots: NiftyPivotData | null;
   bankNiftyPivots: NiftyPivotData | null;
-  goldRateInrPerGram: number | null;
   barometer: BarometerData | null;
   ipos: IpoListings;
   aiSummary: string | null;
@@ -109,7 +108,6 @@ const EMPTY: PremarketData = {
   fiiDii: null,
   niftyPivots: null,
   bankNiftyPivots: null,
-  goldRateInrPerGram: null,
   barometer: null,
   ipos: { current: [], upcoming: [], past: [] },
   aiSummary: null,

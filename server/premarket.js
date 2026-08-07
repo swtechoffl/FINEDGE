@@ -309,20 +309,6 @@ function describePremarketForAi({ giftNifty, fiiDii, barometer, groups }) {
   return lines.join("\n");
 }
 
-// International spot gold (GC=F, USD/troy-oz) converted to INR/gram via the
-// live USD/INR rate already fetched into `groups` above — no extra network
-// call. This is an indicative international-equivalent rate, not an Indian
-// bullion-market retail quote (which bakes in import duty, GST, and dealer
-// premiums on top) — labeled as such wherever it's shown.
-const GRAMS_PER_TROY_OUNCE = 31.1034768;
-
-function computeGoldRateInrPerGram(groups) {
-  const gold = groups.commodities?.find((q) => q.symbol === "GC=F");
-  const usdinr = groups.currency?.find((q) => q.symbol === "USDINR=X");
-  if (!gold || !usdinr) return null;
-  return Math.round((gold.price * usdinr.price) / GRAMS_PER_TROY_OUNCE);
-}
-
 let cache = {
   fetchedAt: 0,
   giftNifty: null,
@@ -330,7 +316,6 @@ let cache = {
   fiiDii: null,
   niftyPivots: null,
   bankNiftyPivots: null,
-  goldRateInrPerGram: null,
   barometer: null,
   ipos: { current: [], upcoming: [], past: [] },
   aiSummary: null,
@@ -393,7 +378,6 @@ async function refreshPremarket() {
     fiiDii,
     niftyPivots: pivotsResult && !pivotsResult.error ? pivotsResult : null,
     bankNiftyPivots: bankPivotsResult && !bankPivotsResult.error ? bankPivotsResult : null,
-    goldRateInrPerGram: computeGoldRateInrPerGram(groups),
     barometer,
     ipos: iposResult && !iposResult.error ? iposResult : cache.ipos,
     aiSummary,

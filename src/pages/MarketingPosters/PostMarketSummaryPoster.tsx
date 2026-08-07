@@ -49,34 +49,25 @@ function pointChange(price: number, changePct: number) {
   return price - price / (1 + changePct / 100);
 }
 
-function GoldSection({ ratePerGram }: { ratePerGram: number | null }) {
-  return (
-    <div className="flex flex-1 items-center px-3 py-3">
-      <div className="min-w-0">
-        <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: TEXT_MUTED }}>
-          Gold Rate
-        </div>
-        <div className="whitespace-nowrap text-[19px] font-bold leading-tight" style={{ color: TEXT_PRIMARY }}>
-          {ratePerGram !== null ? `₹${ratePerGram.toLocaleString("en-IN")}` : "—"}
-          <span className="text-[10.5px] font-medium" style={{ color: TEXT_SECONDARY }}>
-            {" "}
-            /g
-          </span>
-        </div>
-        <div className="text-[9.5px] font-medium leading-tight" style={{ color: TEXT_MUTED }}>
-          99.9% Purity (Intl.)
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MetricSection({ label, price, changePct }: { label: string; price: number; changePct: number }) {
+function MetricSection({
+  label,
+  price,
+  changePct,
+  bordered = true,
+}: {
+  label: string;
+  price: number;
+  changePct: number;
+  bordered?: boolean;
+}) {
   const up = changePct >= 0;
   const color = up ? BULLISH : BEARISH;
   const change = pointChange(price, changePct);
   return (
-    <div className="flex flex-1 flex-col justify-center gap-1 px-2.5 py-3" style={{ borderLeft: `1px solid ${BORDER}` }}>
+    <div
+      className="flex flex-1 flex-col justify-center gap-1 px-2.5 py-3"
+      style={{ borderLeft: bordered ? `1px solid ${BORDER}` : "none" }}
+    >
       <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: TEXT_MUTED }}>
         {label}
       </div>
@@ -174,7 +165,6 @@ export const PostMarketSummaryPoster = forwardRef<
     titleLine2: string;
     subtitle: string;
     moodOverride?: MarketMood | null;
-    goldRateInrPerGram: number | null;
     nifty: IndexQuote | null;
     sensex: IndexQuote | null;
     bankNifty: IndexQuote | null;
@@ -190,7 +180,6 @@ export const PostMarketSummaryPoster = forwardRef<
     titleLine2,
     subtitle,
     moodOverride,
-    goldRateInrPerGram,
     nifty,
     sensex,
     bankNifty,
@@ -239,8 +228,7 @@ export const PostMarketSummaryPoster = forwardRef<
 
         {/* INFO BAR — one continuous panel */}
         <div className="flex items-stretch overflow-hidden rounded-xl" style={{ background: BG_SURFACE, border: `1px solid ${BORDER}` }}>
-          <GoldSection ratePerGram={goldRateInrPerGram} />
-          {nifty && <MetricSection label="Nifty 50" price={nifty.price} changePct={nifty.changePct} />}
+          {nifty && <MetricSection label="Nifty 50" price={nifty.price} changePct={nifty.changePct} bordered={false} />}
           {sensex && <MetricSection label="Sensex" price={sensex.price} changePct={sensex.changePct} />}
           {bankNifty && <MetricSection label="Bank Nifty" price={bankNifty.price} changePct={bankNifty.changePct} />}
         </div>

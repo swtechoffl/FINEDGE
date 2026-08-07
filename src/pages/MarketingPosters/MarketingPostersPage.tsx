@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
 import { useReportBranding } from "../Premarket/useReportBranding";
@@ -6,7 +6,6 @@ import { ReportBrandingEditor } from "../Premarket/ReportBrandingEditor";
 import { useSocialLinks } from "../Premarket/useSocialLinks";
 import { SocialLinksEditor } from "../Premarket/SocialLinksEditor";
 import { PosterActions, POSTER_WIDTH } from "../Premarket/posterShared";
-import { usePremarket } from "../Premarket/usePremarket";
 import { usePostMarket } from "../PostMarket/usePostMarket";
 import { MarketingPosterFrame } from "./MarketingPosterFrame";
 import { MarketingPosterEditor } from "./MarketingPosterEditor";
@@ -75,9 +74,16 @@ const POST_MARKET_DEFAULTS = {
 function PostMarketSummaryCard() {
   const ref = useRef<HTMLDivElement>(null);
   const dateStr = new Date().toISOString().slice(0, 10);
-  const { data: premarketData } = usePremarket();
-  const { data: postMarketData } = usePostMarket();
+  const { data: postMarketData, refresh } = usePostMarket();
   const { override, setOverride, reset } = usePostMarketSummaryOverrides();
+
+  // This poster's whole point is the day's closing levels, so it can't
+  // settle for whatever the passive polling cache last happened to hold
+  // (up to 10 min stale, on top of the server's own cache window) — force
+  // a fresh fetch as soon as this card mounts.
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const findIndex = (symbol: string) => {
     const entry = postMarketData.indexClose.find((e) => e.symbol === symbol);
@@ -104,7 +110,6 @@ function PostMarketSummaryCard() {
           titleLine2={titleLine2}
           subtitle={subtitle}
           moodOverride={moodOverride}
-          goldRateInrPerGram={premarketData.goldRateInrPerGram}
           nifty={findIndex("^NSEI")}
           sensex={findIndex("^BSESN")}
           bankNifty={findIndex("^NSEBANK")}

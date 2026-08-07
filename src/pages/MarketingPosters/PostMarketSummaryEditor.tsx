@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Pencil, X, RotateCcw } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import { useAnchoredPopoverPosition } from "../../lib/useAnchoredPopover";
 import { MOOD_IMAGES, type MarketMood } from "./MarketMoodMotif";
 import type { PostMarketSummaryOverride } from "./usePostMarketSummaryOverrides";
 
@@ -34,36 +35,14 @@ export function PostMarketSummaryEditor({
   onReset: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const [draft, setDraft] = useState({ titleLine1, titleLine2, subtitle, moodOverride });
   const buttonRef = useRef<HTMLButtonElement>(null);
-
-  function updatePosition() {
-    const btn = buttonRef.current;
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - PANEL_WIDTH - 8));
-    setCoords({ top: rect.bottom + 8, left });
-  }
+  const position = useAnchoredPopoverPosition(open, buttonRef, PANEL_WIDTH);
 
   function openEditor() {
     setDraft({ titleLine1, titleLine2, subtitle, moodOverride });
-    updatePosition();
     setOpen(true);
   }
-
-  useEffect(() => {
-    if (!open) return;
-    function reposition() {
-      updatePosition();
-    }
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
-    return () => {
-      window.removeEventListener("scroll", reposition, true);
-      window.removeEventListener("resize", reposition);
-    };
-  }, [open]);
 
   function handleSave() {
     onChange(draft);
@@ -78,13 +57,19 @@ export function PostMarketSummaryEditor({
       </Button>
 
       {open &&
-        coords &&
+        position &&
         createPortal(
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
             <div
-              className="animate-scale-in fixed z-50 max-h-[calc(100vh-4rem)] max-w-[calc(100vw-2.5rem)] origin-top overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-lg"
-              style={{ top: coords.top, left: coords.left, width: PANEL_WIDTH }}
+              className="animate-scale-in fixed z-50 max-w-[calc(100vw-2.5rem)] origin-top overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-lg"
+              style={{
+                top: position.top,
+                bottom: position.bottom,
+                left: position.left,
+                width: PANEL_WIDTH,
+                maxHeight: position.maxHeight,
+              }}
             >
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-bold text-foreground">Edit Poster</span>
