@@ -1,5 +1,5 @@
 import { forwardRef, type ReactNode } from "react";
-import { Bell, Calendar, ArrowUp, ArrowDown, Coins, TrendingUp, BarChart3, Activity, Landmark, Shield } from "lucide-react";
+import { Calendar, ArrowUp, ArrowDown, TrendingUp, BarChart3, Activity, Landmark, Shield } from "lucide-react";
 import { useFitHeight } from "./useFitHeight";
 import { MarketMoodMotif } from "./MarketMoodMotif";
 
@@ -35,8 +35,6 @@ const TEXT_MUTED = "#71717a";
 const ACCENT = "#10b981";
 const BULLISH = "#22c55e";
 const BULLISH_BG = "rgba(34,197,94,0.14)";
-const NEUTRAL = "#f59e0b";
-const NEUTRAL_BG = "rgba(245,158,11,0.14)";
 const BEARISH = "#f87171";
 const BEARISH_BG = "rgba(248,113,113,0.14)";
 
@@ -53,10 +51,7 @@ function pointChange(price: number, changePct: number) {
 
 function GoldSection({ ratePerGram }: { ratePerGram: number | null }) {
   return (
-    <div className="flex flex-1 items-center gap-2.5 px-3 py-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: NEUTRAL_BG }}>
-        <Coins size={14} style={{ color: NEUTRAL }} />
-      </div>
+    <div className="flex flex-1 items-center px-3 py-3">
       <div className="min-w-0">
         <div className="text-[8px] font-semibold uppercase tracking-wide" style={{ color: TEXT_MUTED }}>
           Gold Rate
@@ -201,31 +196,23 @@ export const PostMarketSummaryPoster = forwardRef<
         <div className="flex items-start justify-between">
           <div>
             <div className="text-[30px] font-bold uppercase leading-[0.95] tracking-tight" style={{ color: TEXT_PRIMARY }}>
-              Market
+              Closing
             </div>
             <div className="text-[30px] font-bold uppercase leading-[0.95] tracking-tight" style={{ color: ACCENT }}>
-              Recap
+              Bell
             </div>
             <div className="mt-1.5 text-[9.5px] font-medium uppercase tracking-wide" style={{ color: TEXT_MUTED }}>
               Market Insights. Smarter Decisions.
             </div>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <div className="inline-flex items-center gap-1 rounded-full px-2.5 py-1.5" style={{ background: NEUTRAL_BG }}>
-              <Bell size={9} style={{ color: NEUTRAL }} />
-              <span className="text-[8px] font-semibold uppercase tracking-wide" style={{ color: NEUTRAL }}>
-                Closing Bell
-              </span>
-            </div>
-            <div
-              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
-              style={{ background: BG_SURFACE_2, border: `1px solid ${BORDER}` }}
-            >
-              <Calendar size={11} style={{ color: TEXT_SECONDARY }} />
-              <span className="whitespace-nowrap text-[10px] font-semibold" style={{ color: TEXT_PRIMARY }}>
-                {todayLabel()}
-              </span>
-            </div>
+          <div
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
+            style={{ background: BG_SURFACE_2, border: `1px solid ${BORDER}` }}
+          >
+            <Calendar size={11} style={{ color: TEXT_SECONDARY }} />
+            <span className="whitespace-nowrap text-[10px] font-semibold" style={{ color: TEXT_PRIMARY }}>
+              {todayLabel()}
+            </span>
           </div>
         </div>
 

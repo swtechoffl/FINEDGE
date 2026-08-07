@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 // Real generated art (not hand-drawn SVG) — swapped by market condition.
-// "Flat" (near-zero move) and "neutral" (no data yet, e.g. before the
-// post-market feed has loaded) are visually distinct assets: flat shows
-// both creatures asleep ("quiet session"), neutral shows them squared up
-// with neither dominant ("no read yet").
+// "flat" is kept registered but unused by resolveMood below (not deleted
+// in case the move-magnitude bands get reintroduced later) — bull/bear
+// only kick in on a decisive move; anything smaller, or no data yet,
+// shows the neutral (squared-up, neither dominant) asset.
 const MOOD_IMAGES = {
   bull: "/market-mood/bullmarket.png",
   bear: "/market-mood/bearmarket.png",
@@ -13,13 +13,12 @@ const MOOD_IMAGES = {
   neutral: "/market-mood/neutralmarket.png",
 } as const;
 
-const FLAT_BAND_PCT = 0.15;
+const MOVE_THRESHOLD_PCT = 0.7;
 
 function resolveMood(niftyChangePct: number | null): keyof typeof MOOD_IMAGES {
-  if (niftyChangePct === null) return "neutral";
-  if (niftyChangePct > FLAT_BAND_PCT) return "bull";
-  if (niftyChangePct < -FLAT_BAND_PCT) return "bear";
-  return "flat";
+  if (niftyChangePct !== null && niftyChangePct > MOVE_THRESHOLD_PCT) return "bull";
+  if (niftyChangePct !== null && niftyChangePct < -MOVE_THRESHOLD_PCT) return "bear";
+  return "neutral";
 }
 
 export function MarketMoodMotif({ niftyChangePct }: { niftyChangePct: number | null }) {
@@ -37,10 +36,7 @@ export function MarketMoodMotif({ niftyChangePct }: { niftyChangePct: number | n
   }, [mood]);
 
   return (
-    <div
-      className="relative overflow-hidden rounded-xl"
-      style={{ border: "1px solid #27272a", background: "#0a0a0b", aspectRatio: "1774 / 887" }}
-    >
+    <div className="relative overflow-hidden" style={{ background: "#0a0a0b", aspectRatio: "1774 / 887" }}>
       {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center animate-pulse" style={{ background: "#1c1c1f" }}>
           <Loader2 size={20} className="animate-spin" style={{ color: "#71717a" }} />
