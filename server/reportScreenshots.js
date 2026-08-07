@@ -8,8 +8,8 @@ import { launchBrowser } from "./posterScreenshots.js";
 // forms) without needing a real click — see PremarketPage.tsx/
 // PostMarketPage.tsx's isExportCapture handling.
 export const REPORT_CAPTURE_CONFIG = {
-  premarket: { path: "/premarket", filenamePrefix: "premarket-report", title: "Premarket Report" },
-  postmarket: { path: "/postmarket", filenamePrefix: "postmarket-report", title: "Post Market Report" },
+  premarket: { path: "/premarket", filenamePrefix: "FINEDGE_PREMARKET", title: "Premarket Report" },
+  postmarket: { path: "/postmarket", filenamePrefix: "FINEDGE_POSTMARKET", title: "Post Market Report" },
 };
 
 // Standard A4 page size in PDF points (1/72in) — 210mm x 297mm. Mirrors the

@@ -522,7 +522,7 @@ async function deliverReportToTelegram(origin, reportKey, captionSuffix) {
   const { buffer, filenamePrefix, title } = await captureReportPdf(origin, reportKey);
   const dateStr = new Date().toISOString().slice(0, 10);
   const dateLabel = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-  await sendTelegramDocument(buffer, `${filenamePrefix}-${dateStr}.pdf`, `${title} — ${dateLabel}${captionSuffix ?? ""}`);
+  await sendTelegramDocument(buffer, `${filenamePrefix}_${dateStr}.pdf`, `${title} — ${dateLabel}${captionSuffix ?? ""}`);
   return { sent: true, report: reportKey };
 }
 

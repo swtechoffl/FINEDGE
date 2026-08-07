@@ -13,6 +13,7 @@ const SHORT_LABELS: Record<string, string> = {
   "/corporate-actions": "Actions",
   "/market-internals": "Internals",
   "/posters": "Posters",
+  "/marketing-posters": "Marketing",
   "/flowchart": "Flowchart",
   "/report-maker": "Report Maker",
   "/one-pager": "One Pager",

@@ -8,6 +8,7 @@ import { RamkiPostMarketPage } from "./pages/RamkiPostMarket/RamkiPostMarketPage
 import { CorporateActionsPage } from "./pages/CorporateActions/CorporateActionsPage";
 import { MarketInternalsPage } from "./pages/MarketInternals/MarketInternalsPage";
 import { PostersPage } from "./pages/Posters/PostersPage";
+import { MarketingPostersPage } from "./pages/MarketingPosters/MarketingPostersPage";
 import { FlowchartPage } from "./pages/Flowchart/FlowchartPage";
 import { StockDetailPage } from "./pages/StockDetail/StockDetailPage";
 import { DisclosurePage } from "./pages/Disclosure/DisclosurePage";
@@ -27,6 +28,7 @@ function App() {
         <Route path="/corporate-actions" element={<CorporateActionsPage />} />
         <Route path="/market-internals" element={<MarketInternalsPage />} />
         <Route path="/posters" element={<PostersPage />} />
+        <Route path="/marketing-posters" element={<MarketingPostersPage />} />
         <Route path="/flowchart" element={<FlowchartPage />} />
         <Route path="/report-maker" element={<ReportMakerPage />} />
         <Route path="/one-pager" element={<OnePagerPage />} />

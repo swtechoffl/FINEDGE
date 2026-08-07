@@ -153,11 +153,17 @@ export function PosterActions({
   filename,
   shareTitle,
   width,
+  pixelRatio = 4,
 }: {
   nodeRef: React.RefObject<HTMLDivElement | null>;
   filename: string;
   shareTitle: string;
   width?: number;
+  // Rasterization scale for nodeToImageFile — default 4 matches the narrow
+  // story-card posters. Wider/denser posters (e.g. a dashboard-style poster
+  // already built at a larger on-page width) should pass a smaller value
+  // to land on a specific target export resolution instead of ballooning.
+  pixelRatio?: number;
 }) {
   const [busy, setBusy] = useState<"download" | "share" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -166,7 +172,7 @@ export function PosterActions({
     if (!nodeRef.current) return;
     setBusy("download");
     setNotice(null);
-    const file = await nodeToImageFile(nodeRef.current, filename, 4);
+    const file = await nodeToImageFile(nodeRef.current, filename, pixelRatio);
     setBusy(null);
     if (file) downloadFile(file);
     else setNotice("Couldn't generate the poster image.");
@@ -176,7 +182,7 @@ export function PosterActions({
     if (!nodeRef.current) return;
     setBusy("share");
     setNotice(null);
-    const file = await nodeToImageFile(nodeRef.current, filename, 4);
+    const file = await nodeToImageFile(nodeRef.current, filename, pixelRatio);
     if (!file) {
       setNotice("Couldn't generate the poster image.");
       setBusy(null);

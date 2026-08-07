@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Newspaper, Sunrise, Sunset, CloudSun, CloudMoon, CalendarClock, Layers, Images, Workflow, FileText, FileStack, LogOut } from "lucide-react";
+import { Newspaper, Sunrise, Sunset, CloudSun, CloudMoon, CalendarClock, Layers, Images, Megaphone, Workflow, FileText, FileStack, LogOut } from "lucide-react";
 import { useSocialLinksReadOnly, socialHref, socialDisplay, SOCIAL_META, type SocialLinks } from "../pages/Premarket/useSocialLinks";
 import { cn } from "../lib/utils";
 
@@ -12,6 +12,7 @@ export const NAV_ITEMS = [
   { to: "/corporate-actions", label: "Corporate Actions", icon: CalendarClock },
   { to: "/market-internals", label: "Market Internals", icon: Layers },
   { to: "/posters", label: "Posters", icon: Images },
+  { to: "/marketing-posters", label: "Marketing Posters", icon: Megaphone },
   { to: "/flowchart", label: "Flowchart", icon: Workflow },
   { to: "/report-maker", label: "Report Maker", icon: FileText },
   { to: "/one-pager", label: "One Pager", icon: FileStack },
