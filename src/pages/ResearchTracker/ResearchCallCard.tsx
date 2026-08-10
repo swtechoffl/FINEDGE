@@ -3,7 +3,7 @@ import { Badge } from "../../components/ui/Badge";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { ResearchCallChart } from "./ResearchCallChart";
-import { pctMoved, isTargetHit, isStopHit } from "./researchTrackerMath";
+import { pctMoved, isTargetHit, isStopHit, referencePriceFor } from "./researchTrackerMath";
 import type { ResearchCall } from "./researchTrackerTypes";
 import type { CallQuote } from "./useResearchQuotes";
 
@@ -33,9 +33,7 @@ export function ResearchCallCard({
   onViewPoster: () => void;
 }) {
   const isOpen = call.status === "open";
-  // Open calls track the live price; exited calls are locked to whatever
-  // they actually closed at, regardless of where the stock has moved since.
-  const referencePrice = isOpen ? quote?.price ?? null : call.exitPrice;
+  const referencePrice = referencePriceFor(call, quote?.price ?? null);
   const pnl = referencePrice != null ? pctMoved(call, referencePrice) : null;
   const up = (pnl ?? 0) >= 0;
   const targetHit = isOpen && referencePrice != null && isTargetHit(call, referencePrice);

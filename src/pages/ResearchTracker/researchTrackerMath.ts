@@ -18,3 +18,10 @@ export function isStopHit(call: ResearchCall, referencePrice: number): boolean {
   if (call.stopLoss == null) return false;
   return call.callType === "buy" ? referencePrice <= call.stopLoss : referencePrice >= call.stopLoss;
 }
+
+// A call's current "mark" — the live price while it's open, the locked-in
+// exit price once it's closed. Shared by the card (single call) and the
+// dashboard (aggregated across all calls) so both price a call the same way.
+export function referencePriceFor(call: ResearchCall, livePrice: number | null): number | null {
+  return call.status === "open" ? livePrice : call.exitPrice;
+}

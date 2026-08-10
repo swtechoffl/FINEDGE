@@ -9,6 +9,8 @@ import { ResearchCallCard } from "./ResearchCallCard";
 import { ResearchCallForm } from "./ResearchCallForm";
 import { ResearchCallExitForm } from "./ResearchCallExitForm";
 import { ResearchExitPosterModal } from "./ResearchExitPosterModal";
+import { ResearchDashboard } from "./ResearchDashboard";
+import { computeAttentionItems, computeResearchStats } from "./researchTrackerStats";
 import type { ResearchCall, ResearchCallInput } from "./researchTrackerTypes";
 
 type FilterKey = "all" | "open" | "exited";
@@ -36,6 +38,8 @@ export function ResearchTrackerPage() {
 
   const openCount = calls.filter((c) => c.status === "open").length;
   const editingCall = formCallId ? calls.find((c) => c.id === formCallId) ?? null : null;
+  const stats = useMemo(() => computeResearchStats(calls), [calls]);
+  const attention = useMemo(() => computeAttentionItems(calls, quotes), [calls, quotes]);
 
   function handleSubmit(input: ResearchCallInput) {
     if (formCallId) updateCall(formCallId, input);
@@ -73,6 +77,8 @@ export function ResearchTrackerPage() {
       />
 
       <div className="mx-auto w-full max-w-3xl px-6 py-6">
+        <ResearchDashboard stats={stats} attention={attention} onResolveAttention={(call) => setExitTarget(call)} />
+
         <div className="mb-4 flex items-center gap-1.5">
           {FILTERS.map((key) => (
             <button
