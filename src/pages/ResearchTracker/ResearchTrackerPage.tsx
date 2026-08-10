@@ -148,7 +148,7 @@ export function ResearchTrackerPage() {
         }
       />
 
-      <div className="mx-auto w-full max-w-3xl px-6 py-6">
+      <div className="mx-auto w-full max-w-6xl px-6 py-6">
         <div className="mb-4 flex items-center gap-1.5 border-b border-border">
           {VIEWS.map(({ key, label }) => (
             <button
@@ -231,7 +231,7 @@ export function ResearchTrackerPage() {
                 )}
               </div>
             ) : (
-              <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filtered.map((call) => (
                   <ResearchCallCard
                     key={call.id}
