@@ -6,7 +6,8 @@ import { Checkbox } from "../../components/ui/Checkbox";
 import { cn } from "../../lib/utils";
 import { useResearchTracker } from "./useResearchTracker";
 import { useResearchQuotes } from "./useResearchQuotes";
-import { ResearchCallCard } from "./ResearchCallCard";
+import { ResearchCallCard, callCardAnchorId } from "./ResearchCallCard";
+import { ResearchOpenCallsHeatmap } from "./ResearchOpenCallsHeatmap";
 import { ResearchCallForm } from "./ResearchCallForm";
 import { ResearchCallExitForm } from "./ResearchCallExitForm";
 import { ResearchExitPosterModal } from "./ResearchExitPosterModal";
@@ -43,6 +44,7 @@ export function ResearchTrackerPage() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteRequest, setDeleteRequest] = useState<DeleteRequest | null>(null);
+  const [highlightedCallId, setHighlightedCallId] = useState<string | null>(null);
 
   const symbols = useMemo(() => calls.map((c) => c.symbol), [calls]);
   const quotes = useResearchQuotes(symbols);
@@ -108,6 +110,17 @@ export function ResearchTrackerPage() {
   }
 
   const allVisibleSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
+  const openFiltered = useMemo(() => filtered.filter((c) => c.status === "open"), [filtered]);
+
+  // The heatmap is a navigator, not its own view — jump to the matching
+  // full card (chart, edit/exit/delete) and give it a brief highlight ring
+  // so it's obvious which one the click landed on.
+  function handleHeatmapTileClick(id: string) {
+    const el = document.getElementById(callCardAnchorId(id));
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedCallId(id);
+    window.setTimeout(() => setHighlightedCallId((current) => (current === id ? null : current)), 1800);
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -201,6 +214,10 @@ export function ResearchTrackerPage() {
               )}
             </div>
 
+            {!selectionMode && (
+              <ResearchOpenCallsHeatmap calls={openFiltered} quotes={quotes} onTileClick={handleHeatmapTileClick} />
+            )}
+
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
                 <ClipboardList size={28} className="text-subtle-foreground" />
@@ -228,6 +245,7 @@ export function ResearchTrackerPage() {
                     selectionMode={selectionMode}
                     selected={selectedIds.has(call.id)}
                     onToggleSelect={() => toggleSelected(call.id)}
+                    highlighted={highlightedCallId === call.id}
                   />
                 ))}
               </div>

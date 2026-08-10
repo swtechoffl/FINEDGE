@@ -17,6 +17,12 @@ function fmtPrice(n: number) {
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
+// The heatmap is purely a navigator to a call's full card — this is the one
+// anchor id both it and the card agree on, so a tile click can scroll here.
+export function callCardAnchorId(callId: string) {
+  return `research-call-${callId}`;
+}
+
 export function ResearchCallCard({
   call,
   quote,
@@ -28,6 +34,7 @@ export function ResearchCallCard({
   selectionMode = false,
   selected = false,
   onToggleSelect,
+  highlighted = false,
 }: {
   call: ResearchCall;
   quote: CallQuote | undefined;
@@ -39,6 +46,7 @@ export function ResearchCallCard({
   selectionMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  highlighted?: boolean;
 }) {
   const isOpen = call.status === "open";
   const referencePrice = referencePriceFor(call, quote?.price ?? null);
@@ -52,10 +60,12 @@ export function ResearchCallCard({
 
   return (
     <Card
+      id={callCardAnchorId(call.id)}
       className={cn(
-        "flex flex-col gap-3 p-4 transition-colors",
+        "flex flex-col gap-3 p-4 transition-colors duration-300",
         selectionMode && "cursor-pointer",
         selected && "border-accent bg-accent-bg/40",
+        highlighted && "ring-2 ring-accent ring-offset-2 ring-offset-app",
       )}
       onClick={selectionMode ? onToggleSelect : undefined}
     >

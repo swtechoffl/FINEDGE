@@ -20,7 +20,7 @@ const THEMES = {
     grid: "var(--border-strong)",
     target: "var(--accent)",
     axis: "var(--subtle-foreground)",
-    surface: "var(--surface)",
+    surface: "var(--bg-surface)",
     emptyBorder: "var(--border)",
     emptyText: "var(--subtle-foreground)",
   },
