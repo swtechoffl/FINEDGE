@@ -53,11 +53,10 @@ export function ResearchCallChart({
 }) {
   const colors = THEMES[variant];
 
-  // The live history series always covers a fixed trailing window (6mo) —
-  // if the call is older than that, there's nothing to slice down to, so
-  // fall back to plotting whatever's available rather than showing nothing.
-  const sinceCall = history.filter((h) => h.date >= callDate && (!exitDate || h.date <= exitDate));
-  const points = sinceCall.length >= 2 ? sinceCall : history;
+  // Always anchored to the call date — never falls back to the full trailing
+  // history, since that would silently plot pre-call price action as if it
+  // were the call's own track record.
+  const points = history.filter((h) => h.date >= callDate && (!exitDate || h.date <= exitDate));
 
   if (points.length < 2) {
     return (
