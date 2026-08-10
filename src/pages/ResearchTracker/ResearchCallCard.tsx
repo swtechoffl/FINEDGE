@@ -52,11 +52,6 @@ export function ResearchCallCard({
           {stopHit && <Badge variant="bearish">Stop hit</Badge>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {!isOpen && (
-            <Button variant="outline" size="iconSm" title="View exit poster" onClick={onViewPoster}>
-              <ImageIcon size={13} />
-            </Button>
-          )}
           <Button variant="outline" size="iconSm" title="Edit" onClick={onEdit}>
             <Pencil size={13} />
           </Button>
@@ -119,9 +114,14 @@ export function ResearchCallCard({
             <LogOut size={13} /> Mark exited
           </Button>
         ) : (
-          <Button size="sm" variant="ghost" onClick={onReopen} className="text-subtle-foreground">
-            Reopen
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={onViewPoster}>
+              <ImageIcon size={13} /> View poster
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onReopen} className="text-subtle-foreground">
+              Reopen
+            </Button>
+          </div>
         )}
       </div>
 
