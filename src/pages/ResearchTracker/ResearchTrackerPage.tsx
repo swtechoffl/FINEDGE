@@ -10,14 +10,24 @@ import { ResearchCallForm } from "./ResearchCallForm";
 import { ResearchCallExitForm } from "./ResearchCallExitForm";
 import { ResearchExitPosterModal } from "./ResearchExitPosterModal";
 import { ResearchDashboard } from "./ResearchDashboard";
+import { ResearchReportsPanel } from "./ResearchReportsPanel";
+import { ResearchAuditPanel } from "./ResearchAuditPanel";
 import { computeAttentionItems, computeResearchStats } from "./researchTrackerStats";
 import type { ResearchCall, ResearchCallInput } from "./researchTrackerTypes";
 
 type FilterKey = "all" | "open" | "exited";
 const FILTERS: FilterKey[] = ["all", "open", "exited"];
 
+type ViewKey = "calls" | "reports" | "audit";
+const VIEWS: { key: ViewKey; label: string }[] = [
+  { key: "calls", label: "Calls" },
+  { key: "reports", label: "Reports" },
+  { key: "audit", label: "Audit" },
+];
+
 export function ResearchTrackerPage() {
-  const { calls, addCall, updateCall, deleteCall, exitCall, reopenCall } = useResearchTracker();
+  const { calls, log, addCall, updateCall, deleteCall, exitCall, reopenCall } = useResearchTracker();
+  const [view, setView] = useState<ViewKey>("calls");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [formCallId, setFormCallId] = useState<string | null | undefined>(undefined); // undefined = closed, null = add mode, id = edit mode
@@ -66,8 +76,8 @@ export function ResearchTrackerPage() {
       <Header
         title="research tracker"
         meta={`${openCount} open · ${calls.length} total`}
-        searchValue={search}
-        onSearchChange={setSearch}
+        searchValue={view === "calls" ? search : undefined}
+        onSearchChange={view === "calls" ? setSearch : undefined}
         searchPlaceholder="Search symbol, company, notes…"
         extra={
           <Button size="sm" onClick={() => setFormCallId(null)}>
@@ -77,50 +87,74 @@ export function ResearchTrackerPage() {
       />
 
       <div className="mx-auto w-full max-w-3xl px-6 py-6">
-        <ResearchDashboard stats={stats} attention={attention} onResolveAttention={(call) => setExitTarget(call)} />
-
-        <div className="mb-4 flex items-center gap-1.5">
-          {FILTERS.map((key) => (
+        <div className="mb-4 flex items-center gap-1.5 border-b border-border">
+          {VIEWS.map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setFilter(key)}
+              onClick={() => setView(key)}
               className={cn(
-                "focus-ring rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition-colors",
-                filter === key ? "bg-accent-bg text-accent" : "text-muted-foreground hover:bg-hover",
+                "focus-ring -mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors",
+                view === key
+                  ? "border-accent text-accent"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
-              {key}
+              {label}
             </button>
           ))}
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
-            <ClipboardList size={28} className="text-subtle-foreground" />
-            <p className="text-sm font-medium text-muted-foreground">
-              {calls.length === 0 ? "No research calls yet — add your first one." : "No calls match your filters."}
-            </p>
-            {calls.length === 0 && (
-              <Button size="sm" onClick={() => setFormCallId(null)}>
-                <Plus size={14} /> Add Call
-              </Button>
+        {view === "reports" && <ResearchReportsPanel calls={calls} />}
+        {view === "audit" && <ResearchAuditPanel log={log} />}
+
+        {view === "calls" && (
+          <>
+            <ResearchDashboard stats={stats} attention={attention} onResolveAttention={(call) => setExitTarget(call)} />
+
+            <div className="mb-4 flex items-center gap-1.5">
+              {FILTERS.map((key) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={cn(
+                    "focus-ring rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition-colors",
+                    filter === key ? "bg-accent-bg text-accent" : "text-muted-foreground hover:bg-hover",
+                  )}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
+                <ClipboardList size={28} className="text-subtle-foreground" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  {calls.length === 0 ? "No research calls yet — add your first one." : "No calls match your filters."}
+                </p>
+                {calls.length === 0 && (
+                  <Button size="sm" onClick={() => setFormCallId(null)}>
+                    <Plus size={14} /> Add Call
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {filtered.map((call) => (
+                  <ResearchCallCard
+                    key={call.id}
+                    call={call}
+                    quote={quotes[call.symbol]}
+                    onEdit={() => setFormCallId(call.id)}
+                    onDelete={() => handleDelete(call)}
+                    onExit={() => setExitTarget(call)}
+                    onReopen={() => reopenCall(call.id)}
+                    onViewPoster={() => setPosterCall(call)}
+                  />
+                ))}
+              </div>
             )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {filtered.map((call) => (
-              <ResearchCallCard
-                key={call.id}
-                call={call}
-                quote={quotes[call.symbol]}
-                onEdit={() => setFormCallId(call.id)}
-                onDelete={() => handleDelete(call)}
-                onExit={() => setExitTarget(call)}
-                onReopen={() => reopenCall(call.id)}
-                onViewPoster={() => setPosterCall(call)}
-              />
-            ))}
-          </div>
+          </>
         )}
       </div>
 
