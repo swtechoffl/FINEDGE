@@ -1,4 +1,4 @@
-import { Pencil, Trash2, LogOut, Image as ImageIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { Pencil, Trash2, LogOut, Image as ImageIcon, TrendingUp, TrendingDown, TriangleAlert } from "lucide-react";
 import { Badge } from "../../components/ui/Badge";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -38,6 +38,9 @@ export function ResearchCallCard({
   const up = (pnl ?? 0) >= 0;
   const targetHit = isOpen && referencePrice != null && isTargetHit(call, referencePrice);
   const stopHit = isOpen && referencePrice != null && isStopHit(call, referencePrice);
+  // Only open calls need a live price — an exited call is always priced off
+  // its own stored exitPrice, so a quote error there is irrelevant.
+  const priceUnavailable = isOpen && quote?.error === true && !quote?.loading;
 
   return (
     <Card className="flex flex-col gap-3 p-4">
@@ -78,7 +81,9 @@ export function ResearchCallCard({
         </div>
         <div>
           <div className="text-[10px] font-medium uppercase text-subtle-foreground">{isOpen ? "Current" : "Exit"}</div>
-          <div className="text-sm font-bold text-foreground">{referencePrice != null ? fmtPrice(referencePrice) : "—"}</div>
+          <div className={`text-sm font-bold ${priceUnavailable ? "text-bearish" : "text-foreground"}`}>
+            {referencePrice != null ? fmtPrice(referencePrice) : priceUnavailable ? "Unavailable" : quote?.loading ? "…" : "—"}
+          </div>
         </div>
         <div>
           <div className="text-[10px] font-medium uppercase text-subtle-foreground">Moved</div>
@@ -93,14 +98,24 @@ export function ResearchCallCard({
         </div>
       </div>
 
-      <ResearchCallChart
-        history={quote?.history ?? []}
-        callDate={call.callDate}
-        exitDate={call.exitDate}
-        entryPrice={call.recommendedPrice}
-        targetPrice={call.targetPrice}
-        up={call.callType === "buy"}
-      />
+      {priceUnavailable ? (
+        <div className="flex items-start gap-1.5 rounded-lg bg-bearish-bg px-3 py-2 text-xs text-bearish">
+          <TriangleAlert size={13} className="mt-0.5 shrink-0" />
+          <span>
+            Couldn't find a live price for "{call.symbol}" — it may be delisted, renamed, or mistyped. Try editing
+            the symbol.
+          </span>
+        </div>
+      ) : (
+        <ResearchCallChart
+          history={quote?.history ?? []}
+          callDate={call.callDate}
+          exitDate={call.exitDate}
+          entryPrice={call.recommendedPrice}
+          targetPrice={call.targetPrice}
+          up={call.callType === "buy"}
+        />
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-subtle-foreground">
         <span>

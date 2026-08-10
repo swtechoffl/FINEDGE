@@ -59,6 +59,11 @@ export function useResearchQuotes(symbols: string[]) {
         })
         .then((json) => {
           if (cancelled) return;
+          // The endpoint 200s even when it couldn't resolve the ticker at all
+          // (e.g. a symbol NSE has since renamed/delisted) — it just comes
+          // back with every field null. Treat that the same as a fetch
+          // failure so the UI can tell "couldn't find this symbol" apart
+          // from "still loading" instead of showing a blank dash forever.
           setQuotes((prev) => ({
             ...prev,
             [symbol]: {
@@ -66,7 +71,7 @@ export function useResearchQuotes(symbols: string[]) {
               changePct: json.changePct ?? null,
               history: Array.isArray(json.history) ? json.history : [],
               loading: false,
-              error: false,
+              error: json.price == null,
             },
           }));
         })

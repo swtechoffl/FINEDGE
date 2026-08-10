@@ -23,16 +23,19 @@ function BulkImportRowPreview({
   price,
   history,
   loading,
+  error,
 }: {
   row: ImportedCallRow;
   price: number | null;
   history: HistoryPoint[];
   loading: boolean;
+  error: boolean;
 }) {
   const isOpen = row.status === "open";
   const referencePrice = referencePriceFor(row, price);
   const pnl = referencePrice != null ? pctMoved(row, referencePrice) : null;
   const up = (pnl ?? 0) >= 0;
+  const priceUnavailable = isOpen && error && !loading;
 
   return (
     <div className="rounded-lg border border-border p-3">
@@ -55,8 +58,8 @@ function BulkImportRowPreview({
         </div>
         <div>
           <div className="text-[9px] font-medium uppercase text-subtle-foreground">{isOpen ? "Current" : "Exit"}</div>
-          <div className="text-xs font-bold text-foreground">
-            {referencePrice != null ? fmtPrice(referencePrice) : loading ? "…" : "—"}
+          <div className={`text-xs font-bold ${priceUnavailable ? "text-bearish" : "text-foreground"}`}>
+            {referencePrice != null ? fmtPrice(referencePrice) : priceUnavailable ? "Unavailable" : loading ? "…" : "—"}
           </div>
         </div>
         <div>
@@ -66,6 +69,13 @@ function BulkImportRowPreview({
           </div>
         </div>
       </div>
+
+      {priceUnavailable && (
+        <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-bearish-bg px-2.5 py-1.5 text-[11px] text-bearish">
+          <TriangleAlert size={12} className="mt-0.5 shrink-0" />
+          <span>Couldn't find a live price for this symbol — it may be delisted, renamed, or mistyped.</span>
+        </div>
+      )}
 
       <ResearchCallChart
         history={history}
@@ -214,6 +224,7 @@ export function ResearchBulkImportModal({
                         price={quote?.price ?? null}
                         history={quote?.history ?? []}
                         loading={quote?.loading ?? true}
+                        error={quote?.error ?? false}
                       />
                     );
                   })}
