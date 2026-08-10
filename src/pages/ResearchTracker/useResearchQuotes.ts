@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isValidSymbol } from "./researchTrackerValidation";
 
 export interface HistoryPoint {
   date: string;
@@ -43,6 +44,14 @@ export function useResearchQuotes(symbols: string[]) {
     });
 
     for (const symbol of uniqueSymbols) {
+      // The server 400s anything outside this shape (server/index.js's
+      // /api/stock/:symbol route) — skip the request entirely for a
+      // malformed symbol rather than logging a guaranteed-failing network
+      // call every time this hook re-fetches.
+      if (!isValidSymbol(symbol)) {
+        setQuotes((prev) => ({ ...prev, [symbol]: { ...EMPTY, loading: false, error: true } }));
+        continue;
+      }
       fetch(`/api/stock/${encodeURIComponent(symbol)}`)
         .then((res) => {
           if (!res.ok) throw new Error(`API responded ${res.status}`);

@@ -5,6 +5,7 @@ import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
 import { cn } from "../../lib/utils";
 import { SECTORS } from "../../data/mock";
+import { isValidSymbol } from "./researchTrackerValidation";
 import type { CallType, ResearchCallInput } from "./researchTrackerTypes";
 
 // Same curated symbol universe the rest of the app (Sector Heat Map, ticker
@@ -66,7 +67,9 @@ export function ResearchCallForm({
   if (!open) return null;
 
   const isEdit = initial !== null;
-  const canSave = draft.symbol.trim() !== "" && draft.recommendedPrice > 0 && draft.targetPrice > 0;
+  const trimmedSymbol = draft.symbol.trim();
+  const symbolInvalid = trimmedSymbol !== "" && !isValidSymbol(trimmedSymbol);
+  const canSave = trimmedSymbol !== "" && !symbolInvalid && draft.recommendedPrice > 0 && draft.targetPrice > 0;
 
   function set<K extends keyof ResearchCallInput>(key: K, value: ResearchCallInput[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -110,6 +113,8 @@ export function ResearchCallForm({
                   onBlur={handleSymbolBlur}
                   placeholder="e.g. TCS"
                   list="research-tracker-symbols"
+                  aria-invalid={symbolInvalid}
+                  className={symbolInvalid ? "border-bearish" : undefined}
                 />
                 <datalist id="research-tracker-symbols">
                   {ALL_SYMBOLS.map((s) => (
@@ -118,6 +123,9 @@ export function ResearchCallForm({
                     </option>
                   ))}
                 </datalist>
+                {symbolInvalid && (
+                  <p className="mt-1 text-[11px] text-bearish">Letters, numbers, & or - only, up to 20 characters.</p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Company name</label>

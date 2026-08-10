@@ -1,3 +1,4 @@
+import { isValidSymbol } from "./researchTrackerValidation";
 import type { CallStatus, CallType, ResearchCall } from "./researchTrackerTypes";
 
 // Everything a new call needs except its bookkeeping fields — same shape
@@ -154,7 +155,11 @@ export function parseImportRows(csvText: string): ParseResult {
     const rowErrors: string[] = [];
 
     const symbol = cell(raw, "symbol").toUpperCase();
-    if (!symbol) rowErrors.push("Symbol is required");
+    if (!symbol) {
+      rowErrors.push("Symbol is required");
+    } else if (!isValidSymbol(symbol)) {
+      rowErrors.push(`Symbol "${symbol}" isn't a valid ticker (letters, numbers, & or - only, up to 20 characters)`);
+    }
 
     const callTypeRaw = cell(raw, "callType").toLowerCase();
     let callType: CallType = "buy";
