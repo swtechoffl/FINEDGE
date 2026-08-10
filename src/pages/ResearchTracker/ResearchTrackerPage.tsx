@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, ClipboardList } from "lucide-react";
+import { Plus, Upload, ClipboardList } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
@@ -12,6 +12,7 @@ import { ResearchExitPosterModal } from "./ResearchExitPosterModal";
 import { ResearchDashboard } from "./ResearchDashboard";
 import { ResearchReportsPanel } from "./ResearchReportsPanel";
 import { ResearchAuditPanel } from "./ResearchAuditPanel";
+import { ResearchBulkImportModal } from "./ResearchBulkImportModal";
 import { computeAttentionItems, computeResearchStats } from "./researchTrackerStats";
 import type { ResearchCall, ResearchCallInput } from "./researchTrackerTypes";
 
@@ -26,13 +27,14 @@ const VIEWS: { key: ViewKey; label: string }[] = [
 ];
 
 export function ResearchTrackerPage() {
-  const { calls, log, addCall, updateCall, deleteCall, exitCall, reopenCall } = useResearchTracker();
+  const { calls, log, addCall, updateCall, deleteCall, exitCall, reopenCall, importCalls } = useResearchTracker();
   const [view, setView] = useState<ViewKey>("calls");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [formCallId, setFormCallId] = useState<string | null | undefined>(undefined); // undefined = closed, null = add mode, id = edit mode
   const [exitTarget, setExitTarget] = useState<ResearchCall | null>(null);
   const [posterCall, setPosterCall] = useState<ResearchCall | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const symbols = useMemo(() => calls.map((c) => c.symbol), [calls]);
   const quotes = useResearchQuotes(symbols);
@@ -80,9 +82,14 @@ export function ResearchTrackerPage() {
         onSearchChange={view === "calls" ? setSearch : undefined}
         searchPlaceholder="Search symbol, company, notes…"
         extra={
-          <Button size="sm" onClick={() => setFormCallId(null)}>
-            <Plus size={14} /> Add Call
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload size={14} /> <span className="hidden sm:inline">Bulk Upload</span>
+            </Button>
+            <Button size="sm" onClick={() => setFormCallId(null)}>
+              <Plus size={14} /> Add Call
+            </Button>
+          </div>
         }
       />
 
@@ -179,6 +186,8 @@ export function ResearchTrackerPage() {
           onClose={() => setPosterCall(null)}
         />
       )}
+
+      <ResearchBulkImportModal open={importOpen} onClose={() => setImportOpen(false)} onImport={importCalls} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { diffCallInput, makeLogEntry, type LogEntry } from "./researchTrackerLog";
+import type { ImportedCallRow } from "./researchTrackerImport";
 import type { ResearchCall, ResearchCallInput } from "./researchTrackerTypes";
 
 const STORAGE_KEY = "stoqtrade-research-tracker-calls";
@@ -136,6 +137,33 @@ export function useResearchTracker() {
     [calls, appendLog],
   );
 
+  // Bulk-import path (CSV upload) — each row can already carry its own
+  // status/exit fields (a historical call imported as already-closed), so
+  // this bypasses addCall's always-open construction. Still one "created"
+  // log entry per row for a complete audit trail, just phrased to say it
+  // came from an import rather than the Add Call form.
+  const importCalls = useCallback(
+    (rows: ImportedCallRow[]) => {
+      const now = Date.now();
+      const newCalls: ResearchCall[] = rows.map((row) => ({
+        ...row,
+        id: makeId(),
+        createdAt: now,
+        updatedAt: now,
+      }));
+      setCalls((prev) => [...newCalls, ...prev]);
+      newCalls.forEach((call) => {
+        const summary =
+          call.status === "exited"
+            ? `Imported (already exited) — ${call.callType.toUpperCase()} at ₹${call.recommendedPrice}, exited ₹${call.exitPrice} on ${call.exitDate}`
+            : `Imported — ${call.callType.toUpperCase()} call at ₹${call.recommendedPrice}, target ₹${call.targetPrice}`;
+        appendLog(makeLogEntry(call.id, call.symbol, "created", summary));
+      });
+      return newCalls.length;
+    },
+    [appendLog],
+  );
+
   // Undo for an accidental/incorrect exit — puts the call back on the open
   // board without losing the rest of its history.
   const reopenCall = useCallback(
@@ -151,5 +179,5 @@ export function useResearchTracker() {
     [calls, appendLog],
   );
 
-  return { calls, log, addCall, updateCall, deleteCall, exitCall, reopenCall };
+  return { calls, log, addCall, updateCall, deleteCall, exitCall, reopenCall, importCalls };
 }
