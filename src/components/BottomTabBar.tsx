@@ -17,6 +17,7 @@ const SHORT_LABELS: Record<string, string> = {
   "/flowchart": "Flowchart",
   "/report-maker": "Report Maker",
   "/one-pager": "One Pager",
+  "/research-tracker": "Tracker",
 };
 
 // Modern-app bottom tab bar — the mobile/tablet equivalent of NavRail

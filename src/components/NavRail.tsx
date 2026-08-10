@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Newspaper, Sunrise, Sunset, CloudSun, CloudMoon, CalendarClock, Layers, Images, Megaphone, Workflow, FileText, FileStack, LogOut } from "lucide-react";
+import { Newspaper, Sunrise, Sunset, CloudSun, CloudMoon, CalendarClock, Layers, Images, Megaphone, Workflow, FileText, FileStack, LineChart, LogOut } from "lucide-react";
 import { useSocialLinksReadOnly, socialHref, socialDisplay, SOCIAL_META, type SocialLinks } from "../pages/Premarket/useSocialLinks";
 import { cn } from "../lib/utils";
 
@@ -16,6 +16,7 @@ export const NAV_ITEMS = [
   { to: "/flowchart", label: "Flowchart", icon: Workflow },
   { to: "/report-maker", label: "Report Maker", icon: FileText },
   { to: "/one-pager", label: "One Pager", icon: FileStack },
+  { to: "/research-tracker", label: "Research Tracker", icon: LineChart },
 ];
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
