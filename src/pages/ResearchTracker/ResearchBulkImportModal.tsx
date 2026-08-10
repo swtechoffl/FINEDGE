@@ -1,15 +1,89 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { X, Upload, FileDown, TriangleAlert, CircleCheck } from "lucide-react";
 import { Button } from "../../components/ui/Button";
+import { Badge } from "../../components/ui/Badge";
 import { downloadCsv } from "./researchTrackerExport";
 import { IMPORT_TEMPLATE_CSV, parseImportRows, type ImportError, type ImportedCallRow } from "./researchTrackerImport";
+import { useResearchQuotes, type HistoryPoint } from "./useResearchQuotes";
+import { ResearchCallChart } from "./ResearchCallChart";
+import { pctMoved, referencePriceFor } from "./researchTrackerMath";
 
 type Stage = "picker" | "preview";
 
+function fmtPrice(n: number) {
+  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
+
+// One previewed row, priced live (or against its own imported exit price)
+// and charted exactly like a real call card — so what an analyst approves
+// here is what they'll actually see on the board after import, not a bare
+// table of the numbers they typed.
+function BulkImportRowPreview({
+  row,
+  price,
+  history,
+  loading,
+}: {
+  row: ImportedCallRow;
+  price: number | null;
+  history: HistoryPoint[];
+  loading: boolean;
+}) {
+  const isOpen = row.status === "open";
+  const referencePrice = referencePriceFor(row, price);
+  const pnl = referencePrice != null ? pctMoved(row, referencePrice) : null;
+  const up = (pnl ?? 0) >= 0;
+
+  return (
+    <div className="rounded-lg border border-border p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <span className="text-sm font-bold text-foreground">{row.symbol}</span>
+        <Badge size="sm" variant={row.callType === "buy" ? "bullish" : "bearish"}>
+          {row.callType.toUpperCase()}
+        </Badge>
+        <Badge size="sm" variant={isOpen ? "accent" : "default"}>{isOpen ? "Open" : "Exited"}</Badge>
+      </div>
+
+      <div className="mb-2 grid grid-cols-4 gap-2 rounded-lg bg-surface-2 p-2 text-center">
+        <div>
+          <div className="text-[9px] font-medium uppercase text-subtle-foreground">Recommended</div>
+          <div className="text-xs font-bold text-foreground">{fmtPrice(row.recommendedPrice)}</div>
+        </div>
+        <div>
+          <div className="text-[9px] font-medium uppercase text-subtle-foreground">Target</div>
+          <div className="text-xs font-bold text-foreground">{fmtPrice(row.targetPrice)}</div>
+        </div>
+        <div>
+          <div className="text-[9px] font-medium uppercase text-subtle-foreground">{isOpen ? "Current" : "Exit"}</div>
+          <div className="text-xs font-bold text-foreground">
+            {referencePrice != null ? fmtPrice(referencePrice) : loading ? "…" : "—"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] font-medium uppercase text-subtle-foreground">Moved</div>
+          <div className={`text-xs font-bold ${pnl == null ? "text-subtle-foreground" : up ? "text-bullish" : "text-bearish"}`}>
+            {pnl != null ? `${up ? "+" : ""}${pnl.toFixed(2)}%` : loading ? "…" : "—"}
+          </div>
+        </div>
+      </div>
+
+      <ResearchCallChart
+        history={history}
+        callDate={row.callDate}
+        exitDate={row.exitDate}
+        entryPrice={row.recommendedPrice}
+        targetPrice={row.targetPrice}
+        up={row.callType === "buy"}
+      />
+    </div>
+  );
+}
+
 // CSV bulk-add — parses client-side (no server round trip needed for a
 // local-only file), previews valid vs. invalid rows before committing
-// anything, and lets a partially-bad file still import its good rows
-// rather than an all-or-nothing failure.
+// anything (each valid row priced live and charted, same as the real call
+// list), and lets a partially-bad file still import its good rows rather
+// than an all-or-nothing failure.
 export function ResearchBulkImportModal({
   open,
   onClose,
@@ -25,6 +99,9 @@ export function ResearchBulkImportModal({
   const [errors, setErrors] = useState<ImportError[]>([]);
   const [readError, setReadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const previewSymbols = useMemo(() => rows.map((r) => r.symbol), [rows]);
+  const quotes = useResearchQuotes(previewSymbols);
 
   if (!open) return null;
 
@@ -68,7 +145,7 @@ export function ResearchBulkImportModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={handleClose}>
       <div
-        className="animate-scale-in flex max-h-[90vh] w-full max-w-xl flex-col rounded-2xl border border-border bg-surface shadow-lg"
+        className="animate-scale-in flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-surface shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -127,31 +204,19 @@ export function ResearchBulkImportModal({
               </div>
 
               {rows.length > 0 && (
-                <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
-                  <table className="w-full text-left text-xs">
-                    <thead className="sticky top-0 bg-surface-2 text-[10px] uppercase text-subtle-foreground">
-                      <tr>
-                        <th className="px-2.5 py-1.5 font-medium">Symbol</th>
-                        <th className="px-2.5 py-1.5 font-medium">Type</th>
-                        <th className="px-2.5 py-1.5 font-medium">Call date</th>
-                        <th className="px-2.5 py-1.5 font-medium">Rec.</th>
-                        <th className="px-2.5 py-1.5 font-medium">Target</th>
-                        <th className="px-2.5 py-1.5 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {rows.map((r, i) => (
-                        <tr key={i}>
-                          <td className="px-2.5 py-1.5 font-semibold text-foreground">{r.symbol}</td>
-                          <td className="px-2.5 py-1.5 text-muted-foreground">{r.callType.toUpperCase()}</td>
-                          <td className="px-2.5 py-1.5 text-muted-foreground">{r.callDate}</td>
-                          <td className="px-2.5 py-1.5 text-muted-foreground">₹{r.recommendedPrice}</td>
-                          <td className="px-2.5 py-1.5 text-muted-foreground">₹{r.targetPrice}</td>
-                          <td className="px-2.5 py-1.5 text-muted-foreground capitalize">{r.status}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="flex max-h-[420px] flex-col gap-2.5 overflow-y-auto pr-0.5">
+                  {rows.map((r, i) => {
+                    const quote = quotes[r.symbol];
+                    return (
+                      <BulkImportRowPreview
+                        key={i}
+                        row={r}
+                        price={quote?.price ?? null}
+                        history={quote?.history ?? []}
+                        loading={quote?.loading ?? true}
+                      />
+                    );
+                  })}
                 </div>
               )}
 
