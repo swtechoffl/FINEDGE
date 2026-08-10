@@ -48,8 +48,11 @@ export function diffCallInput(before: ResearchCallInput, after: ResearchCallInpu
   return changes;
 }
 
-function makeLogId() {
-  return `log-${Date.now()}-${Math.round(Math.random() * 1e5)}`;
+// Same collision concern as useResearchTracker's makeId — a bulk import logs
+// every row in the same synchronous loop.
+function makeLogId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return `log-${crypto.randomUUID()}`;
+  return `log-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.round(Math.random() * 1e6)}`;
 }
 
 export function makeLogEntry(

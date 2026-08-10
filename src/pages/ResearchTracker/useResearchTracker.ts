@@ -9,8 +9,16 @@ const LOG_KEY = "stoqtrade-research-tracker-log";
 // view is a recent-activity feed, not a permanent ledger).
 const LOG_MAX_ENTRIES = 500;
 
-function makeId() {
-  return `call-${Date.now()}-${Math.round(Math.random() * 1e5)}`;
+// crypto.randomUUID() is collision-proof; the timestamp+small-random fallback
+// isn't — a bulk import mints every row's id in the same synchronous loop, so
+// Date.now() is identical across the whole batch and only ~100,000 random
+// values separate them, a real collision risk at import-list sizes. A
+// collided id breaks React's keyed reconciliation for that pair of cards
+// (delete/edit clicks can end up wired to the wrong, possibly already-gone,
+// call) — this is what "one specific call won't delete" looks like.
+function makeId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return `call-${crypto.randomUUID()}`;
+  return `call-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.round(Math.random() * 1e6)}`;
 }
 
 function readInitial(): ResearchCall[] {
@@ -126,6 +134,22 @@ export function useResearchTracker() {
     [calls, appendLog],
   );
 
+  // Bulk delete — one log entry per removed call (same as single delete),
+  // committed as a single calls-array update rather than N sequential
+  // deleteCall() calls.
+  const deleteCalls = useCallback(
+    (ids: string[]) => {
+      const idSet = new Set(ids);
+      const removed = calls.filter((c) => idSet.has(c.id));
+      setCalls((prev) => prev.filter((c) => !idSet.has(c.id)));
+      removed.forEach((call) => {
+        appendLog(makeLogEntry(call.id, call.symbol, "deleted", `Call deleted (was ${call.status})`));
+      });
+      return removed.length;
+    },
+    [calls, appendLog],
+  );
+
   const exitCall = useCallback(
     (id: string, exitPrice: number, exitDate: string) => {
       const existing = calls.find((c) => c.id === id);
@@ -179,5 +203,5 @@ export function useResearchTracker() {
     [calls, appendLog],
   );
 
-  return { calls, log, addCall, updateCall, deleteCall, exitCall, reopenCall, importCalls };
+  return { calls, log, addCall, updateCall, deleteCall, deleteCalls, exitCall, reopenCall, importCalls };
 }

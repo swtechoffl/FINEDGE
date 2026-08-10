@@ -2,6 +2,8 @@ import { Pencil, Trash2, LogOut, Image as ImageIcon, TrendingUp, TrendingDown, T
 import { Badge } from "../../components/ui/Badge";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { Checkbox } from "../../components/ui/Checkbox";
+import { cn } from "../../lib/utils";
 import { ResearchCallChart } from "./ResearchCallChart";
 import { pctMoved, isTargetHit, isStopHit, referencePriceFor } from "./researchTrackerMath";
 import type { ResearchCall } from "./researchTrackerTypes";
@@ -23,6 +25,9 @@ export function ResearchCallCard({
   onExit,
   onReopen,
   onViewPoster,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
 }: {
   call: ResearchCall;
   quote: CallQuote | undefined;
@@ -31,6 +36,9 @@ export function ResearchCallCard({
   onExit: () => void;
   onReopen: () => void;
   onViewPoster: () => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const isOpen = call.status === "open";
   const referencePrice = referencePriceFor(call, quote?.price ?? null);
@@ -43,29 +51,41 @@ export function ResearchCallCard({
   const priceUnavailable = isOpen && quote?.error === true && !quote?.loading;
 
   return (
-    <Card className="flex flex-col gap-3 p-4">
+    <Card
+      className={cn(
+        "flex flex-col gap-3 p-4 transition-colors",
+        selectionMode && "cursor-pointer",
+        selected && "border-accent bg-accent-bg/40",
+      )}
+      onClick={selectionMode ? onToggleSelect : undefined}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
+          {selectionMode && (
+            <Checkbox checked={selected} onCheckedChange={() => onToggleSelect?.()} className="mr-0.5" />
+          )}
           <span className="text-base font-extrabold tracking-tight text-foreground">{call.symbol}</span>
           <Badge variant={call.callType === "buy" ? "bullish" : "bearish"}>{call.callType.toUpperCase()}</Badge>
           <Badge variant={isOpen ? "accent" : "default"}>{isOpen ? "Open" : "Exited"}</Badge>
           {targetHit && <Badge variant="bullish">Target hit</Badge>}
           {stopHit && <Badge variant="bearish">Stop hit</Badge>}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button variant="outline" size="iconSm" title="Edit" onClick={onEdit}>
-            <Pencil size={13} />
-          </Button>
-          <Button
-            variant="outline"
-            size="iconSm"
-            title="Delete"
-            onClick={onDelete}
-            className="hover:border-bearish hover:text-bearish"
-          >
-            <Trash2 size={13} />
-          </Button>
-        </div>
+        {!selectionMode && (
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="outline" size="iconSm" title="Edit" onClick={onEdit}>
+              <Pencil size={13} />
+            </Button>
+            <Button
+              variant="outline"
+              size="iconSm"
+              title="Delete"
+              onClick={onDelete}
+              className="hover:border-bearish hover:text-bearish"
+            >
+              <Trash2 size={13} />
+            </Button>
+          </div>
+        )}
       </div>
 
       {call.companyName && <p className="-mt-2 truncate text-xs text-subtle-foreground">{call.companyName}</p>}
@@ -122,7 +142,7 @@ export function ResearchCallCard({
           Called {fmtDate(call.callDate)}
           {call.exitDate && ` → Exited ${fmtDate(call.exitDate)}`}
         </span>
-        {isOpen ? (
+        {selectionMode ? null : isOpen ? (
           <Button size="sm" variant="outline" onClick={onExit}>
             <LogOut size={13} /> Mark exited
           </Button>
