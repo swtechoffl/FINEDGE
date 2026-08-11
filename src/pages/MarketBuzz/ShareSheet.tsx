@@ -1,9 +1,31 @@
 import { useRef, useState } from "react";
 import { X, Copy, Check, Download, Share2, Camera, MessageCircle } from "lucide-react";
 import { toBlob } from "html-to-image";
-import type { NewsItem } from "../../types";
-import { signalColor } from "../../components/SignalGauge";
+import type { NewsItem, Signal } from "../../types";
 import { cn } from "../../lib/utils";
+
+// This app's own dark-theme poster palette (see PostMarketSummaryPoster.tsx/
+// GlobalMarketPosters.tsx) — hardcoded rather than the live-theme CSS vars,
+// since this card is rasterized standalone (Instagram/download) and needs
+// to look right regardless of the viewer's own light/dark setting. Each
+// signal gets its own tinted gradient so the article's read carries through
+// the whole card's mood, not just a thin accent line.
+const POSTER_GRADIENT: Record<Signal, { from: string; to: string; accent: string }> = {
+  bullish: { from: "#065f46", to: "#0a0a0f", accent: "#22c55e" },
+  bearish: { from: "#7f1d1d", to: "#0a0a0f", accent: "#f87171" },
+  neutral: { from: "#78350f", to: "#0a0a0f", accent: "#f59e0b" },
+};
+const GRID_LINE = "rgba(255,255,255,0.05)";
+const GRID_SIZE = 26;
+
+function posterBackground(signal: Signal) {
+  const { from, to } = POSTER_GRADIENT[signal];
+  return [
+    `repeating-linear-gradient(0deg, ${GRID_LINE} 0px, ${GRID_LINE} 1px, transparent 1px, transparent ${GRID_SIZE}px)`,
+    `repeating-linear-gradient(90deg, ${GRID_LINE} 0px, ${GRID_LINE} 1px, transparent 1px, transparent ${GRID_SIZE}px)`,
+    `linear-gradient(160deg, ${from} 0%, ${to} 65%)`,
+  ].join(", ");
+}
 
 function buildShareText(item: NewsItem) {
   return `${item.headline}\n\n${item.summary}\n\nvia stoqtrade.ai\n${item.articleUrl}`;
@@ -24,7 +46,7 @@ export function ShareSheet({ item, onClose }: { item: NewsItem; onClose: () => v
   const [generating, setGenerating] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const color = signalColor(item.signal);
+  const theme = POSTER_GRADIENT[item.signal];
   const canNativeShare = typeof navigator !== "undefined" && "share" in navigator;
 
   async function generateImageFile(): Promise<File | null> {
@@ -112,28 +134,29 @@ export function ShareSheet({ item, onClose }: { item: NewsItem; onClose: () => v
             <div className="mx-auto mb-5 w-[280px]">
               <div
                 ref={cardRef}
-                className="relative flex w-[280px] flex-col overflow-hidden rounded-[28px] border border-border bg-surface p-5"
-                style={{ borderTop: `4px solid ${color}` }}
+                className="relative flex w-[280px] flex-col overflow-hidden rounded-[28px] border border-white/10 p-5 shadow-xl"
+                style={{ backgroundImage: posterBackground(item.signal) }}
               >
                 <div className="flex items-center justify-between">
                   <img src="/logo.png" alt="Finedge" className="h-4 w-auto" />
-                  <span className="text-[10px] text-subtle-foreground">{item.source}</span>
+                  <span className="text-[10px] font-medium text-white/60">{item.source}</span>
                 </div>
 
-                <h3 className="mt-3 text-[17px] font-bold leading-snug tracking-tight text-foreground">
+                <h3 className="mt-3 text-[17px] font-bold leading-snug tracking-tight text-white">
                   {item.headline}
                 </h3>
-                <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">{item.summary}</p>
+                <p className="mt-2 text-[12px] leading-relaxed text-white/75">{item.summary}</p>
 
                 {item.tickers.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {item.tickers.slice(0, 3).map((t) => (
                       <span
                         key={t.symbol}
-                        className="flex items-center gap-1 rounded-full bg-chip px-2 py-0.5 text-[10px] font-semibold"
+                        className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                        style={{ background: "rgba(255,255,255,0.12)" }}
                       >
-                        <span className="text-foreground">{t.symbol}</span>
-                        <span className={t.changePct >= 0 ? "text-bullish" : "text-bearish"}>
+                        <span className="text-white">{t.symbol}</span>
+                        <span style={{ color: t.changePct >= 0 ? "#22c55e" : "#f87171" }}>
                           {t.changePct >= 0 ? "+" : ""}
                           {t.changePct}%
                         </span>
@@ -141,6 +164,11 @@ export function ShareSheet({ item, onClose }: { item: NewsItem; onClose: () => v
                     ))}
                   </div>
                 )}
+
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 h-1"
+                  style={{ background: theme.accent }}
+                />
               </div>
             </div>
 
