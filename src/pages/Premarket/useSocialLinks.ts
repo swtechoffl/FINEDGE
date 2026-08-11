@@ -28,12 +28,24 @@ export const SOCIAL_META: Record<keyof SocialLinks, { icon: SocialIcon }> = {
 
 const EMPTY: SocialLinks = { instagram: "", twitter: "", telegram: "", youtube: "", website: "" };
 
+// Sharewealth's own official handles — shown by default on every poster/
+// report export until an analyst explicitly edits or clears them via the
+// Follow-Us Links editor. Only applies when nothing's been saved yet; once
+// a user's own choice (including a deliberate blank) is persisted, that's
+// what wins from then on.
+const DEFAULT_LINKS: SocialLinks = {
+  ...EMPTY,
+  instagram: "sharewealthhq",
+  youtube: "sharewealthgrp",
+  website: "www.sharewealthindia.com",
+};
+
 function readInitial(): SocialLinks {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY;
+    return raw ? { ...DEFAULT_LINKS, ...JSON.parse(raw) } : DEFAULT_LINKS;
   } catch {
-    return EMPTY;
+    return DEFAULT_LINKS;
   }
 }
 

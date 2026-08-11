@@ -463,6 +463,17 @@ app.post("/api/one-pager/generate", async (req, res) => {
 // they read as two distinct briefings, and either can be empty on a given
 // day (e.g. no IPOs/earnings) independent of the other.
 async function deliverTelegramPosters(origin, captionSuffix) {
+  // /posters' own data hooks fetch passively (no force) on mount, so without
+  // this a send could ship whatever the last background poll happened to
+  // leave in each source's cache — up to that source's own TTL stale (15min
+  // for prices, 5min for premarket/movers/internals). Refreshing all three
+  // right before the headless browser loads that page guarantees the
+  // screenshot reflects data from this moment, not an arbitrary prior poll.
+  await Promise.all([
+    getPremarket({ force: true }),
+    getMarketMovers({ force: true }),
+    getMarketInternals({ force: true }),
+  ]);
   const { global, movers } = await captureAllPosters(origin);
   if (global.length === 0 && movers.length === 0) {
     return { sent: false, reason: "no pre-market poster data available yet" };
@@ -480,7 +491,7 @@ async function deliverTelegramPosters(origin, captionSuffix) {
   return { sent: true, posters: sentPosterIds };
 }
 
-// Triggered by the Vercel Cron in vercel.json at 03:00 UTC (08:30 IST).
+// Triggered by the Vercel Cron in vercel.json at 02:30 UTC (08:00 IST).
 // Vercel signs cron requests with a bearer token matching CRON_SECRET — that
 // check is skipped when the var isn't set (local/manual testing) but is
 // mandatory in any deployment that configures it, since this endpoint sends
