@@ -5,14 +5,6 @@ import type { NewsItem } from "../../types";
 import { signalColor } from "../../components/SignalGauge";
 import { cn } from "../../lib/utils";
 
-function domainOf(url: string) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
-}
-
 function buildShareText(item: NewsItem) {
   return `${item.headline}\n\n${item.summary}\n\nvia stoqtrade.ai\n${item.articleUrl}`;
 }
@@ -33,7 +25,6 @@ export function ShareSheet({ item, onClose }: { item: NewsItem; onClose: () => v
   const [notice, setNotice] = useState<string | null>(null);
 
   const color = signalColor(item.signal);
-  const domain = domainOf(item.articleUrl);
   const canNativeShare = typeof navigator !== "undefined" && "share" in navigator;
 
   async function generateImageFile(): Promise<File | null> {
@@ -150,11 +141,6 @@ export function ShareSheet({ item, onClose }: { item: NewsItem; onClose: () => v
                     ))}
                   </div>
                 )}
-
-                <div className="mt-4 flex items-center justify-between rounded-xl bg-accent-bg px-3 py-2.5">
-                  <span className="text-[11px] font-semibold text-accent">Read full story</span>
-                  <span className="max-w-[110px] truncate text-[10px] text-accent/70">{domain}</span>
-                </div>
               </div>
             </div>
 
