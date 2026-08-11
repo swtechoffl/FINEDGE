@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Button } from "../../components/ui/Button";
+import { cn } from "../../lib/utils";
 import { usePremarket } from "../Premarket/usePremarket";
 import { usePostMarket } from "../PostMarket/usePostMarket";
 import { useMarketInternals } from "../MarketInternals/useMarketInternals";
@@ -10,8 +11,14 @@ import { ReportBrandingEditor } from "../Premarket/ReportBrandingEditor";
 import { useSocialLinks } from "../Premarket/useSocialLinks";
 import { PremarketPosters } from "../Premarket/PremarketPosters";
 import { GlobalMarketPosters } from "../Premarket/GlobalMarketPosters";
+import { PosterMakerPanel } from "../Premarket/PosterMakerPanel";
 
 type SendState = "idle" | "sending" | "sent" | "error";
+type ViewKey = "live" | "maker";
+const VIEWS: { key: ViewKey; label: string }[] = [
+  { key: "live", label: "Live Posters" },
+  { key: "maker", label: "Poster Maker" },
+];
 
 export function PostersPage() {
   const { data: premarketData, loading: premarketLoading } = usePremarket();
@@ -21,6 +28,7 @@ export function PostersPage() {
   const { links: socialLinks, setField: setSocialField, clear: clearSocialLinks } = useSocialLinks();
   const [sendState, setSendState] = useState<SendState>("idle");
   const [sendError, setSendError] = useState<string | null>(null);
+  const [view, setView] = useState<ViewKey>("live");
 
   async function handleSendNow() {
     setSendState("sending");
@@ -62,27 +70,29 @@ export function PostersPage() {
         meta="Story-ready graphics for social sharing"
         extra={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSendNow}
-              disabled={sendState === "sending" || !hasAnyData}
-              title="Send today's pre-market posters to Telegram now"
-            >
-              {sendState === "sending" ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Send size={14} className={sendState === "sent" ? "text-bullish" : undefined} />
-              )}
-              <span className="hidden sm:inline">
-                {sendState === "sending" ? "Sending…" : sendState === "sent" ? "Sent!" : "Send Now"}
-              </span>
-            </Button>
+            {view === "live" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendNow}
+                disabled={sendState === "sending" || !hasAnyData}
+                title="Send today's pre-market posters to Telegram now"
+              >
+                {sendState === "sending" ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Send size={14} className={sendState === "sent" ? "text-bullish" : undefined} />
+                )}
+                <span className="hidden sm:inline">
+                  {sendState === "sending" ? "Sending…" : sendState === "sent" ? "Sent!" : "Send Now"}
+                </span>
+              </Button>
+            )}
             <ReportBrandingEditor branding={branding} setName={setName} setLogoDataUrl={setLogoDataUrl} clear={clear} />
           </>
         }
       />
-      {sendState === "error" && sendError && (
+      {view === "live" && sendState === "error" && sendError && (
         <div className="mx-auto w-full max-w-5xl px-6 pt-4">
           <p className="rounded-lg border border-bearish/25 bg-bearish/10 px-3 py-2 text-xs font-medium text-bearish">
             Telegram send failed: {sendError}
@@ -91,46 +101,66 @@ export function PostersPage() {
       )}
 
       <div className="mx-auto w-full max-w-5xl px-6 py-6">
-        {loading && !hasAnyData ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
-            <Loader2 size={24} className="animate-spin text-accent" />
-            <p className="text-sm font-medium text-muted-foreground">Fetching market data…</p>
-          </div>
-        ) : !hasAnyData ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-32 text-center">
-            <p className="text-sm font-medium text-muted-foreground">
-              Couldn't load poster data. Make sure the API server is running.
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <PremarketPosters
-              near52WeekHigh={moversData.near52WeekHigh}
-              earningsCalendar={moversData.earningsCalendar}
-              corporateActions={moversData.corporateActionsAll}
-              ipos={premarketData.ipos}
-              volumeGainers={moversData.volumeGainers}
-              branding={branding}
-              links={socialLinks}
-              setField={setSocialField}
-              clear={clearSocialLinks}
-            />
+        <div className="mb-4 flex items-center gap-1.5 border-b border-border">
+          {VIEWS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setView(key)}
+              className={cn(
+                "focus-ring -mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors",
+                view === key
+                  ? "border-accent text-accent"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-            <GlobalMarketPosters
-              giftNifty={premarketData.giftNifty}
-              groups={premarketData.groups}
-              niftyPivots={premarketData.niftyPivots}
-              bankNiftyPivots={premarketData.bankNiftyPivots}
-              fiiDii={premarketData.fiiDii}
-              optionChains={internalsData.optionChains}
-              fnoBan={internalsData.fnoBan}
-              branding={branding}
-              links={socialLinks}
-              setField={setSocialField}
-              clear={clearSocialLinks}
-            />
-          </div>
-        )}
+        {view === "maker" && <PosterMakerPanel branding={branding} links={socialLinks} />}
+
+        {view === "live" &&
+          (loading && !hasAnyData ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-32 text-center">
+              <Loader2 size={24} className="animate-spin text-accent" />
+              <p className="text-sm font-medium text-muted-foreground">Fetching market data…</p>
+            </div>
+          ) : !hasAnyData ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-32 text-center">
+              <p className="text-sm font-medium text-muted-foreground">
+                Couldn't load poster data. Make sure the API server is running.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <PremarketPosters
+                near52WeekHigh={moversData.near52WeekHigh}
+                earningsCalendar={moversData.earningsCalendar}
+                corporateActions={moversData.corporateActionsAll}
+                ipos={premarketData.ipos}
+                volumeGainers={moversData.volumeGainers}
+                branding={branding}
+                links={socialLinks}
+                setField={setSocialField}
+                clear={clearSocialLinks}
+              />
+
+              <GlobalMarketPosters
+                giftNifty={premarketData.giftNifty}
+                groups={premarketData.groups}
+                niftyPivots={premarketData.niftyPivots}
+                bankNiftyPivots={premarketData.bankNiftyPivots}
+                fiiDii={premarketData.fiiDii}
+                optionChains={internalsData.optionChains}
+                fnoBan={internalsData.fnoBan}
+                branding={branding}
+                links={socialLinks}
+                setField={setSocialField}
+                clear={clearSocialLinks}
+              />
+            </div>
+          ))}
       </div>
     </div>
   );
