@@ -3,7 +3,6 @@ import { X, Copy, Check, Download, Share2, Camera, MessageCircle } from "lucide-
 import { toBlob } from "html-to-image";
 import type { NewsItem } from "../../types";
 import { signalColor } from "../../components/SignalGauge";
-import { Badge } from "../../components/ui/Badge";
 import { cn } from "../../lib/utils";
 
 function domainOf(url: string) {
@@ -122,27 +121,18 @@ export function ShareSheet({ item, onClose }: { item: NewsItem; onClose: () => v
             <div className="mx-auto mb-5 w-[280px]">
               <div
                 ref={cardRef}
-                className="relative flex h-[498px] w-[280px] flex-col overflow-hidden rounded-[28px] border border-border bg-surface p-5"
+                className="relative flex w-[280px] flex-col overflow-hidden rounded-[28px] border border-border bg-surface p-5"
                 style={{ borderTop: `4px solid ${color}` }}
               >
                 <div className="flex items-center justify-between">
                   <img src="/logo.png" alt="Finedge" className="h-4 w-auto" />
-                  <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color }}>
-                    {item.signal}
-                  </span>
-                </div>
-
-                <div className="mt-4 flex items-center gap-2">
-                  <Badge size="sm">{item.category}</Badge>
                   <span className="text-[10px] text-subtle-foreground">{item.source}</span>
                 </div>
 
-                <h3 className="mt-3 line-clamp-4 text-[17px] font-bold leading-snug tracking-tight text-foreground">
+                <h3 className="mt-3 text-[17px] font-bold leading-snug tracking-tight text-foreground">
                   {item.headline}
                 </h3>
-                <p className="mt-2 line-clamp-4 text-[12px] leading-relaxed text-muted-foreground">
-                  {item.summary}
-                </p>
+                <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">{item.summary}</p>
 
                 {item.tickers.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
@@ -161,7 +151,7 @@ export function ShareSheet({ item, onClose }: { item: NewsItem; onClose: () => v
                   </div>
                 )}
 
-                <div className="mt-auto flex items-center justify-between rounded-xl bg-accent-bg px-3 py-2.5">
+                <div className="mt-4 flex items-center justify-between rounded-xl bg-accent-bg px-3 py-2.5">
                   <span className="text-[11px] font-semibold text-accent">Read full story</span>
                   <span className="max-w-[110px] truncate text-[10px] text-accent/70">{domain}</span>
                 </div>

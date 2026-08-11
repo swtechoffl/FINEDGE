@@ -130,9 +130,20 @@ function stripHtml(html) {
   return decodeEntities(html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim());
 }
 
-function truncate(text, max = 320) {
+// Cuts at the last sentence boundary within `max` rather than an arbitrary
+// character count — a summary ending mid-word with "…" reads as broken,
+// especially on the share poster where it's the main body text. Only
+// trusts a period as a real sentence end if it's past the halfway point
+// (guards against an early abbreviation/decimal leaving a near-empty
+// result); falls back to the old hard cutoff + ellipsis when no such
+// period exists in range.
+function truncate(text, max = 600) {
   if (!text) return "";
-  return text.length > max ? text.slice(0, max).trimEnd() + "…" : text;
+  if (text.length <= max) return text;
+  const clipped = text.slice(0, max);
+  const lastStop = clipped.lastIndexOf(".");
+  if (lastStop > max * 0.5) return clipped.slice(0, lastStop + 1);
+  return clipped.trimEnd() + "…";
 }
 
 function makeId(source, item) {
