@@ -43,6 +43,7 @@ function RaCallCard() {
     ctaText: "Join Us Now",
     raName: "",
     sebiRegNo: "",
+    raAddress: "",
     disclaimer: RA_DEFAULT_DISCLAIMER,
   });
 
@@ -147,6 +148,18 @@ function RaCallCard() {
               />
             </div>
             <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Registered Address (optional)
+              </label>
+              <Textarea
+                rows={2}
+                value={call.raAddress}
+                onChange={(e) => patch("raAddress", e.target.value)}
+                placeholder="123 MG Road, Bengaluru, Karnataka 560001"
+                className="text-xs"
+              />
+            </div>
+            <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Disclaimer</label>
               <Textarea
                 rows={3}
@@ -184,6 +197,7 @@ function GeneratedRaListPoster({
   ctaText,
   raName,
   sebiRegNo,
+  raAddress,
   rows,
   pageIndex,
   totalPages,
@@ -195,6 +209,7 @@ function GeneratedRaListPoster({
   ctaText: string;
   raName: string;
   sebiRegNo: string;
+  raAddress: string;
   rows: RaListRow[];
   pageIndex: number;
   totalPages: number;
@@ -216,6 +231,7 @@ function GeneratedRaListPoster({
           ctaText={ctaText}
           raName={raName}
           sebiRegNo={sebiRegNo}
+          raAddress={raAddress}
           pageLabel={totalPages > 1 ? `Page ${pageIndex} of ${totalPages}` : undefined}
         >
           <div className={`flex flex-col ${density.gap}`}>
@@ -246,6 +262,7 @@ function RaListMaker() {
   const [ctaText, setCtaText] = useState("Join Us Now");
   const [raName, setRaName] = useState("");
   const [sebiRegNo, setSebiRegNo] = useState("");
+  const [raAddress, setRaAddress] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [rows, setRows] = useState<RaListRow[] | null>(null);
   const [errors, setErrors] = useState<ParseError[]>([]);
@@ -298,6 +315,17 @@ function RaListMaker() {
               <label className="mb-1 block text-xs font-medium text-muted-foreground">SEBI Reg. No. (optional)</label>
               <Input value={sebiRegNo} onChange={(e) => setSebiRegNo(e.target.value)} placeholder="INH000012345" />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Registered Address (optional)</label>
+            <Textarea
+              rows={2}
+              value={raAddress}
+              onChange={(e) => setRaAddress(e.target.value)}
+              placeholder="123 MG Road, Bengaluru, Karnataka 560001"
+              className="text-xs"
+            />
           </div>
 
           <div>
@@ -358,6 +386,7 @@ function RaListMaker() {
                   ctaText={ctaText}
                   raName={raName}
                   sebiRegNo={sebiRegNo}
+                  raAddress={raAddress}
                   rows={pageRows}
                   pageIndex={i + 1}
                   totalPages={pages.length}
