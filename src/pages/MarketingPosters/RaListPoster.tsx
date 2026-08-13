@@ -35,16 +35,21 @@ export function RaCallRow({ row, density }: { row: RaListRow; density: RowDensit
   return (
     <div className={cn("rounded-lg bg-white/10", density.padding)}>
       <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-col">
-          <span className={cn("truncate font-bold leading-tight text-white", density.primaryText)}>{row.symbol}</span>
-          <span className={cn("text-white/55", density.secondaryText)}>
-            {row.callDate} &middot; {fmtRaPrice(Number(row.entryPrice) || 0)} &rarr;{" "}
-            {fmtRaPrice(Number(row.exitPrice) || 0)}
-          </span>
-        </div>
+        <span className={cn("truncate font-bold leading-tight text-white", density.primaryText)}>{row.symbol}</span>
         <span className={cn("shrink-0 font-bold", density.secondaryText)} style={{ color }}>
           {up ? "+" : ""}
           {Number.isFinite(pct) ? pct.toFixed(2) : row.profitPct}%
+        </span>
+      </div>
+      <div className={cn("mt-0.5 text-white/55", density.secondaryText)}>
+        <span className="text-white/40">Call Date:</span> {row.callDate}
+      </div>
+      <div className={cn("mt-0.5 flex items-center gap-2", density.secondaryText)}>
+        <span className="text-white/85">
+          <span className="text-white/40">Entry:</span> {fmtRaPrice(Number(row.entryPrice) || 0)}
+        </span>
+        <span className="text-white/85">
+          <span className="text-white/40">Exit:</span> {fmtRaPrice(Number(row.exitPrice) || 0)}
         </span>
       </div>
       {row.quote?.trim() && (
