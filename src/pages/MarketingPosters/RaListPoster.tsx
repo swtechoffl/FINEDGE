@@ -75,12 +75,28 @@ export const RaListPosterFrame = forwardRef<
     ctaText: string;
     raName: string;
     sebiRegNo: string;
+    sebiRegDate: string;
+    bseEnlistmentNo: string;
     raAddress: string;
     pageLabel?: string;
     children: React.ReactNode;
   }
 >(function RaListPosterFrame(
-  { posterId, title, subtitle, disclaimer, planText, ctaText, raName, sebiRegNo, raAddress, pageLabel, children },
+  {
+    posterId,
+    title,
+    subtitle,
+    disclaimer,
+    planText,
+    ctaText,
+    raName,
+    sebiRegNo,
+    sebiRegDate,
+    bseEnlistmentNo,
+    raAddress,
+    pageLabel,
+    children,
+  },
   ref,
 ) {
   return (
@@ -137,11 +153,22 @@ export const RaListPosterFrame = forwardRef<
         </div>
       )}
 
-      {(raName.trim() || sebiRegNo.trim() || raAddress.trim()) && (
+      {(raName.trim() || sebiRegNo.trim() || sebiRegDate.trim() || bseEnlistmentNo.trim() || raAddress.trim()) && (
         <div className="mt-2 text-center">
           <div className="text-[7.5px] font-semibold" style={{ color: RA_TEXT_SECONDARY }}>
-            {[raName.trim(), sebiRegNo.trim() && `SEBI Reg. No: ${sebiRegNo.trim()}`].filter(Boolean).join(" · ")}
+            {[
+              raName.trim(),
+              sebiRegNo.trim() && `SEBI Reg. No: ${sebiRegNo.trim()}`,
+              bseEnlistmentNo.trim() && `BSE Enlistment No: ${bseEnlistmentNo.trim()}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </div>
+          {sebiRegDate.trim() && (
+            <div className="mt-0.5 text-[7px] font-medium" style={{ color: RA_TEXT_SECONDARY }}>
+              SEBI Registration Date: {sebiRegDate.trim()}
+            </div>
+          )}
           {raAddress.trim() && (
             <div className="mt-0.5 text-[7px] leading-snug" style={{ color: RA_TEXT_MUTED }}>
               {raAddress.trim()}

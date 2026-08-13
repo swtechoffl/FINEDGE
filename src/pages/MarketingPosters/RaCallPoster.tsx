@@ -31,6 +31,8 @@ export interface RaCallInput {
   ctaText: string;
   raName: string;
   sebiRegNo: string;
+  sebiRegDate: string;
+  bseEnlistmentNo: string;
   raAddress: string;
   disclaimer: string;
 }
@@ -148,13 +150,26 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
           </div>
         )}
 
-        {(call.raName.trim() || call.sebiRegNo.trim() || call.raAddress.trim()) && (
+        {(call.raName.trim() ||
+          call.sebiRegNo.trim() ||
+          call.sebiRegDate.trim() ||
+          call.bseEnlistmentNo.trim() ||
+          call.raAddress.trim()) && (
           <div className="text-center">
             <div className="text-[9px] font-semibold" style={{ color: RA_TEXT_SECONDARY }}>
-              {[call.raName.trim(), call.sebiRegNo.trim() && `SEBI Reg. No: ${call.sebiRegNo.trim()}`]
+              {[
+                call.raName.trim(),
+                call.sebiRegNo.trim() && `SEBI Reg. No: ${call.sebiRegNo.trim()}`,
+                call.bseEnlistmentNo.trim() && `BSE Enlistment No: ${call.bseEnlistmentNo.trim()}`,
+              ]
                 .filter(Boolean)
                 .join(" · ")}
             </div>
+            {call.sebiRegDate.trim() && (
+              <div className="mt-0.5 text-[8px] font-medium" style={{ color: RA_TEXT_SECONDARY }}>
+                SEBI Registration Date: {call.sebiRegDate.trim()}
+              </div>
+            )}
             {call.raAddress.trim() && (
               <div className="mt-0.5 text-[8px] leading-snug" style={{ color: RA_TEXT_MUTED }}>
                 {call.raAddress.trim()}

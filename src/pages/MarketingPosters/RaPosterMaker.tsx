@@ -9,7 +9,14 @@ import { parsePosterMakerText, paginateRows, type ParseError } from "../Premarke
 import type { PosterMakerColumn } from "../Premarket/posterMakerTemplates";
 import { RaCallPoster, RA_CALL_POSTER_WIDTH, type RaCallInput } from "./RaCallPoster";
 import { RaListPosterFrame, RaCallRow, type RaListRow } from "./RaListPoster";
-import { RA_DEFAULT_DISCLAIMER } from "./raPosterTheme";
+import {
+  RA_DEFAULT_DISCLAIMER,
+  RA_DEFAULT_NAME,
+  RA_DEFAULT_SEBI_REG_NO,
+  RA_DEFAULT_SEBI_REG_DATE,
+  RA_DEFAULT_BSE_ENLISTMENT_NO,
+  RA_DEFAULT_ADDRESS,
+} from "./raPosterTheme";
 
 const LIST_COLUMNS: PosterMakerColumn[] = [
   { key: "symbol", label: "Stock", required: true, placeholder: "RELIANCE" },
@@ -42,9 +49,11 @@ function RaCallCard() {
     marketingQuote: "",
     planText: "Plan starts from ₹34/day",
     ctaText: "Join Us Now",
-    raName: "",
-    sebiRegNo: "",
-    raAddress: "",
+    raName: RA_DEFAULT_NAME,
+    sebiRegNo: RA_DEFAULT_SEBI_REG_NO,
+    sebiRegDate: RA_DEFAULT_SEBI_REG_DATE,
+    bseEnlistmentNo: RA_DEFAULT_BSE_ENLISTMENT_NO,
+    raAddress: RA_DEFAULT_ADDRESS,
     disclaimer: RA_DEFAULT_DISCLAIMER,
   });
 
@@ -146,6 +155,26 @@ function RaCallCard() {
                 placeholder="INH000012345"
               />
             </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                SEBI Registration Date (optional)
+              </label>
+              <Input
+                value={call.sebiRegDate}
+                onChange={(e) => patch("sebiRegDate", e.target.value)}
+                placeholder="31 October 2022"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                BSE Enlistment No. (optional)
+              </label>
+              <Input
+                value={call.bseEnlistmentNo}
+                onChange={(e) => patch("bseEnlistmentNo", e.target.value)}
+                placeholder="5657"
+              />
+            </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 Research Analyst / Firm Name (optional)
@@ -207,6 +236,8 @@ function GeneratedRaListPoster({
   ctaText,
   raName,
   sebiRegNo,
+  sebiRegDate,
+  bseEnlistmentNo,
   raAddress,
   rows,
   pageIndex,
@@ -220,6 +251,8 @@ function GeneratedRaListPoster({
   ctaText: string;
   raName: string;
   sebiRegNo: string;
+  sebiRegDate: string;
+  bseEnlistmentNo: string;
   raAddress: string;
   rows: RaListRow[];
   pageIndex: number;
@@ -243,6 +276,8 @@ function GeneratedRaListPoster({
           ctaText={ctaText}
           raName={raName}
           sebiRegNo={sebiRegNo}
+          sebiRegDate={sebiRegDate}
+          bseEnlistmentNo={bseEnlistmentNo}
           raAddress={raAddress}
           pageLabel={totalPages > 1 ? `Page ${pageIndex} of ${totalPages}` : undefined}
         >
@@ -273,9 +308,11 @@ function RaListMaker() {
   const [disclaimer, setDisclaimer] = useState(RA_DEFAULT_DISCLAIMER);
   const [planText, setPlanText] = useState("Plan starts from ₹34/day");
   const [ctaText, setCtaText] = useState("Join Us Now");
-  const [raName, setRaName] = useState("");
-  const [sebiRegNo, setSebiRegNo] = useState("");
-  const [raAddress, setRaAddress] = useState("");
+  const [raName, setRaName] = useState(RA_DEFAULT_NAME);
+  const [sebiRegNo, setSebiRegNo] = useState(RA_DEFAULT_SEBI_REG_NO);
+  const [sebiRegDate, setSebiRegDate] = useState(RA_DEFAULT_SEBI_REG_DATE);
+  const [bseEnlistmentNo, setBseEnlistmentNo] = useState(RA_DEFAULT_BSE_ENLISTMENT_NO);
+  const [raAddress, setRaAddress] = useState(RA_DEFAULT_ADDRESS);
   const [pasteText, setPasteText] = useState("");
   const [rows, setRows] = useState<RaListRow[] | null>(null);
   const [errors, setErrors] = useState<ParseError[]>([]);
@@ -334,6 +371,29 @@ function RaListMaker() {
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">SEBI Reg. No. (optional)</label>
               <Input value={sebiRegNo} onChange={(e) => setSebiRegNo(e.target.value)} placeholder="INH000012345" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                SEBI Registration Date (optional)
+              </label>
+              <Input
+                value={sebiRegDate}
+                onChange={(e) => setSebiRegDate(e.target.value)}
+                placeholder="31 October 2022"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                BSE Enlistment No. (optional)
+              </label>
+              <Input
+                value={bseEnlistmentNo}
+                onChange={(e) => setBseEnlistmentNo(e.target.value)}
+                placeholder="5657"
+              />
             </div>
           </div>
 
@@ -407,6 +467,8 @@ function RaListMaker() {
                   ctaText={ctaText}
                   raName={raName}
                   sebiRegNo={sebiRegNo}
+                  sebiRegDate={sebiRegDate}
+                  bseEnlistmentNo={bseEnlistmentNo}
                   raAddress={raAddress}
                   rows={pageRows}
                   pageIndex={i + 1}

@@ -17,6 +17,16 @@ export const RA_BEARISH_BG = "rgba(248,113,113,0.14)";
 export const RA_DEFAULT_DISCLAIMER =
   "Investments in securities market are subject to market risks. Read all related documents carefully before investing. Past performance is not indicative of future returns.";
 
+// This RA's own compliance details, pre-filled so every poster carries them
+// without the analyst having to retype them each time — still editable per
+// poster for a different signatory.
+export const RA_DEFAULT_NAME = "Ramakrishnan T.B";
+export const RA_DEFAULT_SEBI_REG_NO = "INH000010496";
+export const RA_DEFAULT_SEBI_REG_DATE = "31 October 2022";
+export const RA_DEFAULT_BSE_ENLISTMENT_NO = "5657";
+export const RA_DEFAULT_ADDRESS =
+  "3213 Topaz Sobha City, Puzhakkal Post, Thrissur District, Kerala State, Pin-680553";
+
 export function fmtRaPrice(n: number) {
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
