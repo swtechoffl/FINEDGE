@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Header } from "../../components/Header";
 import { Card } from "../../components/ui/Card";
+import { cn } from "../../lib/utils";
 import { useReportBranding } from "../Premarket/useReportBranding";
 import { ReportBrandingEditor } from "../Premarket/ReportBrandingEditor";
 import { useSocialLinks } from "../Premarket/useSocialLinks";
@@ -14,6 +15,13 @@ import { MARKETING_POSTER_TEMPLATES, type MarketingPosterTemplate } from "./mark
 import { PostMarketSummaryPoster } from "./PostMarketSummaryPoster";
 import { PostMarketSummaryEditor } from "./PostMarketSummaryEditor";
 import { usePostMarketSummaryOverrides } from "./usePostMarketSummaryOverrides";
+import { RaPosterMaker } from "./RaPosterMaker";
+
+type ViewKey = "products" | "ra";
+const VIEWS: { key: ViewKey; label: string }[] = [
+  { key: "products", label: "Products" },
+  { key: "ra", label: "RA" },
+];
 
 function MarketingPosterCard({
   template,
@@ -160,6 +168,7 @@ export function MarketingPostersPage() {
   const { branding, setName, setLogoDataUrl, clear } = useReportBranding();
   const { links: socialLinks, setField: setSocialField, clear: clearSocialLinks } = useSocialLinks();
   const { overrides, setOverride, resetOverride, applyOverride } = useMarketingPosterOverrides();
+  const [view, setView] = useState<ViewKey>("products");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -170,52 +179,73 @@ export function MarketingPostersPage() {
       />
 
       <div className="mx-auto w-full max-w-5xl px-6 py-6">
-        <div className="flex flex-col gap-4">
-          <Card className="overflow-hidden">
-            <div className="bg-surface p-5">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <div>
+        <div className="mb-4 flex items-center gap-1.5 border-b border-border">
+          {VIEWS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setView(key)}
+              className={cn(
+                "focus-ring -mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors",
+                view === key
+                  ? "border-accent text-accent"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {view === "ra" && <RaPosterMaker />}
+
+        {view === "products" && (
+          <div className="flex flex-col gap-4">
+            <Card className="overflow-hidden">
+              <div className="bg-surface p-5">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-base font-extrabold tracking-tight text-foreground">
+                      Product Posters<span className="text-accent">.</span>
+                    </h2>
+                    <p className="text-xs text-subtle-foreground">
+                      Demat & Trading, Mutual Funds, Insurance and more — tap Edit on any poster to make it your own
+                    </p>
+                  </div>
+                  <SocialLinksEditor links={socialLinks} setField={setSocialField} clear={clearSocialLinks} />
+                </div>
+
+                <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-1">
+                  {MARKETING_POSTER_TEMPLATES.map((template) => (
+                    <MarketingPosterCard
+                      key={template.id}
+                      template={applyOverride(template)}
+                      branding={branding}
+                      links={socialLinks}
+                      hasOverride={Boolean(overrides[template.id])}
+                      onChange={(patch) => setOverride(template.id, patch)}
+                      onReset={() => resetOverride(template.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="overflow-hidden">
+              <div className="bg-surface p-5">
+                <div className="mb-4">
                   <h2 className="text-base font-extrabold tracking-tight text-foreground">
-                    Product Posters<span className="text-accent">.</span>
+                    Post Market Summary<span className="text-accent">.</span>
                   </h2>
                   <p className="text-xs text-subtle-foreground">
-                    Demat & Trading, Mutual Funds, Insurance and more — tap Edit on any poster to make it your own
+                    A live end-of-day recap poster — Nifty, Sensex, Bank Nifty, gold, top movers & index futures OI
                   </p>
                 </div>
-                <SocialLinksEditor links={socialLinks} setField={setSocialField} clear={clearSocialLinks} />
-              </div>
 
-              <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-1">
-                {MARKETING_POSTER_TEMPLATES.map((template) => (
-                  <MarketingPosterCard
-                    key={template.id}
-                    template={applyOverride(template)}
-                    branding={branding}
-                    links={socialLinks}
-                    hasOverride={Boolean(overrides[template.id])}
-                    onChange={(patch) => setOverride(template.id, patch)}
-                    onReset={() => resetOverride(template.id)}
-                  />
-                ))}
+                <PostMarketSummaryCard />
               </div>
-            </div>
-          </Card>
-
-          <Card className="overflow-hidden">
-            <div className="bg-surface p-5">
-              <div className="mb-4">
-                <h2 className="text-base font-extrabold tracking-tight text-foreground">
-                  Post Market Summary<span className="text-accent">.</span>
-                </h2>
-                <p className="text-xs text-subtle-foreground">
-                  A live end-of-day recap poster — Nifty, Sensex, Bank Nifty, gold, top movers & index futures OI
-                </p>
-              </div>
-
-              <PostMarketSummaryCard />
-            </div>
-          </Card>
-        </div>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
