@@ -15,14 +15,20 @@ const LIST_COLUMNS: PosterMakerColumn[] = [
   { key: "symbol", label: "Stock", required: true, placeholder: "RELIANCE" },
   { key: "callDate", label: "Call Date", required: true, placeholder: "12-Aug-2026" },
   { key: "entryPrice", label: "Entry", required: true, type: "number", placeholder: "2450" },
+  { key: "exitPrice", label: "Exit", required: true, type: "number", placeholder: "2600" },
   { key: "profitPct", label: "% Profit", required: true, type: "number", placeholder: "6.4" },
+  { key: "quote", label: "Quote (optional)", required: false, placeholder: "Booked at resistance" },
 ];
-const EXAMPLE_LINE = "RELIANCE, 12-Aug-2026, 2450, 6.4";
+// Pipe-delimited — a marketing quote is free text and may itself contain
+// commas, so comma can't be the example's delimiter (parsePosterMakerText
+// still auto-detects whichever delimiter a pasted line actually uses).
+const EXAMPLE_LINE = "RELIANCE | 12-Aug-2026 | 2450 | 2600 | 6.4 | Booked at resistance";
 
 // Single-call card: fill in one call, get one detailed "call announced /
 // running" poster. Sibling to the list maker below for a "this week's calls"
-// roundup — both share the same fields (stock, call date, entry, %profit,
-// disclaimer) and just differ in how many calls land on one image.
+// roundup — both share the same fields (stock, call date, entry/exit price,
+// %profit, quote, disclaimer) and just differ in how many calls land on one
+// image.
 function RaCallCard() {
   const ref = useRef<HTMLDivElement>(null);
   const dateStr = new Date().toISOString().slice(0, 10);
@@ -31,7 +37,9 @@ function RaCallCard() {
     companyName: "",
     callDate: dateStr,
     entryPrice: 0,
+    exitPrice: 0,
     profitPct: 0,
+    marketingQuote: "",
     disclaimer: RA_DEFAULT_DISCLAIMER,
   });
 
@@ -47,7 +55,7 @@ function RaCallCard() {
             RA Call Card<span className="text-accent">.</span>
           </h2>
           <p className="text-xs text-subtle-foreground">
-            One call, one poster — stock, call date, entry price, % profit and a disclaimer.
+            One call, one poster — stock, call date, entry/exit price, % profit, a marketing quote and a disclaimer.
           </p>
         </div>
 
@@ -82,14 +90,31 @@ function RaCallCard() {
                 placeholder="2450"
               />
             </div>
-            <div className="sm:col-span-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Exit Price</label>
+              <Input
+                type="number"
+                value={call.exitPrice || ""}
+                onChange={(e) => patch("exitPrice", Number(e.target.value))}
+                placeholder="2600"
+              />
+            </div>
+            <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">% Profit</label>
               <Input
                 type="number"
                 step="0.01"
                 value={call.profitPct || ""}
                 onChange={(e) => patch("profitPct", Number(e.target.value))}
-                placeholder="6.4 (use a negative number for a loss)"
+                placeholder="6.4 (negative for a loss)"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Marketing Quote (optional)</label>
+              <Input
+                value={call.marketingQuote}
+                onChange={(e) => patch("marketingQuote", e.target.value)}
+                placeholder="Booked profits at resistance — textbook breakout"
               />
             </div>
             <div className="sm:col-span-2">
@@ -173,9 +198,9 @@ function GeneratedRaListPoster({
   );
 }
 
-// Bulk sibling of RaCallCard — paste many calls at once (same four fields
-// per line) and get however many list posters it takes to fit them, reusing
-// the exact paste-parse-paginate engine the Premarket Poster Maker uses.
+// Bulk sibling of RaCallCard — paste many calls at once (same fields per
+// line) and get however many list posters it takes to fit them, reusing the
+// exact paste-parse-paginate engine the Premarket Poster Maker uses.
 function RaListMaker() {
   const [title, setTitle] = useState("Research Calls");
   const [subtitle, setSubtitle] = useState("Track Record");
@@ -224,7 +249,8 @@ function RaListMaker() {
 
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Paste data — one row per line, columns separated by a comma, tab, or "|":{" "}
+              Paste data — one row per line, columns separated by a comma, tab, or "|" (use "|" if your quote text
+              contains commas):{" "}
               <span className="font-semibold text-foreground">{LIST_COLUMNS.map((c) => c.label).join(" · ")}</span>
             </label>
             <Textarea

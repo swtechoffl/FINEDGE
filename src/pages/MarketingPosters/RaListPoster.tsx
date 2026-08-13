@@ -19,7 +19,9 @@ export interface RaListRow {
   symbol: string;
   callDate: string;
   entryPrice: string;
+  exitPrice: string;
   profitPct: string;
+  quote?: string;
 }
 
 function todayLabel() {
@@ -31,17 +33,23 @@ export function RaCallRow({ row, density }: { row: RaListRow; density: RowDensit
   const up = Number.isFinite(pct) && pct >= 0;
   const color = up ? RA_BULLISH : RA_BEARISH;
   return (
-    <div className={cn("flex items-center justify-between gap-2 rounded-lg bg-white/10", density.padding)}>
-      <div className="flex min-w-0 flex-col">
-        <span className={cn("truncate font-bold leading-tight text-white", density.primaryText)}>{row.symbol}</span>
-        <span className={cn("text-white/55", density.secondaryText)}>
-          {row.callDate} &middot; Entry {fmtRaPrice(Number(row.entryPrice) || 0)}
+    <div className={cn("rounded-lg bg-white/10", density.padding)}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-col">
+          <span className={cn("truncate font-bold leading-tight text-white", density.primaryText)}>{row.symbol}</span>
+          <span className={cn("text-white/55", density.secondaryText)}>
+            {row.callDate} &middot; {fmtRaPrice(Number(row.entryPrice) || 0)} &rarr;{" "}
+            {fmtRaPrice(Number(row.exitPrice) || 0)}
+          </span>
+        </div>
+        <span className={cn("shrink-0 font-bold", density.secondaryText)} style={{ color }}>
+          {up ? "+" : ""}
+          {Number.isFinite(pct) ? pct.toFixed(2) : row.profitPct}%
         </span>
       </div>
-      <span className={cn("shrink-0 font-bold", density.secondaryText)} style={{ color }}>
-        {up ? "+" : ""}
-        {Number.isFinite(pct) ? pct.toFixed(2) : row.profitPct}%
-      </span>
+      {row.quote?.trim() && (
+        <div className={cn("mt-1 truncate italic text-white/70", density.secondaryText)}>&ldquo;{row.quote}&rdquo;</div>
+      )}
     </div>
   );
 }
@@ -69,8 +77,7 @@ export const RaListPosterFrame = forwardRef<
       className="relative flex aspect-[9/16] flex-col overflow-hidden p-4"
       style={{ width: RA_LIST_POSTER_WIDTH, background: RA_BG_APP }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <img src="/logo.png" alt="Finedge" className="h-6 w-auto shrink-0" />
+      <div className="flex items-center justify-end gap-2">
         <div className="shrink-0 text-[8px]" style={{ color: RA_TEXT_MUTED }}>
           {todayLabel()}
         </div>

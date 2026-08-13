@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { Calendar, ArrowUp, ArrowDown, Shield } from "lucide-react";
+import { Calendar, ArrowUp, ArrowDown, Shield, Quote } from "lucide-react";
 import { useFitHeight } from "./useFitHeight";
 import {
   RA_BG_APP,
@@ -24,8 +24,26 @@ export interface RaCallInput {
   companyName: string;
   callDate: string;
   entryPrice: number;
+  exitPrice: number;
   profitPct: number;
+  marketingQuote: string;
   disclaimer: string;
+}
+
+function RaPriceTile({ label, price, bordered = true }: { label: string; price: number; bordered?: boolean }) {
+  return (
+    <div
+      className="flex flex-1 flex-col items-center gap-1 px-2 py-3"
+      style={{ borderLeft: bordered ? `1px solid ${RA_BORDER}` : "none" }}
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: RA_TEXT_MUTED }}>
+        {label}
+      </div>
+      <div className="text-[19px] font-bold" style={{ color: RA_TEXT_PRIMARY }}>
+        {fmtRaPrice(price)}
+      </div>
+    </div>
+  );
 }
 
 // Manual-entry counterpart to ResearchTracker's ResearchExitPoster — same
@@ -48,8 +66,6 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
       style={{ width: RA_CALL_POSTER_WIDTH, height, background: RA_BG_APP }}
     >
       <div ref={measureRef} className="flex flex-col gap-3 p-4">
-        <img src="/logo.png" alt="Finedge" className="h-7 w-auto self-start" />
-
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: RA_TEXT_MUTED }}>
@@ -92,18 +108,24 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
         </div>
 
         <div
-          className="flex items-center justify-center rounded-xl py-3"
+          className="flex items-stretch overflow-hidden rounded-xl"
           style={{ background: RA_BG_SURFACE, border: `1px solid ${RA_BORDER}` }}
         >
-          <div className="flex flex-col items-center gap-1">
-            <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: RA_TEXT_MUTED }}>
-              Entry Price
-            </div>
-            <div className="text-[19px] font-bold" style={{ color: RA_TEXT_PRIMARY }}>
-              {fmtRaPrice(call.entryPrice)}
-            </div>
-          </div>
+          <RaPriceTile label="Entry" price={call.entryPrice} bordered={false} />
+          <RaPriceTile label="Exit" price={call.exitPrice} />
         </div>
+
+        {call.marketingQuote.trim() && (
+          <div
+            className="flex items-start gap-1.5 rounded-xl px-3 py-2.5"
+            style={{ background: RA_BG_SURFACE_2, border: `1px solid ${RA_BORDER}` }}
+          >
+            <Quote size={14} className="mt-0.5 shrink-0" style={{ color }} />
+            <p className="text-[11.5px] font-medium italic leading-snug" style={{ color: RA_TEXT_PRIMARY }}>
+              {call.marketingQuote}
+            </p>
+          </div>
+        )}
 
         <div className="flex items-start justify-center gap-1.5 px-2">
           <Shield size={12} className="mt-0.5 shrink-0" style={{ color: RA_TEXT_MUTED }} />
