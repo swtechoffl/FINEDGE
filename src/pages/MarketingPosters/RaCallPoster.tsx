@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { Calendar, ArrowUp, ArrowDown, Shield, Quote, ArrowRight } from "lucide-react";
+import { Calendar, ArrowUp, ArrowDown, Shield, Quote, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useFitHeight } from "./useFitHeight";
 import {
   RA_BG_APP,
@@ -68,6 +68,7 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
   const bg = up ? RA_BULLISH_BG : RA_BEARISH_BG;
   const Icon = up ? ArrowUp : ArrowDown;
   const daysTaken = call.showDaysTaken ? raDaysHeld(call.callDate, call.exitDate) : null;
+  const booked = daysTaken != null;
 
   return (
     <div
@@ -113,8 +114,12 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
               {call.profitPct.toFixed(2)}%
             </span>
           </div>
-          <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color }}>
-            {up ? "In Profit" : "In Loss"}
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest"
+            style={{ color }}
+          >
+            {booked && <CheckCircle2 size={12} strokeWidth={3} />}
+            {booked ? (up ? "Profit Booked" : "Loss Booked") : up ? "In Profit" : "In Loss"}
             {daysTaken != null && ` · in ${daysTaken} day${daysTaken === 1 ? "" : "s"}`}
           </span>
         </div>
