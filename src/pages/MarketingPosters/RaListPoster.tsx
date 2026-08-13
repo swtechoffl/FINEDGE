@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { TrendingUp, Shield } from "lucide-react";
+import { TrendingUp, Shield, ArrowRight } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { RowDensity } from "../Premarket/posterShared";
 import {
@@ -66,10 +66,16 @@ export const RaListPosterFrame = forwardRef<
     title: string;
     subtitle: string;
     disclaimer: string;
+    ctaText: string;
+    raName: string;
+    sebiRegNo: string;
     pageLabel?: string;
     children: React.ReactNode;
   }
->(function RaListPosterFrame({ posterId, title, subtitle, disclaimer, pageLabel, children }, ref) {
+>(function RaListPosterFrame(
+  { posterId, title, subtitle, disclaimer, ctaText, raName, sebiRegNo, pageLabel, children },
+  ref,
+) {
   return (
     <div
       ref={ref}
@@ -108,7 +114,20 @@ export const RaListPosterFrame = forwardRef<
 
       <div className="flex flex-1 flex-col gap-1.5 overflow-hidden">{children}</div>
 
-      <div className="mt-3 flex items-start gap-1.5 border-t border-white/10 pt-2.5">
+      {ctaText.trim() && (
+        <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg py-2" style={{ background: RA_BULLISH }}>
+          <span className="text-[10px] font-extrabold uppercase tracking-wide text-black">{ctaText}</span>
+          <ArrowRight size={12} className="shrink-0 text-black" />
+        </div>
+      )}
+
+      {(raName.trim() || sebiRegNo.trim()) && (
+        <div className="mt-2 text-center text-[7.5px] font-semibold" style={{ color: RA_TEXT_SECONDARY }}>
+          {[raName.trim(), sebiRegNo.trim() && `SEBI Reg. No: ${sebiRegNo.trim()}`].filter(Boolean).join(" · ")}
+        </div>
+      )}
+
+      <div className="mt-2 flex items-start gap-1.5 border-t border-white/10 pt-2.5">
         <Shield size={11} className="mt-0.5 shrink-0" style={{ color: RA_TEXT_MUTED }} />
         <p className="text-[7.5px] leading-snug" style={{ color: RA_TEXT_MUTED }}>
           {disclaimer}

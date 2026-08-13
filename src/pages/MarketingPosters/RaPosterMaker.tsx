@@ -40,6 +40,9 @@ function RaCallCard() {
     exitPrice: 0,
     profitPct: 0,
     marketingQuote: "",
+    ctaText: "Join Us Now",
+    raName: "",
+    sebiRegNo: "",
     disclaimer: RA_DEFAULT_DISCLAIMER,
   });
 
@@ -117,6 +120,32 @@ function RaCallCard() {
                 placeholder="Booked profits at resistance — textbook breakout"
               />
             </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Join Us Button Text</label>
+              <Input
+                value={call.ctaText}
+                onChange={(e) => patch("ctaText", e.target.value)}
+                placeholder="Join Us Now"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">SEBI Reg. No. (optional)</label>
+              <Input
+                value={call.sebiRegNo}
+                onChange={(e) => patch("sebiRegNo", e.target.value)}
+                placeholder="INH000012345"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Research Analyst / Firm Name (optional)
+              </label>
+              <Input
+                value={call.raName}
+                onChange={(e) => patch("raName", e.target.value)}
+                placeholder="ABC Research Pvt. Ltd."
+              />
+            </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Disclaimer</label>
               <Textarea
@@ -152,6 +181,9 @@ function GeneratedRaListPoster({
   title,
   subtitle,
   disclaimer,
+  ctaText,
+  raName,
+  sebiRegNo,
   rows,
   pageIndex,
   totalPages,
@@ -160,6 +192,9 @@ function GeneratedRaListPoster({
   title: string;
   subtitle: string;
   disclaimer: string;
+  ctaText: string;
+  raName: string;
+  sebiRegNo: string;
   rows: RaListRow[];
   pageIndex: number;
   totalPages: number;
@@ -178,6 +213,9 @@ function GeneratedRaListPoster({
           title={title}
           subtitle={subtitle}
           disclaimer={disclaimer}
+          ctaText={ctaText}
+          raName={raName}
+          sebiRegNo={sebiRegNo}
           pageLabel={totalPages > 1 ? `Page ${pageIndex} of ${totalPages}` : undefined}
         >
           <div className={`flex flex-col ${density.gap}`}>
@@ -205,6 +243,9 @@ function RaListMaker() {
   const [title, setTitle] = useState("Research Calls");
   const [subtitle, setSubtitle] = useState("Track Record");
   const [disclaimer, setDisclaimer] = useState(RA_DEFAULT_DISCLAIMER);
+  const [ctaText, setCtaText] = useState("Join Us Now");
+  const [raName, setRaName] = useState("");
+  const [sebiRegNo, setSebiRegNo] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [rows, setRows] = useState<RaListRow[] | null>(null);
   const [errors, setErrors] = useState<ParseError[]>([]);
@@ -239,6 +280,23 @@ function RaListMaker() {
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Subtitle</label>
               <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Track Record" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Join Us Button Text</label>
+              <Input value={ctaText} onChange={(e) => setCtaText(e.target.value)} placeholder="Join Us Now" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Research Analyst / Firm Name (optional)
+              </label>
+              <Input value={raName} onChange={(e) => setRaName(e.target.value)} placeholder="ABC Research Pvt. Ltd." />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">SEBI Reg. No. (optional)</label>
+              <Input value={sebiRegNo} onChange={(e) => setSebiRegNo(e.target.value)} placeholder="INH000012345" />
             </div>
           </div>
 
@@ -297,6 +355,9 @@ function RaListMaker() {
                   title={title || "Research Calls"}
                   subtitle={subtitle || "Track Record"}
                   disclaimer={disclaimer}
+                  ctaText={ctaText}
+                  raName={raName}
+                  sebiRegNo={sebiRegNo}
                   rows={pageRows}
                   pageIndex={i + 1}
                   totalPages={pages.length}

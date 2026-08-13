@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { Calendar, ArrowUp, ArrowDown, Shield, Quote } from "lucide-react";
+import { Calendar, ArrowUp, ArrowDown, Shield, Quote, ArrowRight } from "lucide-react";
 import { useFitHeight } from "./useFitHeight";
 import {
   RA_BG_APP,
@@ -27,6 +27,9 @@ export interface RaCallInput {
   exitPrice: number;
   profitPct: number;
   marketingQuote: string;
+  ctaText: string;
+  raName: string;
+  sebiRegNo: string;
   disclaimer: string;
 }
 
@@ -124,6 +127,24 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
             <p className="text-[11.5px] font-medium italic leading-snug" style={{ color: RA_TEXT_PRIMARY }}>
               {call.marketingQuote}
             </p>
+          </div>
+        )}
+
+        {call.ctaText.trim() && (
+          <div
+            className="flex items-center justify-center gap-2 rounded-xl py-2.5"
+            style={{ background: RA_BULLISH }}
+          >
+            <span className="text-[12px] font-extrabold uppercase tracking-wide text-black">{call.ctaText}</span>
+            <ArrowRight size={14} className="shrink-0 text-black" />
+          </div>
+        )}
+
+        {(call.raName.trim() || call.sebiRegNo.trim()) && (
+          <div className="text-center text-[9px] font-semibold" style={{ color: RA_TEXT_SECONDARY }}>
+            {[call.raName.trim(), call.sebiRegNo.trim() && `SEBI Reg. No: ${call.sebiRegNo.trim()}`]
+              .filter(Boolean)
+              .join(" · ")}
           </div>
         )}
 
