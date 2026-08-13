@@ -71,6 +71,7 @@ export const RaListPosterFrame = forwardRef<
     title: string;
     subtitle: string;
     disclaimer: string;
+    planText: string;
     ctaText: string;
     raName: string;
     sebiRegNo: string;
@@ -79,7 +80,7 @@ export const RaListPosterFrame = forwardRef<
     children: React.ReactNode;
   }
 >(function RaListPosterFrame(
-  { posterId, title, subtitle, disclaimer, ctaText, raName, sebiRegNo, raAddress, pageLabel, children },
+  { posterId, title, subtitle, disclaimer, planText, ctaText, raName, sebiRegNo, raAddress, pageLabel, children },
   ref,
 ) {
   return (
@@ -120,8 +121,17 @@ export const RaListPosterFrame = forwardRef<
 
       <div className="flex flex-1 flex-col gap-1.5 overflow-hidden">{children}</div>
 
+      {planText.trim() && (
+        <div className="mt-3 text-center text-[9px] font-bold" style={{ color: RA_BULLISH }}>
+          {planText}
+        </div>
+      )}
+
       {ctaText.trim() && (
-        <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg py-2" style={{ background: RA_BULLISH }}>
+        <div
+          className={cn("flex items-center justify-center gap-1.5 rounded-lg py-2", planText.trim() ? "mt-1.5" : "mt-3")}
+          style={{ background: RA_BULLISH }}
+        >
           <span className="text-[10px] font-extrabold uppercase tracking-wide text-black">{ctaText}</span>
           <ArrowRight size={12} className="shrink-0 text-black" />
         </div>

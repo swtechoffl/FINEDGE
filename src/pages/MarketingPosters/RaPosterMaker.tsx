@@ -40,6 +40,7 @@ function RaCallCard() {
     exitPrice: 0,
     profitPct: 0,
     marketingQuote: "",
+    planText: "Plan starts from ₹34/day",
     ctaText: "Join Us Now",
     raName: "",
     sebiRegNo: "",
@@ -122,6 +123,14 @@ function RaCallCard() {
               />
             </div>
             <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Plan Text (optional)</label>
+              <Input
+                value={call.planText}
+                onChange={(e) => patch("planText", e.target.value)}
+                placeholder="Plan starts from ₹34/day"
+              />
+            </div>
+            <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Join Us Button Text</label>
               <Input
                 value={call.ctaText}
@@ -194,6 +203,7 @@ function GeneratedRaListPoster({
   title,
   subtitle,
   disclaimer,
+  planText,
   ctaText,
   raName,
   sebiRegNo,
@@ -206,6 +216,7 @@ function GeneratedRaListPoster({
   title: string;
   subtitle: string;
   disclaimer: string;
+  planText: string;
   ctaText: string;
   raName: string;
   sebiRegNo: string;
@@ -228,6 +239,7 @@ function GeneratedRaListPoster({
           title={title}
           subtitle={subtitle}
           disclaimer={disclaimer}
+          planText={planText}
           ctaText={ctaText}
           raName={raName}
           sebiRegNo={sebiRegNo}
@@ -259,6 +271,7 @@ function RaListMaker() {
   const [title, setTitle] = useState("Research Calls");
   const [subtitle, setSubtitle] = useState("Track Record");
   const [disclaimer, setDisclaimer] = useState(RA_DEFAULT_DISCLAIMER);
+  const [planText, setPlanText] = useState("Plan starts from ₹34/day");
   const [ctaText, setCtaText] = useState("Join Us Now");
   const [raName, setRaName] = useState("");
   const [sebiRegNo, setSebiRegNo] = useState("");
@@ -300,11 +313,18 @@ function RaListMaker() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Plan Text (optional)</label>
+              <Input value={planText} onChange={(e) => setPlanText(e.target.value)} placeholder="Plan starts from ₹34/day" />
+            </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Join Us Button Text</label>
               <Input value={ctaText} onChange={(e) => setCtaText(e.target.value)} placeholder="Join Us Now" />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 Research Analyst / Firm Name (optional)
@@ -383,6 +403,7 @@ function RaListMaker() {
                   title={title || "Research Calls"}
                   subtitle={subtitle || "Track Record"}
                   disclaimer={disclaimer}
+                  planText={planText}
                   ctaText={ctaText}
                   raName={raName}
                   sebiRegNo={sebiRegNo}

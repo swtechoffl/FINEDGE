@@ -27,6 +27,7 @@ export interface RaCallInput {
   exitPrice: number;
   profitPct: number;
   marketingQuote: string;
+  planText: string;
   ctaText: string;
   raName: string;
   sebiRegNo: string;
@@ -128,6 +129,12 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
             <p className="text-[11.5px] font-medium italic leading-snug" style={{ color: RA_TEXT_PRIMARY }}>
               {call.marketingQuote}
             </p>
+          </div>
+        )}
+
+        {call.planText.trim() && (
+          <div className="text-center text-[10.5px] font-bold" style={{ color }}>
+            {call.planText}
           </div>
         )}
 
