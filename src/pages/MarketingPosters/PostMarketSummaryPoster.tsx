@@ -5,6 +5,7 @@ import { MarketMoodMotif, type MarketMood } from "./MarketMoodMotif";
 
 export interface IndexQuote {
   price: number;
+  change: number;
   changePct: number;
 }
 
@@ -42,27 +43,21 @@ function todayLabel() {
   return new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }).toUpperCase();
 }
 
-// changePct is the only figure the underlying data actually carries for
-// indices — the absolute point change shown alongside it is derived by
-// inverting it back to a prior close, not a second live field.
-function pointChange(price: number, changePct: number) {
-  return price - price / (1 + changePct / 100);
-}
-
 function MetricSection({
   label,
   price,
+  change,
   changePct,
   bordered = true,
 }: {
   label: string;
   price: number;
+  change: number;
   changePct: number;
   bordered?: boolean;
 }) {
   const up = changePct >= 0;
   const color = up ? BULLISH : BEARISH;
-  const change = pointChange(price, changePct);
   return (
     <div
       className="flex flex-1 flex-col justify-center gap-1 px-2.5 py-3"
@@ -228,9 +223,13 @@ export const PostMarketSummaryPoster = forwardRef<
 
         {/* INFO BAR — one continuous panel */}
         <div className="flex items-stretch overflow-hidden rounded-xl" style={{ background: BG_SURFACE, border: `1px solid ${BORDER}` }}>
-          {nifty && <MetricSection label="Nifty 50" price={nifty.price} changePct={nifty.changePct} bordered={false} />}
-          {sensex && <MetricSection label="Sensex" price={sensex.price} changePct={sensex.changePct} />}
-          {bankNifty && <MetricSection label="Bank Nifty" price={bankNifty.price} changePct={bankNifty.changePct} />}
+          {nifty && (
+            <MetricSection label="Nifty 50" price={nifty.price} change={nifty.change} changePct={nifty.changePct} bordered={false} />
+          )}
+          {sensex && <MetricSection label="Sensex" price={sensex.price} change={sensex.change} changePct={sensex.changePct} />}
+          {bankNifty && (
+            <MetricSection label="Bank Nifty" price={bankNifty.price} change={bankNifty.change} changePct={bankNifty.changePct} />
+          )}
         </div>
 
         {/* CENTER MOTIF */}

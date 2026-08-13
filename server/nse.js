@@ -29,3 +29,12 @@ export async function fetchNseJson(path, referer) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+
+// NSE's own official index feed — "last"/"variation"/"percentChange" come
+// straight from the exchange, not derived from a previous-close figure we
+// have to trust separately (see fetchReliableChangePct in yahoo.js for why
+// that trust was misplaced for some symbols).
+export async function fetchNseAllIndices() {
+  const data = await fetchNseJson("/api/allIndices", "https://www.nseindia.com/market-data/live-market-indices");
+  return Array.isArray(data?.data) ? data.data : [];
+}

@@ -3,6 +3,7 @@ import type { MarketMood } from "./MarketMoodMotif";
 
 export interface IndexOverride {
   price?: number;
+  change?: number;
   changePct?: number;
 }
 

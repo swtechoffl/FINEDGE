@@ -311,7 +311,7 @@ async function refreshMovers(force = false) {
   const priceCache = await getPrices({ force });
   const indexClose = CLOSING_INDEX_SYMBOLS.map((symbol) => {
     const idx = priceCache.indices[symbol];
-    return idx ? { symbol, label: idx.label, price: idx.price, changePct: idx.changePct } : null;
+    return idx ? { symbol, label: idx.label, price: idx.price, change: idx.change, changePct: idx.changePct } : null;
   }).filter((entry) => entry !== null);
 
   const [glResult, oiResult, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([

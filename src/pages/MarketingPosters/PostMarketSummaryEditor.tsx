@@ -19,26 +19,34 @@ const MOOD_OPTIONS: { key: MarketMood | null; label: string }[] = [
 
 interface IndexLive {
   price: number;
+  change: number;
   changePct: number;
 }
 
-// Editable as strings so the field can sit empty (= "use live data") without
+// Editable as strings so a field can sit empty (= "use live data") without
 // fighting a number input's own parsing/formatting.
 interface IndexDraft {
   price: string;
+  change: string;
   changePct: string;
 }
 
 function toDraft(override: IndexOverride | undefined): IndexDraft {
-  return { price: override?.price?.toString() ?? "", changePct: override?.changePct?.toString() ?? "" };
+  return {
+    price: override?.price?.toString() ?? "",
+    change: override?.change?.toString() ?? "",
+    changePct: override?.changePct?.toString() ?? "",
+  };
 }
 
 function toOverride(draft: IndexDraft): IndexOverride | undefined {
   const price = draft.price.trim() === "" ? undefined : Number(draft.price);
+  const change = draft.change.trim() === "" ? undefined : Number(draft.change);
   const changePct = draft.changePct.trim() === "" ? undefined : Number(draft.changePct);
-  if (price === undefined && changePct === undefined) return undefined;
+  if (price === undefined && change === undefined && changePct === undefined) return undefined;
   return {
     ...(price !== undefined && !Number.isNaN(price) ? { price } : {}),
+    ...(change !== undefined && !Number.isNaN(change) ? { change } : {}),
     ...(changePct !== undefined && !Number.isNaN(changePct) ? { changePct } : {}),
   };
 }
@@ -60,17 +68,24 @@ function IndexOverrideRow({
         {label}
         {live && (
           <span className="ml-1 font-normal text-subtle-foreground">
-            (live: {live.price.toLocaleString("en-IN", { maximumFractionDigits: 2 })}, {live.changePct >= 0 ? "+" : ""}
+            (live: {live.price.toLocaleString("en-IN", { maximumFractionDigits: 2 })}, {live.change >= 0 ? "+" : ""}
+            {live.change} / {live.changePct >= 0 ? "+" : ""}
             {live.changePct}%)
           </span>
         )}
       </label>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <Input
           type="number"
           placeholder="Level"
           value={draft.price}
           onChange={(e) => onChange({ ...draft, price: e.target.value })}
+        />
+        <Input
+          type="number"
+          placeholder="Points"
+          value={draft.change}
+          onChange={(e) => onChange({ ...draft, change: e.target.value })}
         />
         <Input
           type="number"

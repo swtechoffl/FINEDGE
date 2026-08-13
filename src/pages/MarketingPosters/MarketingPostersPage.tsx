@@ -85,11 +85,12 @@ function PostMarketSummaryCard() {
     refresh();
   }, [refresh]);
 
-  const findIndex = (symbol: string, indexOverride?: { price?: number; changePct?: number }) => {
+  const findIndex = (symbol: string, indexOverride?: { price?: number; change?: number; changePct?: number }) => {
     const entry = postMarketData.indexClose.find((e) => e.symbol === symbol);
     if (!entry && !indexOverride) return null;
     return {
       price: indexOverride?.price ?? entry?.price ?? 0,
+      change: indexOverride?.change ?? entry?.change ?? 0,
       changePct: indexOverride?.changePct ?? entry?.changePct ?? 0,
     };
   };

@@ -79,6 +79,7 @@ export interface IndexCloseEntry {
   symbol: string;
   label: string;
   price: number;
+  change: number;
   changePct: number;
 }
 
