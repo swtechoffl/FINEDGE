@@ -502,7 +502,7 @@ async function deliverTelegramPosters(origin, captionSuffix) {
   return { sent: true, posters: sentPosterIds };
 }
 
-// Triggered by the Vercel Cron in vercel.json at 02:30 UTC (08:00 IST).
+// Triggered by the Vercel Cron in vercel.json at 02:45 UTC (08:15 IST).
 // Vercel signs cron requests with a bearer token matching CRON_SECRET — that
 // check is skipped when the var isn't set (local/manual testing) but is
 // mandatory in any deployment that configures it, since this endpoint sends
