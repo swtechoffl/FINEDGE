@@ -37,3 +37,12 @@ export function fmtRaDate(d: string) {
   if (Number.isNaN(+parsed)) return d;
   return parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+// Whole days between a call date and its exit date — floored at 1 so a
+// same-day exit still reads as "1 day" rather than "0 days".
+export function raDaysHeld(callDate: string, exitDate: string): number | null {
+  const start = +new Date(callDate);
+  const end = +new Date(exitDate);
+  if (Number.isNaN(start) || Number.isNaN(end)) return null;
+  return Math.max(1, Math.round((end - start) / 86_400_000));
+}

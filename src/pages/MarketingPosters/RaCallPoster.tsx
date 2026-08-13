@@ -15,6 +15,7 @@ import {
   RA_BEARISH_BG,
   fmtRaPrice,
   fmtRaDate,
+  raDaysHeld,
 } from "./raPosterTheme";
 
 export const RA_CALL_POSTER_WIDTH = 420;
@@ -26,6 +27,8 @@ export interface RaCallInput {
   entryPrice: number;
   exitPrice: number;
   profitPct: number;
+  showDaysTaken: boolean;
+  exitDate: string;
   marketingQuote: string;
   planText: string;
   ctaText: string;
@@ -64,6 +67,7 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
   const color = up ? RA_BULLISH : RA_BEARISH;
   const bg = up ? RA_BULLISH_BG : RA_BEARISH_BG;
   const Icon = up ? ArrowUp : ArrowDown;
+  const daysTaken = call.showDaysTaken ? raDaysHeld(call.callDate, call.exitDate) : null;
 
   return (
     <div
@@ -96,7 +100,7 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
           >
             <Calendar size={13} style={{ color: RA_TEXT_SECONDARY }} />
             <span className="whitespace-nowrap text-[11px] font-semibold" style={{ color: RA_TEXT_PRIMARY }}>
-              {fmtRaDate(call.callDate) || "Call Date"}
+              Call given on {fmtRaDate(call.callDate) || "—"}
             </span>
           </div>
         </div>
@@ -111,6 +115,7 @@ export const RaCallPoster = forwardRef<HTMLDivElement, { call: RaCallInput }>(fu
           </div>
           <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color }}>
             {up ? "In Profit" : "In Loss"}
+            {daysTaken != null && ` · in ${daysTaken} day${daysTaken === 1 ? "" : "s"}`}
           </span>
         </div>
 

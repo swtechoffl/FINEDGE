@@ -46,6 +46,8 @@ function RaCallCard() {
     entryPrice: 0,
     exitPrice: 0,
     profitPct: 0,
+    showDaysTaken: false,
+    exitDate: dateStr,
     marketingQuote: "",
     planText: "Plan starts from ₹34/day",
     ctaText: "Join Us Now",
@@ -57,7 +59,7 @@ function RaCallCard() {
     disclaimer: RA_DEFAULT_DISCLAIMER,
   });
 
-  function patch(field: keyof RaCallInput, value: string | number) {
+  function patch(field: keyof RaCallInput, value: string | number | boolean) {
     setCall((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -123,6 +125,24 @@ function RaCallCard() {
                 placeholder="6.4 (negative for a loss)"
               />
             </div>
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <input
+                id="ra-show-days-taken"
+                type="checkbox"
+                checked={call.showDaysTaken}
+                onChange={(e) => patch("showDaysTaken", e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              <label htmlFor="ra-show-days-taken" className="text-xs font-medium text-muted-foreground">
+                Show days taken to book profit (optional)
+              </label>
+            </div>
+            {call.showDaysTaken && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Exit / Profit Booked Date</label>
+                <Input type="date" value={call.exitDate} onChange={(e) => patch("exitDate", e.target.value)} />
+              </div>
+            )}
             <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Marketing Quote (optional)</label>
               <Input
