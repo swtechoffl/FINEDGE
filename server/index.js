@@ -502,11 +502,13 @@ async function deliverTelegramPosters(origin, captionSuffix) {
   return { sent: true, posters: sentPosterIds };
 }
 
-// Triggered by the Vercel Cron in vercel.json at 02:45 UTC (08:15 IST).
-// Vercel signs cron requests with a bearer token matching CRON_SECRET — that
-// check is skipped when the var isn't set (local/manual testing) but is
-// mandatory in any deployment that configures it, since this endpoint sends
-// a real message to a real Telegram chat.
+// Meant to be called by an external scheduler (e.g. an n8n workflow's HTTP
+// Request node, currently scheduled for 08:15 IST) rather than Vercel's own
+// Cron — same reasoning as /api/telegram/send-report below. Requires the
+// same CRON_SECRET bearer token; that check is skipped when the var isn't
+// set (local/manual testing) but is mandatory in any deployment that
+// configures it, since this endpoint sends a real message to a real
+// Telegram chat.
 app.get("/api/cron/telegram-posters", async (req, res) => {
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: "Unauthorized" });

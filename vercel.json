@@ -4,6 +4,5 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "crons": [{ "path": "/api/cron/telegram-posters", "schedule": "45 2 * * *" }]
+  ]
 }
