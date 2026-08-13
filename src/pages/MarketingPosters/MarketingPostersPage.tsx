@@ -85,9 +85,13 @@ function PostMarketSummaryCard() {
     refresh();
   }, [refresh]);
 
-  const findIndex = (symbol: string) => {
+  const findIndex = (symbol: string, indexOverride?: { price?: number; changePct?: number }) => {
     const entry = postMarketData.indexClose.find((e) => e.symbol === symbol);
-    return entry ? { price: entry.price, changePct: entry.changePct } : null;
+    if (!entry && !indexOverride) return null;
+    return {
+      price: indexOverride?.price ?? entry?.price ?? 0,
+      changePct: indexOverride?.changePct ?? entry?.changePct ?? 0,
+    };
   };
   const findOi = (symbol: string) => postMarketData.indexOi.find((e) => e.symbol === symbol)?.oiChangePct ?? null;
 
@@ -110,9 +114,9 @@ function PostMarketSummaryCard() {
           titleLine2={titleLine2}
           subtitle={subtitle}
           moodOverride={moodOverride}
-          nifty={findIndex("^NSEI")}
-          sensex={findIndex("^BSESN")}
-          bankNifty={findIndex("^NSEBANK")}
+          nifty={findIndex("^NSEI", override.nifty)}
+          sensex={findIndex("^BSESN", override.sensex)}
+          bankNifty={findIndex("^NSEBANK", override.bankNifty)}
           gainers={postMarketData.gainers.slice(0, 5)}
           losers={postMarketData.losers.slice(0, 5)}
           oi={{
@@ -129,6 +133,12 @@ function PostMarketSummaryCard() {
           titleLine2={titleLine2}
           subtitle={subtitle}
           moodOverride={moodOverride}
+          nifty={findIndex("^NSEI")}
+          sensex={findIndex("^BSESN")}
+          bankNifty={findIndex("^NSEBANK")}
+          niftyOverride={override.nifty}
+          sensexOverride={override.sensex}
+          bankNiftyOverride={override.bankNifty}
           hasOverride={Object.keys(override).length > 0}
           onChange={setOverride}
           onReset={reset}

@@ -1,5 +1,5 @@
 import { ALL_STOCKS } from "./sectors.js";
-import { fetchYahooQuote, mapWithConcurrency } from "./yahoo.js";
+import { fetchYahooQuote, fetchReliableChangePct, mapWithConcurrency } from "./yahoo.js";
 
 export const INDICES = [
   { symbol: "^NSEI", label: "NIFTY 50" },
@@ -23,6 +23,16 @@ async function refreshPrices() {
     }),
     mapWithConcurrency(INDICES, CONCURRENCY, async (idx) => {
       const quote = await fetchYahooQuote(idx.symbol);
+      // meta.previousClose (used above for changePct) has been observed to go
+      // stale/wrong for specific symbols — regularMarketPrice stays live and
+      // accurate, but a bad previousClose silently corrupts the % (and even
+      // its sign) even though the level shown alongside it is correct. Same
+      // fix as premarket.js: recompute from the daily close series instead.
+      try {
+        quote.changePct = await fetchReliableChangePct(idx.symbol, quote.price);
+      } catch {
+        // fall back to fetchYahooQuote's own changePct if this fails
+      }
       return { symbol: idx.symbol, label: idx.label, ...quote };
     }),
   ]);

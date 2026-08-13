@@ -5,7 +5,7 @@ import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useAnchoredPopoverPosition } from "../../lib/useAnchoredPopover";
 import { MOOD_IMAGES, type MarketMood } from "./MarketMoodMotif";
-import type { PostMarketSummaryOverride } from "./usePostMarketSummaryOverrides";
+import type { IndexOverride, PostMarketSummaryOverride } from "./usePostMarketSummaryOverrides";
 
 const PANEL_WIDTH = 320;
 
@@ -17,11 +17,83 @@ const MOOD_OPTIONS: { key: MarketMood | null; label: string }[] = [
   { key: "flat", label: "Flat" },
 ];
 
+interface IndexLive {
+  price: number;
+  changePct: number;
+}
+
+// Editable as strings so the field can sit empty (= "use live data") without
+// fighting a number input's own parsing/formatting.
+interface IndexDraft {
+  price: string;
+  changePct: string;
+}
+
+function toDraft(override: IndexOverride | undefined): IndexDraft {
+  return { price: override?.price?.toString() ?? "", changePct: override?.changePct?.toString() ?? "" };
+}
+
+function toOverride(draft: IndexDraft): IndexOverride | undefined {
+  const price = draft.price.trim() === "" ? undefined : Number(draft.price);
+  const changePct = draft.changePct.trim() === "" ? undefined : Number(draft.changePct);
+  if (price === undefined && changePct === undefined) return undefined;
+  return {
+    ...(price !== undefined && !Number.isNaN(price) ? { price } : {}),
+    ...(changePct !== undefined && !Number.isNaN(changePct) ? { changePct } : {}),
+  };
+}
+
+function IndexOverrideRow({
+  label,
+  live,
+  draft,
+  onChange,
+}: {
+  label: string;
+  live: IndexLive | null;
+  draft: IndexDraft;
+  onChange: (draft: IndexDraft) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+        {label}
+        {live && (
+          <span className="ml-1 font-normal text-subtle-foreground">
+            (live: {live.price.toLocaleString("en-IN", { maximumFractionDigits: 2 })}, {live.changePct >= 0 ? "+" : ""}
+            {live.changePct}%)
+          </span>
+        )}
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          type="number"
+          placeholder="Level"
+          value={draft.price}
+          onChange={(e) => onChange({ ...draft, price: e.target.value })}
+        />
+        <Input
+          type="number"
+          placeholder="Change %"
+          value={draft.changePct}
+          onChange={(e) => onChange({ ...draft, changePct: e.target.value })}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function PostMarketSummaryEditor({
   titleLine1,
   titleLine2,
   subtitle,
   moodOverride,
+  nifty,
+  sensex,
+  bankNifty,
+  niftyOverride,
+  sensexOverride,
+  bankNiftyOverride,
   hasOverride,
   onChange,
   onReset,
@@ -30,22 +102,52 @@ export function PostMarketSummaryEditor({
   titleLine2: string;
   subtitle: string;
   moodOverride: MarketMood | null;
+  nifty: IndexLive | null;
+  sensex: IndexLive | null;
+  bankNifty: IndexLive | null;
+  niftyOverride?: IndexOverride;
+  sensexOverride?: IndexOverride;
+  bankNiftyOverride?: IndexOverride;
   hasOverride: boolean;
   onChange: (patch: PostMarketSummaryOverride) => void;
   onReset: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState({ titleLine1, titleLine2, subtitle, moodOverride });
+  const [draft, setDraft] = useState({
+    titleLine1,
+    titleLine2,
+    subtitle,
+    moodOverride,
+    nifty: toDraft(niftyOverride),
+    sensex: toDraft(sensexOverride),
+    bankNifty: toDraft(bankNiftyOverride),
+  });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const position = useAnchoredPopoverPosition(open, buttonRef, PANEL_WIDTH);
 
   function openEditor() {
-    setDraft({ titleLine1, titleLine2, subtitle, moodOverride });
+    setDraft({
+      titleLine1,
+      titleLine2,
+      subtitle,
+      moodOverride,
+      nifty: toDraft(niftyOverride),
+      sensex: toDraft(sensexOverride),
+      bankNifty: toDraft(bankNiftyOverride),
+    });
     setOpen(true);
   }
 
   function handleSave() {
-    onChange(draft);
+    onChange({
+      titleLine1: draft.titleLine1,
+      titleLine2: draft.titleLine2,
+      subtitle: draft.subtitle,
+      moodOverride: draft.moodOverride,
+      nifty: toOverride(draft.nifty),
+      sensex: toOverride(draft.sensex),
+      bankNifty: toOverride(draft.bankNifty),
+    });
     setOpen(false);
   }
 
@@ -127,6 +229,31 @@ export function PostMarketSummaryEditor({
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className="flex flex-col gap-2 border-t border-border pt-3">
+                  <span className="text-xs font-semibold text-foreground">Index levels (manual override)</span>
+                  <p className="-mt-1 text-[10px] text-subtle-foreground">
+                    Leave blank to use live data. Fill in if the feed's change% looks wrong.
+                  </p>
+                  <IndexOverrideRow
+                    label="Nifty 50"
+                    live={nifty}
+                    draft={draft.nifty}
+                    onChange={(v) => setDraft((d) => ({ ...d, nifty: v }))}
+                  />
+                  <IndexOverrideRow
+                    label="Sensex"
+                    live={sensex}
+                    draft={draft.sensex}
+                    onChange={(v) => setDraft((d) => ({ ...d, sensex: v }))}
+                  />
+                  <IndexOverrideRow
+                    label="Bank Nifty"
+                    live={bankNifty}
+                    draft={draft.bankNifty}
+                    onChange={(v) => setDraft((d) => ({ ...d, bankNifty: v }))}
+                  />
                 </div>
               </div>
 
