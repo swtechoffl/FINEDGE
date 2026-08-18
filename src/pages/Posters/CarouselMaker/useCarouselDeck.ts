@@ -14,17 +14,17 @@ export type SlideBackground =
 // picks up the slide's palette instead of sitting on top of it as a flat cutout.
 export type BlendMode = "normal" | "multiply" | "screen" | "overlay" | "luminosity" | "soft-light";
 
-// Which edge the image fades from — a hard rectangular photo (fadeEdge:
-// "none") or one edge dissolving into the slide's background so it reads as
-// composited rather than pasted on.
-export type FadeEdge = "none" | "top" | "bottom" | "left" | "right";
+// Edges the image can fade from into the slide's background. Any number of
+// these can be combined — e.g. top+left fades both edges into a vignetted
+// corner — an empty array means a hard rectangular photo with no fade.
+export type FadeEdge = "top" | "bottom" | "left" | "right";
 
 export interface SlideImage {
   value: string;
   blend: BlendMode;
   opacity: number; // 0-100
   scale: number; // 100 = fills the frame at 1x; >100 zooms in, <100 zooms out
-  fadeEdge: FadeEdge;
+  fadeEdges: FadeEdge[];
 }
 
 export interface CarouselSlide {

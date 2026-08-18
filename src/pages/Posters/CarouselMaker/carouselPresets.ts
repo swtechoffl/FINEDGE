@@ -57,8 +57,10 @@ export interface FadeEdgeOption {
   label: string;
 }
 
+// Multi-select — any combination fades that many edges into the background
+// (e.g. top+left vignettes a corner). "None" is handled separately in the
+// UI by clearing the selection rather than being a preset itself.
 export const FADE_EDGE_PRESETS: FadeEdgeOption[] = [
-  { id: "none", label: "None" },
   { id: "top", label: "Top" },
   { id: "bottom", label: "Bottom" },
   { id: "left", label: "Left" },

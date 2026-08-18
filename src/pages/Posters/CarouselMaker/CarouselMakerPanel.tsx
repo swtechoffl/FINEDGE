@@ -140,6 +140,14 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
     patch({ image: { ...slide.image, ...imagePatch } });
   }
 
+  function toggleFadeEdge(edge: NonNullable<CarouselSlide["image"]>["fadeEdges"][number]) {
+    if (!slide.image) return;
+    const next = slide.image.fadeEdges.includes(edge)
+      ? slide.image.fadeEdges.filter((e) => e !== edge)
+      : [...slide.image.fadeEdges, edge];
+    patchImage({ fadeEdges: next });
+  }
+
   function handleBlendedImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -148,7 +156,7 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === "string") {
-        patch({ image: { value: reader.result, blend: "luminosity", opacity: 90, scale: 100, fadeEdge: "top" } });
+        patch({ image: { value: reader.result, blend: "luminosity", opacity: 90, scale: 100, fadeEdges: ["top"] } });
       }
     };
     reader.readAsDataURL(file);
@@ -634,15 +642,28 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Fade edge</label>
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                      Fade edges (pick any combination)
+                    </label>
                     <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
+                      <button
+                        onClick={() => patchImage({ fadeEdges: [] })}
+                        className={cn(
+                          "flex-1 rounded-md px-1.5 py-1 text-[10px] font-semibold transition-colors",
+                          slide.image!.fadeEdges.length === 0
+                            ? "bg-accent-bg text-accent"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        None
+                      </button>
                       {FADE_EDGE_PRESETS.map((f) => (
                         <button
                           key={f.id}
-                          onClick={() => patchImage({ fadeEdge: f.id })}
+                          onClick={() => toggleFadeEdge(f.id)}
                           className={cn(
                             "flex-1 rounded-md px-1.5 py-1 text-[10px] font-semibold transition-colors",
-                            slide.image!.fadeEdge === f.id
+                            slide.image!.fadeEdges.includes(f.id)
                               ? "bg-accent-bg text-accent"
                               : "text-muted-foreground hover:text-foreground",
                           )}
