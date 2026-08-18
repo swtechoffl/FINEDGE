@@ -8,13 +8,25 @@ import type { ReportBranding } from "../../Premarket/useReportBranding";
 
 export const CAROUSEL_WIDTH = 300;
 
+const FADE_DIRECTIONS: Record<Exclude<SlideImage["fadeEdge"], "none">, string> = {
+  top: "to top",
+  bottom: "to bottom",
+  left: "to left",
+  right: "to right",
+};
+
 // Shared by the full slide canvas and the small preview swatch in the editor
-// so the blend mode / opacity / edge-fade always render identically in both.
+// so the blend mode / opacity / scale / edge-fade always render identically
+// in both.
 export function blendedImageStyle(image: SlideImage): CSSProperties {
-  const mask = image.fade ? "linear-gradient(to top, black 0%, black 42%, transparent 96%)" : undefined;
+  const mask =
+    image.fadeEdge === "none"
+      ? undefined
+      : `linear-gradient(${FADE_DIRECTIONS[image.fadeEdge]}, black 0%, black 42%, transparent 96%)`;
   return {
     mixBlendMode: image.blend,
     opacity: image.opacity / 100,
+    transform: `scale(${image.scale / 100})`,
     WebkitMaskImage: mask,
     maskImage: mask,
   };

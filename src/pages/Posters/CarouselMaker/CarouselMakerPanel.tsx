@@ -18,6 +18,8 @@ import {
   Image as ImageIcon,
   Hash,
   ShieldAlert,
+  UserCog,
+  ZoomIn,
 } from "lucide-react";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
@@ -31,7 +33,13 @@ import { CAROUSEL_FONTS } from "./carouselFonts";
 import { CAROUSEL_FORMATS, formatById } from "./carouselFormats";
 import { PAGINATION_STYLES } from "./carouselPagination";
 import { DISCLAIMER_PRESETS } from "./carouselDisclaimers";
-import { GRADIENT_PRESETS, SOLID_PRESETS, TEXT_COLOR_PRESETS, BLEND_MODE_PRESETS } from "./carouselPresets";
+import {
+  GRADIENT_PRESETS,
+  SOLID_PRESETS,
+  TEXT_COLOR_PRESETS,
+  BLEND_MODE_PRESETS,
+  FADE_EDGE_PRESETS,
+} from "./carouselPresets";
 import { useCarouselDeck, type CarouselSlide } from "./useCarouselDeck";
 import type { ReportBranding } from "../../Premarket/useReportBranding";
 
@@ -72,12 +80,21 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
     setShowSlideNumber,
     slideNumberOpacity,
     setSlideNumberOpacity,
+    logoOverride,
+    setLogoOverride,
+    nameOverride,
+    setNameOverride,
   } = deck;
+  const effectiveBranding: ReportBranding = {
+    name: nameOverride.trim() || branding.name,
+    logoDataUrl: logoOverride ?? branding.logoDataUrl,
+  };
   const slide = slides[current];
   const canvasRef = useRef<HTMLDivElement>(null);
   const exportRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const blendedImageInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [bgTab, setBgTab] = useState<"gradient" | "solid" | "image">(
     slide.background.type === "color" ? "solid" : slide.background.type,
   );
@@ -131,8 +148,20 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === "string") {
-        patch({ image: { value: reader.result, blend: "luminosity", opacity: 90, fade: true } });
+        patch({ image: { value: reader.result, blend: "luminosity", opacity: 90, scale: 100, fadeEdge: "top" } });
       }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !file.type.startsWith("image/")) return;
+    if (file.size > MAX_IMAGE_BYTES) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") setLogoOverride(reader.result);
     };
     reader.readAsDataURL(file);
   }
@@ -231,7 +260,7 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
                   paginationStyle={paginationStyle}
                   showSlideNumber={showSlideNumber}
                   slideNumberOpacity={slideNumberOpacity}
-                  branding={branding}
+                  branding={effectiveBranding}
                   width={PREVIEW_WIDTH}
                 />
               </div>
@@ -586,10 +615,43 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
                     />
                   </div>
 
-                  <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
-                    <Checkbox checked={slide.image.fade} onCheckedChange={() => patchImage({ fade: !slide.image!.fade })} />
-                    Fade top edge into background
-                  </label>
+                  <div>
+                    <label className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <ZoomIn size={11} /> Image size
+                      </span>
+                      <span>{slide.image.scale}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min={60}
+                      max={200}
+                      step={5}
+                      value={slide.image.scale}
+                      onChange={(e) => patchImage({ scale: Number(e.target.value) })}
+                      className="w-full accent-accent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Fade edge</label>
+                    <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
+                      {FADE_EDGE_PRESETS.map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => patchImage({ fadeEdge: f.id })}
+                          className={cn(
+                            "flex-1 rounded-md px-1.5 py-1 text-[10px] font-semibold transition-colors",
+                            slide.image!.fadeEdge === f.id
+                              ? "bg-accent-bg text-accent"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <button
@@ -639,15 +701,61 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
               </div>
             </Section>
 
-            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2.5">
-              <div>
-                <div className="text-xs font-semibold text-foreground">Show logo</div>
-                <div className="text-[10px] text-subtle-foreground">
-                  {branding.logoDataUrl ? "Uses your report branding logo" : "Add a logo via “Add Name & Logo” above"}
+            <Section
+              icon={<UserCog size={12} />}
+              title="Branding"
+              action={
+                (nameOverride || logoOverride) && (
+                  <button
+                    onClick={() => {
+                      setNameOverride("");
+                      setLogoOverride(null);
+                    }}
+                    className="focus-ring flex items-center gap-1 text-[10px] font-semibold text-subtle-foreground hover:text-bearish"
+                  >
+                    <Trash2 size={11} /> Use report branding
+                  </button>
+                )
+              }
+            >
+              <div className="flex flex-col gap-2.5">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Company name</label>
+                  <Input
+                    value={nameOverride}
+                    onChange={(e) => setNameOverride(e.target.value)}
+                    placeholder={branding.name || "stoqtrade.ai"}
+                  />
                 </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Logo</label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-app">
+                      {effectiveBranding.logoDataUrl ? (
+                        <img src={effectiveBranding.logoDataUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <UserCog size={14} className="text-subtle-foreground" />
+                      )}
+                    </div>
+                    <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                    <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
+                      <ImagePlus size={13} /> Upload
+                    </Button>
+                    {logoOverride && (
+                      <Button variant="ghost" size="sm" onClick={() => setLogoOverride(null)}>
+                        <Trash2 size={13} />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <Checkbox checked={slide.showLogo} onCheckedChange={() => patch({ showLogo: !slide.showLogo })} />
+                  Show logo on this slide
+                </label>
               </div>
-              <Checkbox checked={slide.showLogo} onCheckedChange={() => patch({ showLogo: !slide.showLogo })} />
-            </div>
+            </Section>
           </div>
         </div>
 
@@ -740,7 +848,7 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
             paginationStyle={paginationStyle}
             showSlideNumber={showSlideNumber}
             slideNumberOpacity={slideNumberOpacity}
-            branding={branding}
+            branding={effectiveBranding}
           />
         ))}
       </div>

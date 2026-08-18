@@ -14,11 +14,17 @@ export type SlideBackground =
 // picks up the slide's palette instead of sitting on top of it as a flat cutout.
 export type BlendMode = "normal" | "multiply" | "screen" | "overlay" | "luminosity" | "soft-light";
 
+// Which edge the image fades from — a hard rectangular photo (fadeEdge:
+// "none") or one edge dissolving into the slide's background so it reads as
+// composited rather than pasted on.
+export type FadeEdge = "none" | "top" | "bottom" | "left" | "right";
+
 export interface SlideImage {
   value: string;
   blend: BlendMode;
   opacity: number; // 0-100
-  fade: boolean; // fade the top edge into the background instead of a hard crop
+  scale: number; // 100 = fills the frame at 1x; >100 zooms in, <100 zooms out
+  fadeEdge: FadeEdge;
 }
 
 export interface CarouselSlide {
@@ -76,6 +82,10 @@ export function useCarouselDeck() {
   const [paginationStyle, setPaginationStyle] = useState<PaginationStyleId>("dots");
   const [showSlideNumber, setShowSlideNumber] = useState(true);
   const [slideNumberOpacity, setSlideNumberOpacity] = useState(9);
+  // Lets the carousel use its own logo/name instead of the Posters page's
+  // shared report branding — null/empty means "fall back to that branding".
+  const [logoOverride, setLogoOverride] = useState<string | null>(null);
+  const [nameOverride, setNameOverride] = useState("");
 
   function carryStyle(slide: CarouselSlide | undefined): StyleCarry | undefined {
     if (!slide) return undefined;
@@ -140,6 +150,10 @@ export function useCarouselDeck() {
     setShowSlideNumber,
     slideNumberOpacity,
     setSlideNumberOpacity,
+    logoOverride,
+    setLogoOverride,
+    nameOverride,
+    setNameOverride,
     addSlide,
     duplicateSlide,
     removeSlide,

@@ -51,3 +51,16 @@ export const BLEND_MODE_PRESETS: BlendModeOption[] = [
   { id: "overlay", label: "Overlay" },
   { id: "soft-light", label: "Soft Light" },
 ];
+
+export interface FadeEdgeOption {
+  id: import("./useCarouselDeck").FadeEdge;
+  label: string;
+}
+
+export const FADE_EDGE_PRESETS: FadeEdgeOption[] = [
+  { id: "none", label: "None" },
+  { id: "top", label: "Top" },
+  { id: "bottom", label: "Bottom" },
+  { id: "left", label: "Left" },
+  { id: "right", label: "Right" },
+];
