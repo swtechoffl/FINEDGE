@@ -2,6 +2,18 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/inter/wght-italic.css";
 
+/* Carousel Maker font set — see src/pages/Posters/CarouselMaker/carouselFonts.ts */
+@import "@fontsource-variable/montserrat";
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/poppins/700.css";
+@import "@fontsource/poppins/800.css";
+@import "@fontsource-variable/playfair-display";
+@import "@fontsource-variable/dm-sans";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/lora";
+
 @theme inline {
   --font-sans: "Inter Variable", "Inter", system-ui, sans-serif;
 

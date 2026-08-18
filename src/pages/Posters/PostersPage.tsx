@@ -12,12 +12,14 @@ import { useSocialLinks } from "../Premarket/useSocialLinks";
 import { PremarketPosters } from "../Premarket/PremarketPosters";
 import { GlobalMarketPosters } from "../Premarket/GlobalMarketPosters";
 import { PosterMakerPanel } from "../Premarket/PosterMakerPanel";
+import { CarouselMakerPanel } from "./CarouselMaker/CarouselMakerPanel";
 
 type SendState = "idle" | "sending" | "sent" | "error";
-type ViewKey = "live" | "maker";
+type ViewKey = "live" | "maker" | "carousel";
 const VIEWS: { key: ViewKey; label: string }[] = [
   { key: "live", label: "Live Posters" },
   { key: "maker", label: "Poster Maker" },
+  { key: "carousel", label: "Carousel Maker" },
 ];
 
 export function PostersPage() {
@@ -119,6 +121,8 @@ export function PostersPage() {
         </div>
 
         {view === "maker" && <PosterMakerPanel branding={branding} links={socialLinks} />}
+
+        {view === "carousel" && <CarouselMakerPanel branding={branding} />}
 
         {view === "live" &&
           (loading && !hasAnyData ? (
