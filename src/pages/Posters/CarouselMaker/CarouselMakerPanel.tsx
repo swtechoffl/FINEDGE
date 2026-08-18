@@ -37,6 +37,7 @@ import {
   GRADIENT_PRESETS,
   SOLID_PRESETS,
   TEXT_COLOR_PRESETS,
+  FONT_WEIGHT_PRESETS,
   BLEND_MODE_PRESETS,
   FADE_EDGE_PRESETS,
 } from "./carouselPresets";
@@ -376,21 +377,76 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
             </Section>
 
             <Section icon={<Sparkles size={12} />} title="Font">
-              <div className="grid grid-cols-2 gap-1.5">
-                {CAROUSEL_FONTS.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => patch({ fontId: f.id })}
-                    className={cn(
-                      "focus-ring rounded-lg border px-2.5 py-2 text-left transition-colors",
-                      slide.fontId === f.id ? "border-accent bg-accent-bg" : "border-border hover:bg-hover",
-                    )}
-                    style={{ fontFamily: f.family }}
-                  >
-                    <div className="text-sm font-semibold leading-tight text-foreground">{f.label}</div>
-                    <div className="text-[9px] font-sans font-medium text-subtle-foreground">{f.category}</div>
-                  </button>
-                ))}
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-1.5">
+                  {CAROUSEL_FONTS.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => patch({ fontId: f.id })}
+                      className={cn(
+                        "focus-ring rounded-lg border px-2.5 py-2 text-left transition-colors",
+                        slide.fontId === f.id ? "border-accent bg-accent-bg" : "border-border hover:bg-hover",
+                      )}
+                      style={{ fontFamily: f.family }}
+                    >
+                      <div className="text-sm font-semibold leading-tight text-foreground">{f.label}</div>
+                      <div className="text-[9px] font-sans font-medium text-subtle-foreground">{f.category}</div>
+                    </button>
+                  ))}
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Heading weight</label>
+                  <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-2 p-1">
+                    {FONT_WEIGHT_PRESETS.map((w) => (
+                      <button
+                        key={w.id}
+                        onClick={() => patch({ headingWeight: w.id })}
+                        className={cn(
+                          "flex-1 rounded-md px-1.5 py-1 text-[10px] font-semibold transition-colors",
+                          slide.headingWeight === w.id
+                            ? "bg-surface text-foreground shadow-xs"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {w.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                      <span>Heading size</span>
+                      <span>{slide.headingSize}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min={50}
+                      max={180}
+                      step={5}
+                      value={slide.headingSize}
+                      onChange={(e) => patch({ headingSize: Number(e.target.value) })}
+                      className="w-full accent-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                      <span>Body size</span>
+                      <span>{slide.bodySize}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min={50}
+                      max={180}
+                      step={5}
+                      value={slide.bodySize}
+                      onChange={(e) => patch({ bodySize: Number(e.target.value) })}
+                      className="w-full accent-accent"
+                    />
+                  </div>
+                </div>
               </div>
             </Section>
 

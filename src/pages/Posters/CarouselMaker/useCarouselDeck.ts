@@ -27,6 +27,8 @@ export interface SlideImage {
   fadeEdges: FadeEdge[];
 }
 
+export type FontWeight = "normal" | "semibold" | "bold" | "extrabold";
+
 export interface CarouselSlide {
   id: string;
   eyebrow: string;
@@ -35,6 +37,12 @@ export interface CarouselSlide {
   background: SlideBackground;
   image: SlideImage | null;
   fontId: string;
+  // Multipliers on top of the width-relative base size, so text scales with
+  // the export resolution the same way the rest of the slide does — 100 is
+  // the default size, <100 shrinks, >100 enlarges.
+  headingSize: number;
+  bodySize: number;
+  headingWeight: FontWeight;
   textColor: string;
   align: "left" | "center";
   showLogo: boolean;
@@ -50,7 +58,10 @@ function newId() {
 // Compliance fine-print is carried into new slides by default (a financial
 // carousel typically needs it on every slide) — everything else here is a
 // creative choice worth repeating for consistency but easy to override.
-type StyleCarry = Pick<CarouselSlide, "background" | "fontId" | "textColor" | "align" | "showLogo" | "disclaimer">;
+type StyleCarry = Pick<
+  CarouselSlide,
+  "background" | "fontId" | "headingSize" | "bodySize" | "headingWeight" | "textColor" | "align" | "showLogo" | "disclaimer"
+>;
 
 function makeSlide(overrides?: Partial<CarouselSlide>): CarouselSlide {
   return {
@@ -61,6 +72,9 @@ function makeSlide(overrides?: Partial<CarouselSlide>): CarouselSlide {
     background: { type: "gradient", value: GRADIENT_PRESETS[0].value },
     image: null,
     fontId: "inter",
+    headingSize: 100,
+    bodySize: 100,
+    headingWeight: "extrabold",
     textColor: "#ffffff",
     align: "left",
     showLogo: true,
@@ -89,8 +103,8 @@ export function useCarouselDeck() {
 
   function carryStyle(slide: CarouselSlide | undefined): StyleCarry | undefined {
     if (!slide) return undefined;
-    const { background, fontId, textColor, align, showLogo, disclaimer } = slide;
-    return { background, fontId, textColor, align, showLogo, disclaimer };
+    const { background, fontId, headingSize, bodySize, headingWeight, textColor, align, showLogo, disclaimer } = slide;
+    return { background, fontId, headingSize, bodySize, headingWeight, textColor, align, showLogo, disclaimer };
   }
 
   function addSlide() {

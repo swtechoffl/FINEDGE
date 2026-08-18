@@ -35,6 +35,18 @@ export const SOLID_PRESETS: string[] = [
 
 export const TEXT_COLOR_PRESETS: string[] = ["#ffffff", "#f8fafc", "#facc15", "#34d399", "#38bdf8", "#f472b6", "#09090b"];
 
+export interface FontWeightOption {
+  id: import("./useCarouselDeck").FontWeight;
+  label: string;
+}
+
+export const FONT_WEIGHT_PRESETS: FontWeightOption[] = [
+  { id: "normal", label: "Normal" },
+  { id: "semibold", label: "Semibold" },
+  { id: "bold", label: "Bold" },
+  { id: "extrabold", label: "Extrabold" },
+];
+
 export interface BlendModeOption {
   id: import("./useCarouselDeck").BlendMode;
   label: string;

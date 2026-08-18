@@ -15,6 +15,13 @@ const FADE_DIRECTIONS: Record<SlideImage["fadeEdges"][number], string> = {
   right: "to right",
 };
 
+const HEADING_WEIGHT_VALUES: Record<CarouselSlide["headingWeight"], number> = {
+  normal: 400,
+  semibold: 600,
+  bold: 700,
+  extrabold: 800,
+};
+
 // Shared by the full slide canvas and the small preview swatch in the editor
 // so the blend mode / opacity / scale / edge-fade always render identically
 // in both.
@@ -198,8 +205,12 @@ export const CarouselSlideCanvas = forwardRef<
         >
           {slide.heading && (
             <div
-              className="whitespace-pre-wrap font-extrabold leading-[1.08] tracking-tight"
-              style={{ fontSize: width * 0.115, color: slide.textColor }}
+              className="whitespace-pre-wrap leading-[1.08] tracking-tight"
+              style={{
+                fontSize: width * 0.115 * (slide.headingSize / 100),
+                fontWeight: HEADING_WEIGHT_VALUES[slide.headingWeight],
+                color: slide.textColor,
+              }}
             >
               {slide.heading}
             </div>
@@ -207,7 +218,12 @@ export const CarouselSlideCanvas = forwardRef<
           {slide.body && (
             <div
               className="whitespace-pre-wrap font-medium leading-snug"
-              style={{ fontSize: width * 0.042, color: slide.textColor, opacity: 0.85, maxWidth: "92%" }}
+              style={{
+                fontSize: width * 0.042 * (slide.bodySize / 100),
+                color: slide.textColor,
+                opacity: 0.85,
+                maxWidth: "92%",
+              }}
             >
               {slide.body}
             </div>
