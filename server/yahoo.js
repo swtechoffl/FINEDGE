@@ -84,6 +84,36 @@ export async function fetchYahooDailyOHLC(yahooSymbol, days = 10) {
     low: q.low?.[i] ?? null,
     close: q.close?.[i] ?? null,
   }));
+
+  // A session that has already ended can still sit with open/high/low
+  // populated but close/volume null for hours — Yahoo's daily-bar
+  // aggregation lags behind meta.regularMarketPrice, which updates the
+  // instant the session settles (verified live for ^NSEI/^NSEBANK: the
+  // just-closed day's bar stayed close:null 9+ hours after the 3:30pm IST
+  // close while regularMarketPrice already held the real closing print —
+  // this is exactly what was making the pivot "Basis" close disagree with
+  // the live NIFTY/BANK NIFTY price shown elsewhere, off by a full session).
+  // regularMarketTime landing before the *next* regular session's start is
+  // what distinguishes "this session is over, just not backfilled yet" from
+  // "this session is still live" — live, regularMarketPrice is a moving
+  // intraday print, not a close, and patching it in would wrongly treat
+  // today's still-forming session as the complete "previous session".
+  const meta = result.meta;
+  const lastBar = bars[bars.length - 1];
+  const nextRegularStart = meta?.currentTradingPeriod?.regular?.start;
+  if (
+    lastBar &&
+    lastBar.high !== null &&
+    lastBar.low !== null &&
+    lastBar.close === null &&
+    typeof meta?.regularMarketPrice === "number" &&
+    typeof meta?.regularMarketTime === "number" &&
+    typeof nextRegularStart === "number" &&
+    meta.regularMarketTime < nextRegularStart
+  ) {
+    lastBar.close = meta.regularMarketPrice;
+  }
+
   const complete = bars.filter((b) => b.high !== null && b.low !== null && b.close !== null);
   if (complete.length === 0) throw new Error("no complete daily bar available");
   return complete[complete.length - 1];
