@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { RotateCcw, Check, X } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 
-const VIEWPORT = 220; // CSS px — square crop viewport (shown as a circle, matching every place the logo is displayed)
+const VIEWPORT = 220; // CSS px — square crop viewport (masked to the `shape` prop, matching where the logo is displayed)
 const OUTPUT = 480; // px — exported logo resolution
 const MAX_OUTPUT_BYTES = 1_000_000; // keeps the data URL sane for localStorage
 
@@ -33,10 +33,15 @@ function clampOffset(next: Offset, zoom: number, natural: Natural): Offset {
 
 export function LogoCropper({
   imageSrc,
+  shape = "circle",
   onCancel,
   onConfirm,
 }: {
   imageSrc: string;
+  // "circle" matches every place the logo is displayed by default (report
+  // branding); pass "square" for callers that show the logo as a
+  // rounded-square instead (e.g. Carousel Maker).
+  shape?: "circle" | "square";
   onCancel: () => void;
   onConfirm: (dataUrl: string) => void;
 }) {
@@ -133,7 +138,9 @@ export function LogoCropper({
 
           <div className="flex flex-col items-center gap-4 px-5 py-5">
             <div
-              className="relative touch-none select-none overflow-hidden rounded-full border border-border-strong bg-app"
+              className={`relative touch-none select-none overflow-hidden border border-border-strong bg-app ${
+                shape === "circle" ? "rounded-full" : "rounded-xl"
+              }`}
               style={{ width: VIEWPORT, height: VIEWPORT, cursor: natural ? "grab" : "default" }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}

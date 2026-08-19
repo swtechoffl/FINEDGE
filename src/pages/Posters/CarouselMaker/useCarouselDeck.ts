@@ -25,6 +25,10 @@ export interface SlideImage {
   opacity: number; // 0-100
   scale: number; // 100 = fills the frame at 1x; >100 zooms in, <100 zooms out
   fadeEdges: FadeEdge[];
+  // Pan from center, as a percentage of the frame's own width/height —
+  // dragging the photo in the preview updates these; 0,0 is centered.
+  offsetX: number;
+  offsetY: number;
 }
 
 export type FontWeight = "normal" | "semibold" | "bold" | "extrabold";

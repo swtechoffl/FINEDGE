@@ -20,6 +20,9 @@ import {
   ShieldAlert,
   UserCog,
   ZoomIn,
+  Move,
+  RotateCcw,
+  Crop,
 } from "lucide-react";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
@@ -43,6 +46,7 @@ import {
 } from "./carouselPresets";
 import { useCarouselDeck, type CarouselSlide } from "./useCarouselDeck";
 import type { ReportBranding } from "../../Premarket/useReportBranding";
+import { LogoCropper } from "../../Premarket/LogoCropper";
 
 const MAX_IMAGE_BYTES = 8_000_000;
 const PREVIEW_WIDTH = 296;
@@ -101,6 +105,8 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
   );
   const [busy, setBusy] = useState<"one" | "all" | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [logoCropSrc, setLogoCropSrc] = useState<string | null>(null);
+  const logoCropObjectUrlRef = useRef<string | null>(null);
 
   function patch(patchValue: Partial<CarouselSlide>) {
     deck.updateSlide(slide.id, patchValue);
@@ -157,7 +163,9 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === "string") {
-        patch({ image: { value: reader.result, blend: "luminosity", opacity: 90, scale: 100, fadeEdges: ["top"] } });
+        patch({
+          image: { value: reader.result, blend: "luminosity", opacity: 90, scale: 100, fadeEdges: ["top"], offsetX: 0, offsetY: 0 },
+        });
       }
     };
     reader.readAsDataURL(file);
@@ -168,11 +176,27 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
     e.target.value = "";
     if (!file || !file.type.startsWith("image/")) return;
     if (file.size > MAX_IMAGE_BYTES) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") setLogoOverride(reader.result);
-    };
-    reader.readAsDataURL(file);
+    const url = URL.createObjectURL(file);
+    logoCropObjectUrlRef.current = url;
+    setLogoCropSrc(url);
+  }
+
+  function openLogoReCrop() {
+    if (!logoOverride) return;
+    setLogoCropSrc(logoOverride);
+  }
+
+  function closeLogoCropper() {
+    if (logoCropObjectUrlRef.current) {
+      URL.revokeObjectURL(logoCropObjectUrlRef.current);
+      logoCropObjectUrlRef.current = null;
+    }
+    setLogoCropSrc(null);
+  }
+
+  function handleLogoCropConfirm(dataUrl: string) {
+    setLogoOverride(dataUrl);
+    closeLogoCropper();
   }
 
   // Instagram/Threads render every feed & story format off a 1080px-wide
@@ -271,6 +295,7 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
                   slideNumberOpacity={slideNumberOpacity}
                   branding={effectiveBranding}
                   width={PREVIEW_WIDTH}
+                  onImageOffsetChange={slide.image ? (offsetX, offsetY) => patchImage({ offsetX, offsetY }) : undefined}
                 />
               </div>
 
@@ -697,6 +722,20 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
                     />
                   </div>
 
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-2 px-2.5 py-2">
+                    <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                      <Move size={11} /> Drag the photo above to reposition it
+                    </span>
+                    {(slide.image.offsetX !== 0 || slide.image.offsetY !== 0) && (
+                      <button
+                        onClick={() => patchImage({ offsetX: 0, offsetY: 0 })}
+                        className="focus-ring flex shrink-0 items-center gap-1 text-[10px] font-semibold text-subtle-foreground hover:text-foreground"
+                      >
+                        <RotateCcw size={11} /> Reset
+                      </button>
+                    )}
+                  </div>
+
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
                       Fade edges (pick any combination)
@@ -808,7 +847,7 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Logo</label>
                   <div className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-app">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-app">
                       {effectiveBranding.logoDataUrl ? (
                         <img src={effectiveBranding.logoDataUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
@@ -820,9 +859,14 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
                       <ImagePlus size={13} /> Upload
                     </Button>
                     {logoOverride && (
-                      <Button variant="ghost" size="sm" onClick={() => setLogoOverride(null)}>
-                        <Trash2 size={13} />
-                      </Button>
+                      <>
+                        <Button variant="ghost" size="sm" onClick={openLogoReCrop} title="Adjust logo">
+                          <Crop size={13} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setLogoOverride(null)}>
+                          <Trash2 size={13} />
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -929,6 +973,10 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
           />
         ))}
       </div>
+
+      {logoCropSrc && (
+        <LogoCropper imageSrc={logoCropSrc} shape="square" onCancel={closeLogoCropper} onConfirm={handleLogoCropConfirm} />
+      )}
     </Card>
   );
 }

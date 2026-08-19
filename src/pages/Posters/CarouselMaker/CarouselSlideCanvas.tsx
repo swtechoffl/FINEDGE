@@ -1,4 +1,4 @@
-import { forwardRef, type CSSProperties } from "react";
+import { forwardRef, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { ChevronRight } from "lucide-react";
 import { fontById } from "./carouselFonts";
 import { formatById, type CarouselFormatId } from "./carouselFormats";
@@ -26,8 +26,12 @@ const HEADING_WEIGHT_VALUES: Record<CarouselSlide["headingWeight"], number> = {
 // so the blend mode / opacity / scale / edge-fade always render identically
 // in both.
 export function blendedImageStyle(image: SlideImage): CSSProperties {
+  // translate() runs before scale() is applied (transforms compose
+  // right-to-left) so the pan percentage always maps to the same on-screen
+  // distance regardless of the current zoom level.
+  const transform = `translate(${image.offsetX}%, ${image.offsetY}%) scale(${image.scale / 100})`;
   if (image.fadeEdges.length === 0) {
-    return { mixBlendMode: image.blend, opacity: image.opacity / 100, transform: `scale(${image.scale / 100})` };
+    return { mixBlendMode: image.blend, opacity: image.opacity / 100, transform };
   }
   // Each edge gets its own fade-to-transparent gradient layered as a
   // separate mask; "intersect" multiplies their alphas together instead of
@@ -40,11 +44,15 @@ export function blendedImageStyle(image: SlideImage): CSSProperties {
   return {
     mixBlendMode: image.blend,
     opacity: image.opacity / 100,
-    transform: `scale(${image.scale / 100})`,
+    transform,
     WebkitMaskImage: maskImage,
     maskImage,
     maskComposite: "intersect",
   };
+}
+
+function clampOffset(v: number) {
+  return Math.min(50, Math.max(-50, v));
 }
 
 function PaginationIndicator({
@@ -120,15 +128,52 @@ export const CarouselSlideCanvas = forwardRef<
     slideNumberOpacity: number; // 0-100
     branding: ReportBranding;
     width?: number;
+    // When provided, the blended image becomes drag-to-reposition in this
+    // render (used for the live editor preview only — export/thumbnail
+    // renders omit it and stay static).
+    onImageOffsetChange?: (offsetX: number, offsetY: number) => void;
   }
 >(function CarouselSlideCanvas(
-  { slide, index, total, format, paginationStyle, showSlideNumber, slideNumberOpacity, branding, width = CAROUSEL_WIDTH },
+  {
+    slide,
+    index,
+    total,
+    format,
+    paginationStyle,
+    showSlideNumber,
+    slideNumberOpacity,
+    branding,
+    width = CAROUSEL_WIDTH,
+    onImageOffsetChange,
+  },
   ref,
 ) {
   const font = fontById(slide.fontId);
   const ratio = formatById(format).ratio;
   const isImage = slide.background.type === "image";
   const backgroundStyle = isImage ? undefined : { background: slide.background.value };
+  const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+
+  function handleImagePointerDown(e: ReactPointerEvent<HTMLImageElement>) {
+    if (!onImageOffsetChange || !slide.image) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { startX: e.clientX, startY: e.clientY, originX: slide.image.offsetX, originY: slide.image.offsetY };
+  }
+
+  function handleImagePointerMove(e: ReactPointerEvent<HTMLImageElement>) {
+    if (!dragRef.current || !onImageOffsetChange) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    const boxHeight = width / ratio;
+    onImageOffsetChange(
+      clampOffset(dragRef.current.originX + (dx / width) * 100),
+      clampOffset(dragRef.current.originY + (dy / boxHeight) * 100),
+    );
+  }
+
+  function handleImagePointerUp() {
+    dragRef.current = null;
+  }
 
   return (
     <div
@@ -156,8 +201,15 @@ export const CarouselSlideCanvas = forwardRef<
         <img
           src={slide.image.value}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          draggable={false}
+          className={`absolute inset-0 h-full w-full object-cover${
+            onImageOffsetChange ? " cursor-grab touch-none active:cursor-grabbing" : ""
+          }`}
           style={blendedImageStyle(slide.image)}
+          onPointerDown={handleImagePointerDown}
+          onPointerMove={handleImagePointerMove}
+          onPointerUp={handleImagePointerUp}
+          onPointerCancel={handleImagePointerUp}
         />
       )}
 
@@ -172,7 +224,10 @@ export const CarouselSlideCanvas = forwardRef<
         </div>
       )}
 
-      <div className="relative flex h-full flex-col" style={{ padding: width * 0.075 }}>
+      {/* pointer-events-none: purely decorative text/branding overlay with no
+          interactive children — without this it sits over the full card and
+          swallows the pointer events the blended image needs for drag-to-reposition. */}
+      <div className="relative flex h-full flex-col pointer-events-none" style={{ padding: width * 0.075 }}>
         <div className="flex items-center justify-between gap-2">
           {slide.eyebrow ? (
             <span
@@ -194,7 +249,7 @@ export const CarouselSlideCanvas = forwardRef<
             <img
               src={branding.logoDataUrl}
               alt=""
-              className="shrink-0 rounded-full object-cover"
+              className="shrink-0 rounded-lg object-cover"
               style={{ width: width * 0.09, height: width * 0.09, boxShadow: `0 0 0 2px ${slide.textColor}40` }}
             />
           )}
