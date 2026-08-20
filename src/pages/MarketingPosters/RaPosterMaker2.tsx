@@ -14,6 +14,29 @@ import { RA_DEFAULT_DISCLAIMER, RA_DEFAULT_NAME, RA_DEFAULT_SEBI_REG_NO } from "
 // is just a backdrop photo behind a theme-color overlay, not a cropped asset.
 const MAX_IMAGE_BYTES = 8_000_000;
 
+// Quick-pick openers for Headline Line 1 — "Line 2" (the SEBI RA name) reads
+// as the object of whichever of these ends up in front of it, so they're
+// all phrased to lead into a name/brand.
+const HEADLINE_PRESETS = [
+  "Get trusted ideas by",
+  "Explore expert market ideas from",
+  "Make informed decisions with",
+  "Invest with insights from",
+  "Your trusted source for market ideas",
+  "Smarter investing starts with",
+  "Trade smarter with insights from",
+  "Stay ahead with trusted insights",
+];
+
+// Alternate SEBI-compliant disclaimer wordings, swapped in for the default
+// RA_DEFAULT_DISCLAIMER (which every other RA poster in the app also uses).
+const DISCLAIMER_PRESETS = [
+  RA_DEFAULT_DISCLAIMER,
+  "Past performance is not indicative of future returns. Investments are subject to market risks. Please read all scheme-related documents carefully before investing.",
+  "Disclaimer: Investments are subject to market risks. Past performance is not indicative of future returns. SEBI registration does not guarantee the performance of the adviser or assure returns.",
+  "Disclaimer: Investment in securities market is subject to market risks. Read all the related documents carefully before investing. Past performance is not indicative of future returns. SEBI registration and certification do not guarantee the performance of the intermediary or provide any assurance of returns to investors.",
+];
+
 const RA2_DEFAULTS: Ra2PosterInput = {
   headlineLine1: "Get trusted ideas by",
   headlineLine2: "SEBI RA",
@@ -97,13 +120,30 @@ export function RaPosterMaker2() {
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
+            <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Headline Line 1</label>
               <Input
                 value={input.headlineLine1}
                 onChange={(e) => patch({ headlineLine1: e.target.value })}
                 placeholder="Get trusted ideas by"
               />
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {HEADLINE_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => patch({ headlineLine1: preset })}
+                    className={cn(
+                      "focus-ring rounded-full border px-2.5 py-1 text-[10.5px] font-medium transition-colors",
+                      input.headlineLine1 === preset
+                        ? "border-accent bg-accent text-accent-foreground"
+                        : "border-border-strong/40 text-muted-foreground hover:bg-hover",
+                    )}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Headline Line 2</label>
@@ -293,6 +333,23 @@ export function RaPosterMaker2() {
                     onChange={(e) => patch({ disclaimer: e.target.value })}
                     className="text-xs"
                   />
+                  <div className="mt-1.5 flex flex-col gap-1">
+                    {DISCLAIMER_PRESETS.map((preset, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => patch({ disclaimer: preset })}
+                        className={cn(
+                          "focus-ring rounded-lg border px-2.5 py-1.5 text-left text-[10.5px] leading-snug transition-colors",
+                          input.disclaimer === preset
+                            ? "border-accent bg-accent/10 text-foreground"
+                            : "border-border-strong/40 text-muted-foreground hover:bg-hover",
+                        )}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </>
             )}
