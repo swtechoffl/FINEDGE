@@ -16,11 +16,13 @@ import { PostMarketSummaryPoster } from "./PostMarketSummaryPoster";
 import { PostMarketSummaryEditor } from "./PostMarketSummaryEditor";
 import { usePostMarketSummaryOverrides } from "./usePostMarketSummaryOverrides";
 import { RaPosterMaker } from "./RaPosterMaker";
+import { RaPosterMaker2 } from "./RaPosterMaker2";
 
-type ViewKey = "products" | "ra";
+type ViewKey = "products" | "ra" | "ra2";
 const VIEWS: { key: ViewKey; label: string }[] = [
   { key: "products", label: "Products" },
   { key: "ra", label: "RA" },
+  { key: "ra2", label: "RA 2" },
 ];
 
 function MarketingPosterCard({
@@ -197,6 +199,8 @@ export function MarketingPostersPage() {
         </div>
 
         {view === "ra" && <RaPosterMaker />}
+
+        {view === "ra2" && <RaPosterMaker2 />}
 
         {view === "products" && (
           <div className="flex flex-col gap-4">
