@@ -2,7 +2,7 @@ import { forwardRef, type CSSProperties } from "react";
 import { ArrowUpRight, IndianRupee } from "lucide-react";
 import { useFitHeight } from "./useFitHeight";
 import { RA2_THEMES, COIN_METAL_STYLES, type Ra2ThemeId } from "./ra2Themes";
-import { fmtRaDate } from "./raPosterTheme";
+import { fmtRaDate, raDaysHeld } from "./raPosterTheme";
 
 // Square (1:1) "premium fintech ad" poster — deliberately different visual
 // language from the dark-card RA posters (RaCallPoster/RaListPoster): a
@@ -16,9 +16,10 @@ export interface Ra2PosterInput {
   headlineLine2: string;
   stockName: string;
   callDate: string;
+  exitDate: string;
   returnsPct: number;
   duration: string;
-  showBottomHeadline: boolean;
+  planText: string;
   ctaText: string;
   showCompliance: boolean;
   raName: string;
@@ -93,6 +94,8 @@ export const RaPoster2 = forwardRef<HTMLDivElement, { input: Ra2PosterInput }>(f
   const hasImage = Boolean(input.backgroundImageUrl);
   const stockLabel = input.stockName.trim();
   const dateLabel = fmtRaDate(input.callDate);
+  const daysHeld = input.exitDate.trim() ? raDaysHeld(input.callDate, input.exitDate) : null;
+  const durationLabel = daysHeld != null ? `in ${daysHeld} day${daysHeld === 1 ? "" : "s"}` : input.duration;
 
   return (
     <div
@@ -102,8 +105,12 @@ export const RaPoster2 = forwardRef<HTMLDivElement, { input: Ra2PosterInput }>(f
       style={{
         width: RA2_POSTER_SIZE,
         height,
-        background: hasImage ? "#050505" : theme.background,
-        backgroundImage: hasImage ? `url(${input.backgroundImageUrl})` : undefined,
+        // A gradient is itself a valid background-image, so both branches
+        // set this one property (mixing it with the `background` shorthand
+        // would race React's "undefined clears the prop" behavior and wipe
+        // out whichever one applied last).
+        backgroundColor: hasImage ? "#050505" : undefined,
+        backgroundImage: hasImage ? `url(${input.backgroundImageUrl})` : theme.background,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -189,16 +196,16 @@ export const RaPoster2 = forwardRef<HTMLDivElement, { input: Ra2PosterInput }>(f
               {pct.toFixed(1)}%
             </span>
           </div>
-          <div className="text-[13px] font-semibold text-slate-500">{input.duration}</div>
+          <div className="text-[13px] font-semibold text-slate-500">{durationLabel}</div>
           {dateLabel && <div className="text-[10px] font-medium text-slate-400">Call given {dateLabel}</div>}
         </div>
 
-        {input.showBottomHeadline && (
+        {input.planText.trim() && (
           <div
-            className="mt-5 text-center text-[22px] font-extrabold uppercase tracking-wide"
-            style={{ color: theme.accentText, filter: `drop-shadow(0 0 14px ${theme.accentGlow})` }}
+            className="mt-5 text-center text-[13px] font-bold"
+            style={{ color: theme.accentText, filter: `drop-shadow(0 0 10px ${theme.accentGlow})` }}
           >
-            {stockLabel ? `STOCK: ${stockLabel} · ${pct.toFixed(1)}% Returns` : `${pct.toFixed(1)}% Returns`}
+            {input.planText}
           </div>
         )}
 

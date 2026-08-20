@@ -8,7 +8,7 @@ import { cn } from "../../lib/utils";
 import { PosterActions } from "../Premarket/posterShared";
 import { RaPoster2, RA2_POSTER_SIZE, type Ra2PosterInput } from "./RaPoster2";
 import { RA2_THEME_LIST } from "./ra2Themes";
-import { RA_DEFAULT_DISCLAIMER, RA_DEFAULT_NAME, RA_DEFAULT_SEBI_REG_NO } from "./raPosterTheme";
+import { RA_DEFAULT_DISCLAIMER } from "./raPosterTheme";
 
 // Raw upload ceiling before it's stored as a data URL — generous since this
 // is just a backdrop photo behind a theme-color overlay, not a cropped asset.
@@ -42,13 +42,14 @@ const RA2_DEFAULTS: Ra2PosterInput = {
   headlineLine2: "SEBI RA",
   stockName: "",
   callDate: new Date().toISOString().slice(0, 10),
+  exitDate: "",
   returnsPct: 7.3,
   duration: "in 5 days",
-  showBottomHeadline: true,
+  planText: "Plan starts from ₹34/day",
   ctaText: "SUBSCRIBE NOW",
   showCompliance: true,
-  raName: RA_DEFAULT_NAME,
-  sebiRegNo: RA_DEFAULT_SEBI_REG_NO,
+  raName: "",
+  sebiRegNo: "",
   disclaimer: RA_DEFAULT_DISCLAIMER,
   themeId: "midnight-blue",
   coinImageUrl: null,
@@ -176,11 +177,31 @@ export function RaPosterMaker2() {
               />
             </div>
             <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Exit Date (optional — auto-calculates duration)
+              </label>
+              <Input type="date" value={input.exitDate} onChange={(e) => patch({ exitDate: e.target.value })} />
+            </div>
+            <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Duration Text</label>
               <Input
                 value={input.duration}
                 onChange={(e) => patch({ duration: e.target.value })}
                 placeholder="in 5 days"
+                disabled={Boolean(input.exitDate.trim())}
+              />
+              {input.exitDate.trim() && (
+                <p className="mt-1 text-[10.5px] text-subtle-foreground">
+                  Auto-calculated from call date → exit date. Clear the exit date to type this manually.
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Plan Text (optional)</label>
+              <Input
+                value={input.planText}
+                onChange={(e) => patch({ planText: e.target.value })}
+                placeholder="Plan starts from ₹34/day"
               />
             </div>
             <div>
@@ -190,17 +211,6 @@ export function RaPosterMaker2() {
                 onChange={(e) => patch({ ctaText: e.target.value.toUpperCase() })}
                 placeholder="SUBSCRIBE NOW"
               />
-            </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={input.showBottomHeadline}
-                  onChange={(e) => patch({ showBottomHeadline: e.target.checked })}
-                  className="h-4 w-4 rounded border-border"
-                />
-                Show "X% Returns" line below the card
-              </label>
             </div>
 
             <div className="sm:col-span-2">
@@ -214,7 +224,9 @@ export function RaPosterMaker2() {
                     title={theme.label}
                     className={cn(
                       "focus-ring relative h-9 w-9 shrink-0 rounded-full border-2 transition-transform hover:scale-105",
-                      input.themeId === theme.id ? "border-accent" : "border-border-strong/40",
+                      input.themeId === theme.id
+                        ? "border-accent ring-2 ring-accent ring-offset-2 ring-offset-surface"
+                        : "border-border-strong/40",
                     )}
                     style={{ background: theme.swatch }}
                   >
