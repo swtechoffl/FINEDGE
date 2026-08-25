@@ -98,10 +98,33 @@ async function fetchGiftNifty() {
     price,
     changePct: extract("Percent Change"),
     change: extract("Change"),
+    // These three are also published by the site itself, but its "Nifty 50
+    // Prev Close" reference has been observed stale by weeks (still dated
+    // 2026-08-07 on 2026-08-25), which silently poisons its Gap
+    // Points/Percent. We only use them as a last-resort fallback — see
+    // applyReliableGiftNiftyGap, which recomputes all three from our own
+    // same-day-reliable ^NSEI close whenever it's available.
     impliedOpen: extract("Implied Open"),
     gapPoints: extract("Gap Points"),
     gapPercent: extract("Gap Percent"),
     source: "giftcitynifty.com (third-party aggregator, not an exchange feed)",
+  };
+}
+
+// GIFT Nifty trades near 24x7 and is meant to be read as a proxy for where
+// Nifty 50 will open, so "implied open" is just the GIFT Nifty price itself
+// (matching giftcitynifty.com's own convention) — but the gap versus the
+// previous Nifty close needs a trustworthy prev-close, which the ^NSEI daily
+// bar we already fetch for pivots (fetchNiftyPivots) provides.
+function applyReliableGiftNiftyGap(giftNifty, niftyPrevClose) {
+  if (!giftNifty || typeof niftyPrevClose !== "number") return giftNifty;
+  const round = (n) => +n.toFixed(2);
+  const gapPoints = round(giftNifty.price - niftyPrevClose);
+  return {
+    ...giftNifty,
+    impliedOpen: giftNifty.price,
+    gapPoints,
+    gapPercent: round((gapPoints / niftyPrevClose) * 100),
   };
 }
 
@@ -358,7 +381,11 @@ async function refreshPremarket() {
     groups[r.groupKey].push({ symbol: r.symbol, label: r.label, price: r.price, changePct: r.changePct });
   }
 
-  const giftNifty = giftResult && !giftResult.error ? giftResult : null;
+  const niftyPivots = pivotsResult && !pivotsResult.error ? pivotsResult : null;
+  const giftNifty = applyReliableGiftNiftyGap(
+    giftResult && !giftResult.error ? giftResult : null,
+    niftyPivots?.basis?.close ?? null,
+  );
   const fiiDii = fiiDiiResult && !fiiDiiResult.error ? fiiDiiResult : null;
   const barometer = computeBarometer({ giftNifty, groups });
 
@@ -376,7 +403,7 @@ async function refreshPremarket() {
     giftNifty,
     groups,
     fiiDii,
-    niftyPivots: pivotsResult && !pivotsResult.error ? pivotsResult : null,
+    niftyPivots,
     bankNiftyPivots: bankPivotsResult && !bankPivotsResult.error ? bankPivotsResult : null,
     barometer,
     ipos: iposResult && !iposResult.error ? iposResult : cache.ipos,
