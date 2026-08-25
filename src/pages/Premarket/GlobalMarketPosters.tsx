@@ -70,12 +70,6 @@ function GiftNiftyHeadline({ giftNifty }: { giftNifty: GiftNiftyData }) {
           </span>
         )}
       </div>
-      {giftNifty.gapPoints !== null && (
-        <div className="mt-0.5 text-[9px] font-medium text-white/60">
-          Implied Nifty gap: {giftNifty.gapPoints >= 0 ? "+" : ""}
-          {giftNifty.gapPoints} pts
-        </div>
-      )}
     </div>
   );
 }

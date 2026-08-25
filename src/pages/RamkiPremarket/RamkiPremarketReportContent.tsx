@@ -561,19 +561,6 @@ export const RamkiPremarketReportContent = forwardRef<
                 </span>
               )}
             </div>
-            {data.giftNifty.gapPoints !== null && (
-              <div className="mt-1.5 text-xs text-muted-foreground">
-                Implied Nifty gap:{" "}
-                <span
-                  className={cn("font-semibold", data.giftNifty.gapPoints >= 0 ? "text-bullish" : "text-bearish")}
-                >
-                  {data.giftNifty.gapPoints >= 0 ? "+" : ""}
-                  {data.giftNifty.gapPoints} pts
-                  {data.giftNifty.gapPercent !== null &&
-                    ` (${data.giftNifty.gapPercent >= 0 ? "+" : ""}${data.giftNifty.gapPercent}%)`}
-                </span>
-              </div>
-            )}
           </BentoCard>
         )}
 

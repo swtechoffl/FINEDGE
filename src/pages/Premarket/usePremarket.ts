@@ -12,9 +12,6 @@ export interface GiftNiftyData {
   price: number;
   changePct: number | null;
   change: number | null;
-  impliedOpen: number | null;
-  gapPoints: number | null;
-  gapPercent: number | null;
   source: string;
 }
 
