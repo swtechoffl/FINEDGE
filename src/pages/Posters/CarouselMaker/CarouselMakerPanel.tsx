@@ -71,6 +71,45 @@ function thumbBackgroundStyle(bg: CarouselSlide["background"]): React.CSSPropert
   return bg.type === "image" ? {} : { background: bg.value };
 }
 
+// One labelled swatch strip + custom picker — used once each for the heading,
+// body and accent colours so they can be tinted independently.
+function ColorRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <div>
+      <div className="mb-1 text-[11px] font-medium text-muted-foreground">{label}</div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {TEXT_COLOR_PRESETS.map((c) => (
+          <button
+            key={c}
+            onClick={() => onChange(c)}
+            className={cn(
+              "focus-ring h-6 w-6 shrink-0 rounded-full border-2",
+              value === c ? "border-accent" : "border-transparent",
+            )}
+            style={{ background: c, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)" }}
+            aria-label={`Use ${c}`}
+          />
+        ))}
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-6 w-6 shrink-0 cursor-pointer rounded-full border border-border bg-transparent p-0"
+          title="Custom colour"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
   const deck = useCarouselDeck();
   const {
@@ -296,6 +335,7 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
                   branding={effectiveBranding}
                   width={PREVIEW_WIDTH}
                   onImageOffsetChange={slide.image ? (offsetX, offsetY) => patchImage({ offsetX, offsetY }) : undefined}
+                  onTextOffsetChange={(textOffsetX, textOffsetY) => patch({ textOffsetX, textOffsetY })}
                 />
               </div>
 
@@ -496,28 +536,36 @@ export function CarouselMakerPanel({ branding }: { branding: ReportBranding }) {
                   >
                     <AlignCenter size={14} />
                   </button>
+                </div>
 
-                  <span className="mx-1 h-5 w-px bg-border" />
+                <ColorRow
+                  label="Heading colour"
+                  value={slide.headingColor}
+                  onChange={(headingColor) => patch({ headingColor })}
+                />
+                <ColorRow
+                  label="Body colour"
+                  value={slide.bodyColor}
+                  onChange={(bodyColor) => patch({ bodyColor })}
+                />
+                <ColorRow
+                  label="Accents (eyebrow, page dots, footer)"
+                  value={slide.textColor}
+                  onChange={(textColor) => patch({ textColor })}
+                />
 
-                  {TEXT_COLOR_PRESETS.map((c) => (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-2 px-2.5 py-2">
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                    <Move size={11} /> Drag the text in the preview to move it
+                  </span>
+                  {(slide.textOffsetX !== 0 || slide.textOffsetY !== 0) && (
                     <button
-                      key={c}
-                      onClick={() => patch({ textColor: c })}
-                      className={cn(
-                        "focus-ring h-6 w-6 shrink-0 rounded-full border-2",
-                        slide.textColor === c ? "border-accent" : "border-transparent",
-                      )}
-                      style={{ background: c, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)" }}
-                      aria-label={`Use ${c}`}
-                    />
-                  ))}
-                  <input
-                    type="color"
-                    value={slide.textColor}
-                    onChange={(e) => patch({ textColor: e.target.value })}
-                    className="h-6 w-6 shrink-0 cursor-pointer rounded-full border border-border bg-transparent p-0"
-                    title="Custom text color"
-                  />
+                      onClick={() => patch({ textOffsetX: 0, textOffsetY: 0 })}
+                      className="focus-ring flex shrink-0 items-center gap-1 text-[10px] font-semibold text-subtle-foreground hover:text-foreground"
+                    >
+                      <RotateCcw size={11} /> Reset
+                    </button>
+                  )}
                 </div>
               </div>
             </Section>

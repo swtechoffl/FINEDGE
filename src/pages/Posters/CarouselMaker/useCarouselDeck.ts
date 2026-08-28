@@ -47,8 +47,18 @@ export interface CarouselSlide {
   headingSize: number;
   bodySize: number;
   headingWeight: FontWeight;
+  // textColor drives the slide "chrome" — eyebrow pill, logo ring, giant
+  // slide number, pagination, disclaimer and footer name. The heading and
+  // body each get their own colour so they can be tinted independently.
   textColor: string;
+  headingColor: string;
+  bodyColor: string;
   align: "left" | "center";
+  // Drag offset of the heading+body block from its default bottom-anchored
+  // position, as a percentage of the slide's own width/height. 0,0 is the
+  // default resting place; dragging the text in the preview updates these.
+  textOffsetX: number;
+  textOffsetY: number;
   showLogo: boolean;
   disclaimer: string;
 }
@@ -64,7 +74,17 @@ function newId() {
 // creative choice worth repeating for consistency but easy to override.
 type StyleCarry = Pick<
   CarouselSlide,
-  "background" | "fontId" | "headingSize" | "bodySize" | "headingWeight" | "textColor" | "align" | "showLogo" | "disclaimer"
+  | "background"
+  | "fontId"
+  | "headingSize"
+  | "bodySize"
+  | "headingWeight"
+  | "textColor"
+  | "headingColor"
+  | "bodyColor"
+  | "align"
+  | "showLogo"
+  | "disclaimer"
 >;
 
 function makeSlide(overrides?: Partial<CarouselSlide>): CarouselSlide {
@@ -80,7 +100,11 @@ function makeSlide(overrides?: Partial<CarouselSlide>): CarouselSlide {
     bodySize: 100,
     headingWeight: "extrabold",
     textColor: "#ffffff",
+    headingColor: "#ffffff",
+    bodyColor: "#ffffff",
     align: "left",
+    textOffsetX: 0,
+    textOffsetY: 0,
     showLogo: true,
     disclaimer: "",
     ...overrides,
@@ -107,8 +131,32 @@ export function useCarouselDeck() {
 
   function carryStyle(slide: CarouselSlide | undefined): StyleCarry | undefined {
     if (!slide) return undefined;
-    const { background, fontId, headingSize, bodySize, headingWeight, textColor, align, showLogo, disclaimer } = slide;
-    return { background, fontId, headingSize, bodySize, headingWeight, textColor, align, showLogo, disclaimer };
+    const {
+      background,
+      fontId,
+      headingSize,
+      bodySize,
+      headingWeight,
+      textColor,
+      headingColor,
+      bodyColor,
+      align,
+      showLogo,
+      disclaimer,
+    } = slide;
+    return {
+      background,
+      fontId,
+      headingSize,
+      bodySize,
+      headingWeight,
+      textColor,
+      headingColor,
+      bodyColor,
+      align,
+      showLogo,
+      disclaimer,
+    };
   }
 
   function addSlide() {

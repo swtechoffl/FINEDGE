@@ -55,6 +55,13 @@ function clampOffset(v: number) {
   return Math.min(50, Math.max(-50, v));
 }
 
+// The text block can travel further than the photo — it starts anchored at
+// the bottom and users often want it top or dead-center, so allow a fuller
+// range while still keeping it from being dragged completely off-slide.
+function clampTextOffset(v: number) {
+  return Math.min(100, Math.max(-100, v));
+}
+
 function PaginationIndicator({
   style,
   index,
@@ -132,6 +139,8 @@ export const CarouselSlideCanvas = forwardRef<
     // render (used for the live editor preview only — export/thumbnail
     // renders omit it and stay static).
     onImageOffsetChange?: (offsetX: number, offsetY: number) => void;
+    // Same idea for the heading+body text block — live editor preview only.
+    onTextOffsetChange?: (offsetX: number, offsetY: number) => void;
   }
 >(function CarouselSlideCanvas(
   {
@@ -145,6 +154,7 @@ export const CarouselSlideCanvas = forwardRef<
     branding,
     width = CAROUSEL_WIDTH,
     onImageOffsetChange,
+    onTextOffsetChange,
   },
   ref,
 ) {
@@ -153,6 +163,7 @@ export const CarouselSlideCanvas = forwardRef<
   const isImage = slide.background.type === "image";
   const backgroundStyle = isImage ? undefined : { background: slide.background.value };
   const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const textDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
   function handleImagePointerDown(e: ReactPointerEvent<HTMLImageElement>) {
     if (!onImageOffsetChange || !slide.image) return;
@@ -173,6 +184,32 @@ export const CarouselSlideCanvas = forwardRef<
 
   function handleImagePointerUp() {
     dragRef.current = null;
+  }
+
+  function handleTextPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!onTextOffsetChange) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    textDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: slide.textOffsetX,
+      originY: slide.textOffsetY,
+    };
+  }
+
+  function handleTextPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!textDragRef.current || !onTextOffsetChange) return;
+    const dx = e.clientX - textDragRef.current.startX;
+    const dy = e.clientY - textDragRef.current.startY;
+    const boxHeight = width / ratio;
+    onTextOffsetChange(
+      clampTextOffset(textDragRef.current.originX + (dx / width) * 100),
+      clampTextOffset(textDragRef.current.originY + (dy / boxHeight) * 100),
+    );
+  }
+
+  function handleTextPointerUp() {
+    textDragRef.current = null;
   }
 
   return (
@@ -256,7 +293,14 @@ export const CarouselSlideCanvas = forwardRef<
         </div>
 
         <div
-          className={`mt-auto flex flex-col gap-2 ${slide.align === "center" ? "items-center text-center" : "items-start text-left"}`}
+          className={`mt-auto flex flex-col gap-2 ${slide.align === "center" ? "items-center text-center" : "items-start text-left"}${
+            onTextOffsetChange ? " pointer-events-auto cursor-grab touch-none select-none active:cursor-grabbing" : ""
+          }`}
+          style={{ transform: `translate(${slide.textOffsetX}%, ${slide.textOffsetY}%)` }}
+          onPointerDown={handleTextPointerDown}
+          onPointerMove={handleTextPointerMove}
+          onPointerUp={handleTextPointerUp}
+          onPointerCancel={handleTextPointerUp}
         >
           {slide.heading && (
             <div
@@ -264,7 +308,7 @@ export const CarouselSlideCanvas = forwardRef<
               style={{
                 fontSize: width * 0.115 * (slide.headingSize / 100),
                 fontWeight: HEADING_WEIGHT_VALUES[slide.headingWeight],
-                color: slide.textColor,
+                color: slide.headingColor,
               }}
             >
               {slide.heading}
@@ -275,7 +319,7 @@ export const CarouselSlideCanvas = forwardRef<
               className="whitespace-pre-wrap font-medium leading-snug"
               style={{
                 fontSize: width * 0.042 * (slide.bodySize / 100),
-                color: slide.textColor,
+                color: slide.bodyColor,
                 opacity: 0.85,
                 maxWidth: "92%",
               }}
