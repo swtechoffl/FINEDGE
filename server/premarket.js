@@ -40,6 +40,20 @@ const SYMBOL_GROUPS = {
     { symbol: "^IXIC", label: "Nasdaq" },
     { symbol: "^RUT", label: "Russell 2000" },
   ],
+  // Individual US mega-cap names — the "Global Stocks" posters section
+  // (see src/pages/GlobalStocks) publishes these as story cards the same
+  // way the indices above feed the pre-market cues. They trade the full US
+  // session overnight relative to Indian hours, so a same-day read.
+  usStocks: [
+    { symbol: "AAPL", label: "Apple" },
+    { symbol: "MSFT", label: "Microsoft" },
+    { symbol: "NVDA", label: "Nvidia" },
+    { symbol: "GOOGL", label: "Alphabet" },
+    { symbol: "AMZN", label: "Amazon" },
+    { symbol: "META", label: "Meta" },
+    { symbol: "TSLA", label: "Tesla" },
+    { symbol: "AVGO", label: "Broadcom" },
+  ],
   europe: [
     { symbol: "^FTSE", label: "FTSE 100" },
     { symbol: "^FCHI", label: "CAC 40" },
