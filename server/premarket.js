@@ -206,20 +206,71 @@ function computeFloorPivots({ high, low, close }) {
   };
 }
 
-async function fetchNiftyPivots() {
-  const bar = await fetchYahooDailyOHLC("^NSEI");
+// NSE's /api/allIndices carries the running index OHLC, but during a live
+// session high/low/last are the *forming* day — only a valid pivot basis
+// once that session has settled (at/after 15:30 IST) or before the next
+// one opens (before 09:15 IST). The envelope timestamp ("04-Sep-2026
+// 15:30", exchange-local IST) is what tells us which.
+const NSE_MONTHS = {
+  Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
+  Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
+};
+
+function parseNseIndicesTimestamp(ts) {
+  const m = /(\d{2})-(\w{3})-(\d{4})\s+(\d{2}):(\d{2})/.exec(ts || "");
+  if (!m) return null;
   return {
-    basis: { date: bar.date, high: bar.high, low: bar.low, close: bar.close },
-    levels: computeFloorPivots(bar),
+    isoDate: `${m[3]}-${NSE_MONTHS[m[2]] ?? "01"}-${m[1]}`,
+    minutesOfDay: Number(m[4]) * 60 + Number(m[5]),
   };
 }
 
+// Previous completed session's high/low/close for an index. Prefers NSE's
+// own feed — the same exchange source the option-chain spot comes from, so
+// the pivot "Basis" close lines up with what the Index Option Chain poster
+// shows — and falls back to Yahoo's daily bar if NSE is unreachable or is
+// currently mid-session (Yahoo's last *complete* bar is the right basis
+// then anyway).
+async function fetchIndexPivotBasis(nseIndexName, yahooSymbol) {
+  try {
+    const env = await fetchNseJson(
+      "/api/allIndices",
+      "https://www.nseindia.com/market-data/live-market-indices",
+    );
+    const stamp = parseNseIndicesTimestamp(env?.timestamp);
+    const settled = stamp && (stamp.minutesOfDay >= 15 * 60 + 30 || stamp.minutesOfDay < 9 * 60 + 15);
+    const row = (env?.data || []).find(
+      (d) => d.index === nseIndexName || d.indexSymbol === nseIndexName,
+    );
+    if (
+      settled &&
+      row &&
+      typeof row.high === "number" &&
+      typeof row.low === "number" &&
+      typeof row.last === "number"
+    ) {
+      return {
+        date: stamp.isoDate,
+        high: row.high,
+        low: row.low,
+        close: row.last,
+      };
+    }
+  } catch {
+    // fall through to Yahoo
+  }
+  const bar = await fetchYahooDailyOHLC(yahooSymbol);
+  return { date: bar.date, high: bar.high, low: bar.low, close: bar.close };
+}
+
+async function fetchNiftyPivots() {
+  const basis = await fetchIndexPivotBasis("NIFTY 50", "^NSEI");
+  return { basis, levels: computeFloorPivots(basis) };
+}
+
 async function fetchBankNiftyPivots() {
-  const bar = await fetchYahooDailyOHLC("^NSEBANK");
-  return {
-    basis: { date: bar.date, high: bar.high, low: bar.low, close: bar.close },
-    levels: computeFloorPivots(bar),
-  };
+  const basis = await fetchIndexPivotBasis("NIFTY BANK", "^NSEBANK");
+  return { basis, levels: computeFloorPivots(basis) };
 }
 
 function parseNseIpoDate(d) {

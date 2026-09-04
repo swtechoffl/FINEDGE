@@ -93,23 +93,28 @@ export async function fetchYahooDailyOHLC(yahooSymbol, days = 10) {
   // close while regularMarketPrice already held the real closing print —
   // this is exactly what was making the pivot "Basis" close disagree with
   // the live NIFTY/BANK NIFTY price shown elsewhere, off by a full session).
-  // regularMarketTime landing before the *next* regular session's start is
-  // what distinguishes "this session is over, just not backfilled yet" from
-  // "this session is still live" — live, regularMarketPrice is a moving
-  // intraday print, not a close, and patching it in would wrongly treat
-  // today's still-forming session as the complete "previous session".
+  //
+  // "This session is over, just not backfilled yet" vs "still live" is
+  // decided by whether the current day's regular session has already ended
+  // (now >= currentTradingPeriod.regular.end). An earlier version keyed
+  // this off `regularMarketTime < regular.start` instead, but Yahoo does
+  // NOT roll currentTradingPeriod forward to the next session promptly at
+  // close — hours after the 3:30pm IST close `regular.start` was still
+  // 9:15am *that same day*, so the guard was always false and the stale
+  // prior-session bar leaked through. Mid-session `now < regular.end`, so
+  // the still-forming bar is correctly left untouched and the prior
+  // complete bar is used.
   const meta = result.meta;
   const lastBar = bars[bars.length - 1];
-  const nextRegularStart = meta?.currentTradingPeriod?.regular?.start;
+  const regularEnd = meta?.currentTradingPeriod?.regular?.end;
   if (
     lastBar &&
     lastBar.high !== null &&
     lastBar.low !== null &&
     lastBar.close === null &&
     typeof meta?.regularMarketPrice === "number" &&
-    typeof meta?.regularMarketTime === "number" &&
-    typeof nextRegularStart === "number" &&
-    meta.regularMarketTime < nextRegularStart
+    typeof regularEnd === "number" &&
+    Date.now() / 1000 >= regularEnd
   ) {
     lastBar.close = meta.regularMarketPrice;
   }
