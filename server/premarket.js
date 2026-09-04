@@ -40,10 +40,12 @@ const SYMBOL_GROUPS = {
     { symbol: "^IXIC", label: "Nasdaq" },
     { symbol: "^RUT", label: "Russell 2000" },
   ],
-  // Individual US mega-cap names — the "Global Stocks" posters section
-  // (see src/pages/GlobalStocks) publishes these as story cards the same
-  // way the indices above feed the pre-market cues. They trade the full US
-  // session overnight relative to Indian hours, so a same-day read.
+  // Liquid US large-cap universe — the "Global Stocks" posters section
+  // (see src/pages/GlobalStocks) ranks this list into Top Gainers / Top
+  // Losers posters and pulls the US_WATCHLIST subset for its "Stocks to
+  // Watch" card. These trade the full US session overnight relative to
+  // Indian hours, so a same-day pre-market read the same way US indices
+  // and GIFT Nifty are.
   usStocks: [
     { symbol: "AAPL", label: "Apple" },
     { symbol: "MSFT", label: "Microsoft" },
@@ -53,6 +55,38 @@ const SYMBOL_GROUPS = {
     { symbol: "META", label: "Meta" },
     { symbol: "TSLA", label: "Tesla" },
     { symbol: "AVGO", label: "Broadcom" },
+    { symbol: "NFLX", label: "Netflix" },
+    { symbol: "AMD", label: "AMD" },
+    { symbol: "JPM", label: "JPMorgan" },
+    { symbol: "V", label: "Visa" },
+    { symbol: "MA", label: "Mastercard" },
+    { symbol: "WMT", label: "Walmart" },
+    { symbol: "COST", label: "Costco" },
+    { symbol: "HD", label: "Home Depot" },
+    { symbol: "PG", label: "P&G" },
+    { symbol: "KO", label: "Coca-Cola" },
+    { symbol: "PEP", label: "PepsiCo" },
+    { symbol: "XOM", label: "Exxon Mobil" },
+    { symbol: "CVX", label: "Chevron" },
+    { symbol: "LLY", label: "Eli Lilly" },
+    { symbol: "UNH", label: "UnitedHealth" },
+    { symbol: "JNJ", label: "J&J" },
+    { symbol: "ABBV", label: "AbbVie" },
+    { symbol: "MRK", label: "Merck" },
+    { symbol: "BAC", label: "Bank of America" },
+    { symbol: "ORCL", label: "Oracle" },
+    { symbol: "CRM", label: "Salesforce" },
+    { symbol: "ADBE", label: "Adobe" },
+    { symbol: "CSCO", label: "Cisco" },
+    { symbol: "INTC", label: "Intel" },
+    { symbol: "QCOM", label: "Qualcomm" },
+    { symbol: "IBM", label: "IBM" },
+    { symbol: "GE", label: "GE Aerospace" },
+    { symbol: "BA", label: "Boeing" },
+    { symbol: "DIS", label: "Disney" },
+    { symbol: "NKE", label: "Nike" },
+    { symbol: "PFE", label: "Pfizer" },
+    { symbol: "T", label: "AT&T" },
   ],
   europe: [
     { symbol: "^FTSE", label: "FTSE 100" },
@@ -80,6 +114,29 @@ const SYMBOL_GROUPS = {
     { symbol: "YTRA", label: "Yatra Online" },
   ],
 };
+
+// Curated subset of the usStocks universe that feeds the "Stocks to Watch"
+// poster — the mega-cap names a desk actually watches every session,
+// shown in this order regardless of the day's move (unlike the Top
+// Gainers / Losers posters, which rank the whole universe by % change).
+const US_WATCHLIST = ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "TSLA", "AVGO", "NFLX", "AMD"];
+
+// How many names each ranked US-stocks poster shows.
+const US_MOVERS_LIMIT = 10;
+
+// Builds the derived usWatch / usGainers / usLosers lists the Global
+// Stocks posters render, from the freshly-fetched usStocks universe.
+function deriveUsStockLists(universe) {
+  const bySymbol = new Map(universe.map((q) => [q.symbol, q]));
+  const usWatch = US_WATCHLIST.map((sym) => bySymbol.get(sym)).filter(Boolean);
+  const ranked = [...universe].sort((a, b) => b.changePct - a.changePct);
+  const usGainers = ranked.filter((q) => q.changePct > 0).slice(0, US_MOVERS_LIMIT);
+  const usLosers = ranked
+    .filter((q) => q.changePct < 0)
+    .slice(-US_MOVERS_LIMIT)
+    .reverse();
+  return { usWatch, usGainers, usLosers };
+}
 
 // GIFT Nifty (NSE IX / India International Exchange, GIFT City — the
 // successor to SGX Nifty) has no free official real-time API. This page
@@ -367,6 +424,12 @@ async function refreshPremarket() {
     }
     groups[r.groupKey].push({ symbol: r.symbol, label: r.label, price: r.price, changePct: r.changePct });
   }
+
+  // Ranked US-stock lists for the Global Stocks posters. Kept as extra
+  // `groups` keys so they ride the same /api/premarket payload and client
+  // hook without a new endpoint; the raw `usStocks` universe stays in the
+  // payload as their source of truth.
+  Object.assign(groups, deriveUsStockLists(groups.usStocks));
 
   const niftyPivots = pivotsResult && !pivotsResult.error ? pivotsResult : null;
   const giftNifty = giftResult && !giftResult.error ? giftResult : null;

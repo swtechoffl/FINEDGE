@@ -1,11 +1,11 @@
 import { useRef } from "react";
-import { CandlestickChart, Globe2, Boxes, Building2, Coins } from "lucide-react";
+import { Eye, TrendingUp, TrendingDown, Globe2, Boxes, Building2, Coins } from "lucide-react";
 import type { PremarketQuote } from "../Premarket/usePremarket";
 import type { ReportBranding } from "../Premarket/useReportBranding";
 import type { SocialLinks } from "../Premarket/useSocialLinks";
 import { SocialLinksEditor } from "../Premarket/SocialLinksEditor";
 import { Card } from "../../components/ui/Card";
-import { PosterFrame, PosterActions } from "../Premarket/posterShared";
+import { PosterFrame, PosterActions, MAX_POSTER_ROWS, rowDensityFor, type RowDensity } from "../Premarket/posterShared";
 import { cn } from "../../lib/utils";
 
 // Poster rows have limited width — a trailing "(WTI)"-style qualifier is the
@@ -53,6 +53,79 @@ function RegionHeader({ label }: { label: string }) {
   return <div className="text-[8px] font-bold uppercase tracking-widest text-white/50">{label}</div>;
 }
 
+// Single vertical row for the ranked list posters (Stocks to Watch / Top
+// Gainers / Top Losers) — steps down through density tiers as the list
+// grows, same as the Indian poster rows.
+function StockListRow({ quote, density }: { quote: PremarketQuote; density: RowDensity }) {
+  const up = quote.changePct >= 0;
+  return (
+    <div className={cn("flex items-center justify-between gap-2 rounded-lg bg-white/10", density.padding)}>
+      <span className={cn("min-w-0 flex-1 truncate font-bold leading-tight text-white", density.primaryText)}>
+        {shortLabel(quote.label)}
+      </span>
+      <div className={cn("flex shrink-0 items-center gap-1.5", density.secondaryText)}>
+        <span className="text-white/70">{quote.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+        <span className={cn("font-bold", up ? "text-emerald-300" : "text-red-300")}>
+          {up ? "+" : ""}
+          {quote.changePct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function RankedListPoster({
+  posterRef,
+  posterId,
+  gradient,
+  icon,
+  title,
+  subtitle,
+  items,
+  branding,
+  links,
+  filename,
+  shareTitle,
+}: {
+  posterRef: React.RefObject<HTMLDivElement | null>;
+  posterId: string;
+  gradient: string;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  items: PremarketQuote[];
+  branding: ReportBranding;
+  links: SocialLinks;
+  filename: string;
+  shareTitle: string;
+}) {
+  const rows = items.slice(0, MAX_POSTER_ROWS);
+  const density = rowDensityFor(rows.length);
+  return (
+    <div className="flex shrink-0 snap-start flex-col">
+      <div className="overflow-hidden rounded-2xl shadow-md">
+        <PosterFrame
+          ref={posterRef}
+          posterId={posterId}
+          gradient={gradient}
+          icon={icon}
+          title={title}
+          subtitle={subtitle}
+          branding={branding}
+          links={links}
+        >
+          <div className={cn("flex flex-col", density.gap)}>
+            {rows.map((q) => (
+              <StockListRow key={q.symbol} quote={q} density={density} />
+            ))}
+          </div>
+        </PosterFrame>
+      </div>
+      <PosterActions nodeRef={posterRef} filename={filename} shareTitle={shareTitle} />
+    </div>
+  );
+}
+
 export function GlobalStocksPosters({
   groups,
   branding,
@@ -66,14 +139,18 @@ export function GlobalStocksPosters({
   setField: (field: keyof SocialLinks, value: string) => void;
   clear: () => void;
 }) {
-  const usStocksRef = useRef<HTMLDivElement>(null);
+  const watchRef = useRef<HTMLDivElement>(null);
+  const gainersRef = useRef<HTMLDivElement>(null);
+  const losersRef = useRef<HTMLDivElement>(null);
   const usIndicesRef = useRef<HTMLDivElement>(null);
   const globalIndicesRef = useRef<HTMLDivElement>(null);
   const commoditiesRef = useRef<HTMLDivElement>(null);
   const adrRef = useRef<HTMLDivElement>(null);
 
   const dateStr = new Date().toISOString().slice(0, 10);
-  const usStocks = groups.usStocks || [];
+  const usWatch = groups.usWatch || [];
+  const usGainers = groups.usGainers || [];
+  const usLosers = groups.usLosers || [];
   const us = groups.us || [];
   const europe = groups.europe || [];
   const asia = groups.asia || [];
@@ -81,13 +158,24 @@ export function GlobalStocksPosters({
   const currency = groups.currency || [];
   const adrs = groups.adr || [];
 
-  const hasUsStocks = usStocks.length > 0;
+  const hasWatch = usWatch.length > 0;
+  const hasGainers = usGainers.length > 0;
+  const hasLosers = usLosers.length > 0;
   const hasUsIndices = us.length > 0;
   const hasGlobalIndices = europe.length > 0 || asia.length > 0;
   const hasCommodities = commodities.length > 0 || currency.length > 0;
   const hasAdrs = adrs.length > 0;
 
-  if (!hasUsStocks && !hasUsIndices && !hasGlobalIndices && !hasCommodities && !hasAdrs) return null;
+  if (
+    !hasWatch &&
+    !hasGainers &&
+    !hasLosers &&
+    !hasUsIndices &&
+    !hasGlobalIndices &&
+    !hasCommodities &&
+    !hasAdrs
+  )
+    return null;
 
   return (
     <Card className="overflow-hidden">
@@ -103,34 +191,52 @@ export function GlobalStocksPosters({
         </div>
 
         <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-1">
-          {hasUsStocks && (
-            <div className="flex shrink-0 snap-start flex-col">
-              <div className="overflow-hidden rounded-2xl shadow-md">
-                <PosterFrame
-                  ref={usStocksRef}
-                  posterId="us-megacap-stocks"
-                  width={300}
-                  gradient="linear-gradient(160deg, #14532d 0%, #060d09 70%)"
-                  icon={<CandlestickChart size={26} />}
-                  title="US Mega-Cap Stocks"
-                  subtitle="Overnight Session · % Change"
-                  branding={branding}
-                  links={links}
-                >
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {usStocks.map((q) => (
-                      <QuoteRow key={q.symbol} quote={q} compact />
-                    ))}
-                  </div>
-                </PosterFrame>
-              </div>
-              <PosterActions
-                nodeRef={usStocksRef}
-                width={300}
-                filename={`stoqtrade-us-megacap-stocks-${dateStr}.png`}
-                shareTitle="US Mega-Cap Stocks — Overnight Session"
-              />
-            </div>
+          {hasWatch && (
+            <RankedListPoster
+              posterRef={watchRef}
+              posterId="us-stocks-to-watch"
+              gradient="linear-gradient(160deg, #14532d 0%, #060d09 70%)"
+              icon={<Eye size={26} />}
+              title="Stocks to Watch"
+              subtitle="US Mega-Caps · Overnight Move"
+              items={usWatch}
+              branding={branding}
+              links={links}
+              filename={`stoqtrade-us-stocks-to-watch-${dateStr}.png`}
+              shareTitle="US Stocks to Watch"
+            />
+          )}
+
+          {hasGainers && (
+            <RankedListPoster
+              posterRef={gainersRef}
+              posterId="us-top-gainers"
+              gradient="linear-gradient(160deg, #065f46 0%, #06110c 70%)"
+              icon={<TrendingUp size={26} />}
+              title="Top Gainers"
+              subtitle="US Large-Caps · Overnight Session"
+              items={usGainers}
+              branding={branding}
+              links={links}
+              filename={`stoqtrade-us-top-gainers-${dateStr}.png`}
+              shareTitle="US Top Gainers — Overnight Session"
+            />
+          )}
+
+          {hasLosers && (
+            <RankedListPoster
+              posterRef={losersRef}
+              posterId="us-top-losers"
+              gradient="linear-gradient(160deg, #7f1d1d 0%, #0c0505 70%)"
+              icon={<TrendingDown size={26} />}
+              title="Top Losers"
+              subtitle="US Large-Caps · Overnight Session"
+              items={usLosers}
+              branding={branding}
+              links={links}
+              filename={`stoqtrade-us-top-losers-${dateStr}.png`}
+              shareTitle="US Top Losers — Overnight Session"
+            />
           )}
 
           {hasUsIndices && (
