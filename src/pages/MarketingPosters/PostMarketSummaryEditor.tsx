@@ -5,7 +5,12 @@ import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useAnchoredPopoverPosition } from "../../lib/useAnchoredPopover";
 import { MOOD_IMAGES, type MarketMood } from "./MarketMoodMotif";
-import type { IndexOverride, PostMarketSummaryOverride } from "./usePostMarketSummaryOverrides";
+import type {
+  IndexOiOverride,
+  IndexOverride,
+  MoverOverride,
+  PostMarketSummaryOverride,
+} from "./usePostMarketSummaryOverrides";
 
 const PANEL_WIDTH = 320;
 
@@ -31,6 +36,18 @@ interface IndexDraft {
   changePct: string;
 }
 
+interface MoverDraft {
+  symbol: string;
+  changePct: string;
+}
+
+interface OiDraft {
+  finnifty: string;
+  nifty: string;
+  niftyNxt50: string;
+  bankNifty: string;
+}
+
 function toDraft(override: IndexOverride | undefined): IndexDraft {
   return {
     price: override?.price?.toString() ?? "",
@@ -49,6 +66,76 @@ function toOverride(draft: IndexDraft): IndexOverride | undefined {
     ...(change !== undefined && !Number.isNaN(change) ? { change } : {}),
     ...(changePct !== undefined && !Number.isNaN(changePct) ? { changePct } : {}),
   };
+}
+
+function toMoverDraft(values?: MoverOverride[]): MoverDraft[] {
+  return Array.from({ length: 5 }, (_, index) => ({
+    symbol: values?.[index]?.symbol ?? "",
+    changePct: values?.[index]?.changePct?.toString() ?? "",
+  }));
+}
+
+function toMoverOverride(values: MoverDraft[]): MoverOverride[] | undefined {
+  const rows = values.flatMap((row) => {
+    const symbol = row.symbol.trim().toUpperCase();
+    const changePct = Number(row.changePct);
+    return symbol && row.changePct.trim() !== "" && Number.isFinite(changePct) ? [{ symbol, changePct }] : [];
+  });
+  return rows.length ? rows : undefined;
+}
+
+function toOiDraft(value?: IndexOiOverride): OiDraft {
+  return {
+    finnifty: value?.finnifty?.toString() ?? "",
+    nifty: value?.nifty?.toString() ?? "",
+    niftyNxt50: value?.niftyNxt50?.toString() ?? "",
+    bankNifty: value?.bankNifty?.toString() ?? "",
+  };
+}
+
+function toOiOverride(draft: OiDraft): IndexOiOverride | undefined {
+  const result: IndexOiOverride = {};
+  for (const key of Object.keys(draft) as (keyof OiDraft)[]) {
+    const value = draft[key].trim();
+    if (value !== "" && Number.isFinite(Number(value))) result[key] = Number(value);
+  }
+  return Object.keys(result).length ? result : undefined;
+}
+
+function MoversOverrideRows({
+  label,
+  values,
+  onChange,
+}: {
+  label: string;
+  values: MoverDraft[];
+  onChange: (values: MoverDraft[]) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
+      <div className="flex flex-col gap-1.5">
+        {values.map((row, index) => (
+          <div key={index} className="grid grid-cols-[1fr_90px] gap-2">
+            <Input
+              placeholder={`Stock ${index + 1}`}
+              value={row.symbol}
+              onChange={(e) => onChange(values.map((item, i) => (i === index ? { ...item, symbol: e.target.value } : item)))}
+            />
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="Change %"
+              value={row.changePct}
+              onChange={(e) =>
+                onChange(values.map((item, i) => (i === index ? { ...item, changePct: e.target.value } : item)))
+              }
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function IndexOverrideRow({
@@ -109,6 +196,9 @@ export function PostMarketSummaryEditor({
   niftyOverride,
   sensexOverride,
   bankNiftyOverride,
+  gainersOverride,
+  losersOverride,
+  indexOiOverride,
   hasOverride,
   onChange,
   onReset,
@@ -123,6 +213,9 @@ export function PostMarketSummaryEditor({
   niftyOverride?: IndexOverride;
   sensexOverride?: IndexOverride;
   bankNiftyOverride?: IndexOverride;
+  gainersOverride?: MoverOverride[];
+  losersOverride?: MoverOverride[];
+  indexOiOverride?: IndexOiOverride;
   hasOverride: boolean;
   onChange: (patch: PostMarketSummaryOverride) => void;
   onReset: () => void;
@@ -136,6 +229,9 @@ export function PostMarketSummaryEditor({
     nifty: toDraft(niftyOverride),
     sensex: toDraft(sensexOverride),
     bankNifty: toDraft(bankNiftyOverride),
+    gainers: toMoverDraft(gainersOverride),
+    losers: toMoverDraft(losersOverride),
+    indexOi: toOiDraft(indexOiOverride),
   });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const position = useAnchoredPopoverPosition(open, buttonRef, PANEL_WIDTH);
@@ -149,6 +245,9 @@ export function PostMarketSummaryEditor({
       nifty: toDraft(niftyOverride),
       sensex: toDraft(sensexOverride),
       bankNifty: toDraft(bankNiftyOverride),
+      gainers: toMoverDraft(gainersOverride),
+      losers: toMoverDraft(losersOverride),
+      indexOi: toOiDraft(indexOiOverride),
     });
     setOpen(true);
   }
@@ -162,6 +261,9 @@ export function PostMarketSummaryEditor({
       nifty: toOverride(draft.nifty),
       sensex: toOverride(draft.sensex),
       bankNifty: toOverride(draft.bankNifty),
+      gainers: toMoverOverride(draft.gainers),
+      losers: toMoverOverride(draft.losers),
+      indexOi: toOiOverride(draft.indexOi),
     });
     setOpen(false);
   }
@@ -269,6 +371,53 @@ export function PostMarketSummaryEditor({
                     draft={draft.bankNifty}
                     onChange={(v) => setDraft((d) => ({ ...d, bankNifty: v }))}
                   />
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-border pt-3">
+                  <div>
+                    <span className="text-xs font-semibold text-foreground">Top movers (manual override)</span>
+                    <p className="text-[10px] text-subtle-foreground">Leave every row blank to use Yahoo Finance data.</p>
+                  </div>
+                  <MoversOverrideRows
+                    label="Top gainers"
+                    values={draft.gainers}
+                    onChange={(values) => setDraft((d) => ({ ...d, gainers: values }))}
+                  />
+                  <MoversOverrideRows
+                    label="Top losers"
+                    values={draft.losers}
+                    onChange={(values) => setDraft((d) => ({ ...d, losers: values }))}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2 border-t border-border pt-3">
+                  <div>
+                    <span className="text-xs font-semibold text-foreground">Index futures OI change (manual override)</span>
+                    <p className="text-[10px] text-subtle-foreground">Enter percentages; leave blank to use the NSE feed.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        ["finnifty", "FinNifty"],
+                        ["nifty", "Nifty"],
+                        ["niftyNxt50", "Nifty Next 50"],
+                        ["bankNifty", "Bank Nifty"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <div key={key}>
+                        <label className="mb-1 block text-[10px] font-medium text-muted-foreground">{label}</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="OI change %"
+                          value={draft.indexOi[key]}
+                          onChange={(e) =>
+                            setDraft((d) => ({ ...d, indexOi: { ...d.indexOi, [key]: e.target.value } }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 

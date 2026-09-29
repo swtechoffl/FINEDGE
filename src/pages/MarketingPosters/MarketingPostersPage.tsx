@@ -128,13 +128,13 @@ function PostMarketSummaryCard() {
           nifty={findIndex("^NSEI", override.nifty)}
           sensex={findIndex("^BSESN", override.sensex)}
           bankNifty={findIndex("^NSEBANK", override.bankNifty)}
-          gainers={postMarketData.gainers.slice(0, 5)}
-          losers={postMarketData.losers.slice(0, 5)}
+          gainers={override.gainers ?? postMarketData.gainers.slice(0, 5)}
+          losers={override.losers ?? postMarketData.losers.slice(0, 5)}
           oi={{
-            finnifty: findOi("FINNIFTY"),
-            nifty: findOi("NIFTY"),
-            niftyNxt50: findOi("NIFTYNXT50"),
-            bankNifty: findOi("BANKNIFTY"),
+            finnifty: override.indexOi?.finnifty ?? findOi("FINNIFTY"),
+            nifty: override.indexOi?.nifty ?? findOi("NIFTY"),
+            niftyNxt50: override.indexOi?.niftyNxt50 ?? findOi("NIFTYNXT50"),
+            bankNifty: override.indexOi?.bankNifty ?? findOi("BANKNIFTY"),
           }}
         />
       </div>
@@ -150,6 +150,9 @@ function PostMarketSummaryCard() {
           niftyOverride={override.nifty}
           sensexOverride={override.sensex}
           bankNiftyOverride={override.bankNifty}
+          gainersOverride={override.gainers}
+          losersOverride={override.losers}
+          indexOiOverride={override.indexOi}
           hasOverride={Object.keys(override).length > 0}
           onChange={setOverride}
           onReset={reset}

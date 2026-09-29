@@ -7,6 +7,18 @@ export interface IndexOverride {
   changePct?: number;
 }
 
+export interface MoverOverride {
+  symbol: string;
+  changePct: number;
+}
+
+export interface IndexOiOverride {
+  finnifty?: number;
+  nifty?: number;
+  niftyNxt50?: number;
+  bankNifty?: number;
+}
+
 export interface PostMarketSummaryOverride {
   titleLine1?: string;
   titleLine2?: string;
@@ -19,6 +31,9 @@ export interface PostMarketSummaryOverride {
   nifty?: IndexOverride;
   sensex?: IndexOverride;
   bankNifty?: IndexOverride;
+  gainers?: MoverOverride[];
+  losers?: MoverOverride[];
+  indexOi?: IndexOiOverride;
 }
 
 const STORAGE_KEY = "stoqtrade-post-market-summary-override";
