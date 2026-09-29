@@ -3,6 +3,7 @@ import { getCachedPrice, getPrices } from "./prices.js";
 import { fetchNseJson } from "./nse.js";
 import { generateReportSummary } from "./groq.js";
 import { fetchYahooIndianMovers } from "./yahoo.js";
+import { fetchArchivedIndexFuturesOi } from "./indexFuturesOi.js";
 
 // Market-internals data (Yahoo-ranked movers and NSE OI positioning) doesn't
 // move as fast as raw prices, so a coarser refresh is sufficient.
@@ -312,9 +313,10 @@ async function refreshMovers(force = false) {
   }).filter((entry) => entry !== null);
   const cachedMovers = computeGainersLosers(priceCache.stocks);
 
-  const [glResult, oiResult, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
+  const [glResult, oiResult, archivedIndexOi, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
     fetchYahooIndianMovers().catch(() => cachedMovers),
     fetchOiSpurts().catch((err) => ({ error: err.message })),
+    fetchArchivedIndexFuturesOi().catch(() => []),
     fetchCorporateActions().catch(() => ({ all: [], curated: [] })),
     fetchEarningsCalendar().catch(() => []),
     fetchMostActive().catch(() => []),
@@ -329,7 +331,7 @@ async function refreshMovers(force = false) {
   const volumeGainers = Array.isArray(vgResult) ? vgResult : [];
   const advanceDecline = adResult && !adResult.error ? adResult : null;
   const oiBuildup = oiResult && !oiResult.error ? oiResult.oiBuildup : EMPTY_OI_BUILDUP;
-  const indexOi = oiResult && !oiResult.error ? oiResult.indexOi : [];
+  const indexOi = oiResult && !oiResult.error && oiResult.indexOi.length ? oiResult.indexOi : archivedIndexOi;
 
   let aiSummary = cache.aiSummary;
   if (process.env.GROQ_API_KEY) {
