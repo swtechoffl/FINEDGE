@@ -81,11 +81,12 @@ Frontend: `NewsItem.aiAnalysisSource` is `"ai"` or `"heuristic"` — the news dr
 
 ## Post Market Report / Market Movers
 
-All from NSE, cached together in `server/marketMovers.js`, refreshed every 10 min.
+Cached together in `server/marketMovers.js` and refreshed every 10 min. Movers
+come from the shared Yahoo Finance price cache; the remaining feeds come from NSE.
 
 | Data | Endpoint | Notes |
 |---|---|---|
-| Top Gainers / Losers | `GET /api/live-analysis-variations?index=gainers` / `?index=loosers` | NSE's own param really is misspelled "loosers" — the correct spelling returns nothing usable, verified live. Filtered to the "FOSec" (F&O Securities) universe, not "allSec" (which includes thin penny-stock movers). |
+| Top Gainers / Losers | Yahoo Finance `.NS` quotes from the shared price cache | Ranked by daily percentage change across the app's tracked Indian stock universe. This avoids NSE's session-cookie endpoint, which can be blocked from cloud hosts. |
 | Most Active Equities (by value) | `GET /api/live-analysis-most-active-securities?index=value` | Traded value converted from rupees to ₹ crore. |
 | Index Futures OI change (NIFTY/BANKNIFTY/FINNIFTY/NIFTYNXT50) | `GET /api/live-analysis-oi-spurts-underlyings` | Same feed as the stock-level OI buildup below — index rows are filtered out from the per-stock classification and shown separately. |
 | OI Buildup (Long Buildup / Short Buildup / Short Covering / Long Unwinding) | Same OI Spurts feed, cross-referenced with our own price cache | Computed classification: price direction × OI direction for the same stock (`server/marketMovers.js`, `classifyBuildup`). Not an NSE-provided category — NSE only reports raw OI change; the long/short labeling is done here. |

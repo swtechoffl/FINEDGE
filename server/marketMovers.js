@@ -3,32 +3,28 @@ import { getCachedPrice, getPrices } from "./prices.js";
 import { fetchNseJson } from "./nse.js";
 import { generateReportSummary } from "./groq.js";
 
-// Market-internals data (gainers/losers, OI positioning) doesn't move as
-// fast as raw prices and NSE's own analysis endpoints are heavier to hit —
-// a coarser refresh than the 15-min price poll is plenty.
+// Market-internals data (Yahoo-ranked movers and NSE OI positioning) doesn't
+// move as fast as raw prices, so a coarser refresh is sufficient.
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 const STOCK_SYMBOLS = new Set(ALL_STOCKS.map((s) => s.symbol));
 
-async function fetchGainersLosers() {
-  const referer = "https://www.nseindia.com/market-data/top-gainers-losers";
-  const [gainersRes, losersRes] = await Promise.all([
-    fetchNseJson("/api/live-analysis-variations?index=gainers", referer),
-    // NSE's own endpoint really does use this misspelling — "losers" (the
-    // correct spelling) returns an empty/unusable response; verified live.
-    fetchNseJson("/api/live-analysis-variations?index=loosers", referer),
-  ]);
+function computeGainersLosers(yahooPrices) {
+  // prices.js fetches every tracked Indian stock from Yahoo Finance using its
+  // `.NS` ticker. Rank that same cache here so this report does not depend on
+  // NSE's session-cookie API, which is frequently blocked from cloud hosts.
+  const movers = ALL_STOCKS.flatMap(({ symbol }) => {
+    const quote = yahooPrices[symbol];
+    if (!quote || !Number.isFinite(quote.price) || !Number.isFinite(quote.changePct)) return [];
+    return [{ symbol, price: quote.price, changePct: quote.changePct }];
+  });
 
-  const mapRows = (rows) =>
-    (rows || []).map((r) => ({ symbol: r.symbol, price: r.ltp, changePct: r.perChange }));
-
-  // "FOSec" (F&O Securities) — liquid, F&O-eligible names, same universe the
-  // OI buildup analysis below uses, rather than "allSec" which includes thin
-  // penny-stock movers.
-  const gainers = mapRows(gainersRes?.FOSec?.data)
+  const gainers = movers
+    .filter((quote) => quote.changePct > 0)
     .sort((a, b) => b.changePct - a.changePct)
     .slice(0, 10);
-  const losers = mapRows(losersRes?.FOSec?.data)
+  const losers = movers
+    .filter((quote) => quote.changePct < 0)
     .sort((a, b) => a.changePct - b.changePct)
     .slice(0, 10);
 
@@ -313,9 +309,9 @@ async function refreshMovers(force = false) {
     const idx = priceCache.indices[symbol];
     return idx ? { symbol, label: idx.label, price: idx.price, change: idx.change, changePct: idx.changePct } : null;
   }).filter((entry) => entry !== null);
+  const { gainers, losers } = computeGainersLosers(priceCache.stocks);
 
-  const [glResult, oiResult, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
-    fetchGainersLosers().catch((err) => ({ error: err.message })),
+  const [oiResult, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
     fetchOiSpurts().catch((err) => ({ error: err.message })),
     fetchCorporateActions().catch(() => ({ all: [], curated: [] })),
     fetchEarningsCalendar().catch(() => []),
@@ -325,8 +321,6 @@ async function refreshMovers(force = false) {
   ]);
   const week52 = compute52WeekMovers();
 
-  const gainers = glResult && !glResult.error ? glResult.gainers : [];
-  const losers = glResult && !glResult.error ? glResult.losers : [];
   const mostActive = Array.isArray(maResult) ? maResult : [];
   const volumeGainers = Array.isArray(vgResult) ? vgResult : [];
   const advanceDecline = adResult && !adResult.error ? adResult : null;
