@@ -9,6 +9,101 @@
 export const YAHOO_BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+let screenerSession = null;
+
+async function getYahooScreenerSession() {
+  if (screenerSession && Date.now() - screenerSession.createdAt < 6 * 60 * 60 * 1000) return screenerSession;
+
+  // Yahoo's custom screener requires the same cookie + crumb handshake used
+  // by its website. fc.yahoo.com intentionally returns 404 while still
+  // issuing the A3 session cookie.
+  const cookieRes = await fetch("https://fc.yahoo.com", {
+    headers: { "User-Agent": YAHOO_BROWSER_UA },
+    redirect: "manual",
+  });
+  const setCookies =
+    typeof cookieRes.headers.getSetCookie === "function"
+      ? cookieRes.headers.getSetCookie()
+      : cookieRes.headers.get("set-cookie")
+        ? [cookieRes.headers.get("set-cookie")]
+        : [];
+  const cookie = setCookies.map((value) => value.split(";")[0]).join("; ");
+  if (!cookie) throw new Error("Yahoo Finance did not issue a screener session cookie");
+
+  const crumbRes = await fetch("https://query1.finance.yahoo.com/v1/test/getcrumb", {
+    headers: { "User-Agent": YAHOO_BROWSER_UA, Cookie: cookie },
+  });
+  if (!crumbRes.ok) throw new Error(`Yahoo crumb HTTP ${crumbRes.status}`);
+  const crumb = await crumbRes.text();
+  if (!crumb || crumb.includes("<")) throw new Error("invalid Yahoo Finance screener crumb");
+
+  screenerSession = { cookie, crumb, createdAt: Date.now() };
+  return screenerSession;
+}
+
+async function fetchYahooIndianScreener(sortType) {
+  const { cookie, crumb } = await getYahooScreenerSession();
+  const body = {
+    size: 50,
+    offset: 0,
+    sortField: "percentchange",
+    sortType,
+    quoteType: "EQUITY",
+    query: {
+      operator: "AND",
+      operands: [
+        { operator: "eq", operands: ["region", "in"] },
+        { operator: "eq", operands: ["exchange", "NSI"] },
+      ],
+    },
+    userId: "",
+    userIdType: "guid",
+  };
+  const res = await fetch(
+    `https://query1.finance.yahoo.com/v1/finance/screener?crumb=${encodeURIComponent(crumb)}`,
+    {
+      method: "POST",
+      headers: {
+        "User-Agent": YAHOO_BROWSER_UA,
+        Cookie: cookie,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    if (res.status === 401) screenerSession = null;
+    throw new Error(`Yahoo screener HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  const quotes = data?.finance?.result?.[0]?.quotes;
+  if (!Array.isArray(quotes)) throw new Error(data?.finance?.error?.description || "no Yahoo screener results");
+  return quotes
+    .filter(
+      (quote) =>
+        quote.exchange === "NSI" &&
+        quote.symbol?.endsWith(".NS") &&
+        Number.isFinite(quote.regularMarketPrice) &&
+        Number.isFinite(quote.regularMarketChangePercent),
+    )
+    .map((quote) => ({
+      symbol: quote.symbol.slice(0, -3),
+      price: +quote.regularMarketPrice.toFixed(2),
+      changePct: +quote.regularMarketChangePercent.toFixed(2),
+    }));
+}
+
+export async function fetchYahooIndianMovers() {
+  const [gainers, losers] = await Promise.all([
+    fetchYahooIndianScreener("DESC"),
+    fetchYahooIndianScreener("ASC"),
+  ]);
+  return {
+    gainers: gainers.filter((quote) => quote.changePct > 0).slice(0, 10),
+    losers: losers.filter((quote) => quote.changePct < 0).slice(0, 10),
+  };
+}
+
 export async function fetchYahooQuote(yahooSymbol) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}`;
   const res = await fetch(url, { headers: { "User-Agent": YAHOO_BROWSER_UA } });

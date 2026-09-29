@@ -2,6 +2,7 @@ import { ALL_STOCKS } from "./sectors.js";
 import { getCachedPrice, getPrices } from "./prices.js";
 import { fetchNseJson } from "./nse.js";
 import { generateReportSummary } from "./groq.js";
+import { fetchYahooIndianMovers } from "./yahoo.js";
 
 // Market-internals data (Yahoo-ranked movers and NSE OI positioning) doesn't
 // move as fast as raw prices, so a coarser refresh is sufficient.
@@ -309,9 +310,10 @@ async function refreshMovers(force = false) {
     const idx = priceCache.indices[symbol];
     return idx ? { symbol, label: idx.label, price: idx.price, change: idx.change, changePct: idx.changePct } : null;
   }).filter((entry) => entry !== null);
-  const { gainers, losers } = computeGainersLosers(priceCache.stocks);
+  const cachedMovers = computeGainersLosers(priceCache.stocks);
 
-  const [oiResult, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
+  const [glResult, oiResult, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
+    fetchYahooIndianMovers().catch(() => cachedMovers),
     fetchOiSpurts().catch((err) => ({ error: err.message })),
     fetchCorporateActions().catch(() => ({ all: [], curated: [] })),
     fetchEarningsCalendar().catch(() => []),
@@ -321,6 +323,8 @@ async function refreshMovers(force = false) {
   ]);
   const week52 = compute52WeekMovers();
 
+  const gainers = glResult.gainers;
+  const losers = glResult.losers;
   const mostActive = Array.isArray(maResult) ? maResult : [];
   const volumeGainers = Array.isArray(vgResult) ? vgResult : [];
   const advanceDecline = adResult && !adResult.error ? adResult : null;
