@@ -86,7 +86,7 @@ come from Yahoo Finance; the remaining feeds come from NSE.
 
 | Data | Endpoint | Notes |
 |---|---|---|
-| Top Gainers / Losers | Yahoo Finance custom screener (`region=in`, `exchange=NSI`) | Ranked by daily percentage change across Yahoo's NSE-listed equity universe. Uses the app's 109-stock Yahoo price cache as a fallback if the screener request fails. |
+| Top Gainers / Losers | Yahoo Finance custom screener (`region=in`, `exchange=NSI`) filtered by the official Nifty 500 constituent CSV | Ranked by daily percentage change and restricted to current Nifty 500 stocks, excluding SME and other non-index securities. |
 | Most Active Equities (by value) | `GET /api/live-analysis-most-active-securities?index=value` | Traded value converted from rupees to ₹ crore. |
 | Index Futures OI change (NIFTY/BANKNIFTY/FINNIFTY/NIFTYNXT50) | NSE OI Spurts API, with the latest F&O UDiFF bhavcopy archive as fallback | The archive fallback aggregates all `IDF` futures expiries for each index and computes change versus prior OI. It works from cloud hosts where NSE's session-cookie API is blocked. |
 | OI Buildup (Long Buildup / Short Buildup / Short Covering / Long Unwinding) | Same OI Spurts feed, cross-referenced with our own price cache | Computed classification: price direction × OI direction for the same stock (`server/marketMovers.js`, `classifyBuildup`). Not an NSE-provided category — NSE only reports raw OI change; the long/short labeling is done here. |

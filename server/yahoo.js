@@ -10,6 +10,30 @@ export const YAHOO_BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 let screenerSession = null;
+let nifty500Cache = null;
+
+async function fetchNifty500Symbols() {
+  if (nifty500Cache && Date.now() - nifty500Cache.fetchedAt < 24 * 60 * 60 * 1000) return nifty500Cache.symbols;
+
+  const res = await fetch("https://www.niftyindices.com/IndexConstituent/ind_nifty500list.csv", {
+    headers: { "User-Agent": YAHOO_BROWSER_UA },
+  });
+  if (!res.ok) throw new Error(`Nifty 500 constituents HTTP ${res.status}`);
+  const csv = await res.text();
+  const lines = csv.trim().split(/\r?\n/);
+  const headers = lines.shift()?.split(",") || [];
+  const symbolIndex = headers.indexOf("Symbol");
+  if (symbolIndex < 0) throw new Error("Nifty 500 constituent list has no Symbol column");
+
+  const symbols = new Set(
+    lines
+      .map((line) => line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)[symbolIndex]?.replace(/^"|"$/g, "").trim())
+      .filter(Boolean),
+  );
+  if (symbols.size < 400) throw new Error("Nifty 500 constituent list is incomplete");
+  nifty500Cache = { fetchedAt: Date.now(), symbols };
+  return symbols;
+}
 
 async function getYahooScreenerSession() {
   if (screenerSession && Date.now() - screenerSession.createdAt < 6 * 60 * 60 * 1000) return screenerSession;
@@ -44,7 +68,9 @@ async function getYahooScreenerSession() {
 async function fetchYahooIndianScreener(sortType) {
   const { cookie, crumb } = await getYahooScreenerSession();
   const body = {
-    size: 50,
+    // Pull enough of Yahoo's exchange-wide ranking to still have ten results
+    // after restricting it to the Nifty 500 below.
+    size: 250,
     offset: 0,
     sortField: "percentchange",
     sortType,
@@ -94,13 +120,14 @@ async function fetchYahooIndianScreener(sortType) {
 }
 
 export async function fetchYahooIndianMovers() {
-  const [gainers, losers] = await Promise.all([
+  const [nifty500, gainers, losers] = await Promise.all([
+    fetchNifty500Symbols(),
     fetchYahooIndianScreener("DESC"),
     fetchYahooIndianScreener("ASC"),
   ]);
   return {
-    gainers: gainers.filter((quote) => quote.changePct > 0).slice(0, 10),
-    losers: losers.filter((quote) => quote.changePct < 0).slice(0, 10),
+    gainers: gainers.filter((quote) => quote.changePct > 0 && nifty500.has(quote.symbol)).slice(0, 10),
+    losers: losers.filter((quote) => quote.changePct < 0 && nifty500.has(quote.symbol)).slice(0, 10),
   };
 }
 

@@ -11,28 +11,6 @@ const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 const STOCK_SYMBOLS = new Set(ALL_STOCKS.map((s) => s.symbol));
 
-function computeGainersLosers(yahooPrices) {
-  // prices.js fetches every tracked Indian stock from Yahoo Finance using its
-  // `.NS` ticker. Rank that same cache here so this report does not depend on
-  // NSE's session-cookie API, which is frequently blocked from cloud hosts.
-  const movers = ALL_STOCKS.flatMap(({ symbol }) => {
-    const quote = yahooPrices[symbol];
-    if (!quote || !Number.isFinite(quote.price) || !Number.isFinite(quote.changePct)) return [];
-    return [{ symbol, price: quote.price, changePct: quote.changePct }];
-  });
-
-  const gainers = movers
-    .filter((quote) => quote.changePct > 0)
-    .sort((a, b) => b.changePct - a.changePct)
-    .slice(0, 10);
-  const losers = movers
-    .filter((quote) => quote.changePct < 0)
-    .sort((a, b) => a.changePct - b.changePct)
-    .slice(0, 10);
-
-  return { gainers, losers };
-}
-
 // Distinct from "most active by value" above — this is NSE's dedicated
 // Volume Gainers report (today's volume vs its own 1-week/2-week average),
 // matching the reference NseIndiaApi library's liveVolumeGainers().
@@ -311,10 +289,10 @@ async function refreshMovers(force = false) {
     const idx = priceCache.indices[symbol];
     return idx ? { symbol, label: idx.label, price: idx.price, change: idx.change, changePct: idx.changePct } : null;
   }).filter((entry) => entry !== null);
-  const cachedMovers = computeGainersLosers(priceCache.stocks);
-
   const [glResult, oiResult, archivedIndexOi, caResult, ecResult, maResult, vgResult, adResult] = await Promise.all([
-    fetchYahooIndianMovers().catch(() => cachedMovers),
+    // Empty is preferable to showing an SME/non-index name if either Yahoo's
+    // screener or the official Nifty 500 constituent list is unavailable.
+    fetchYahooIndianMovers().catch(() => ({ gainers: [], losers: [] })),
     fetchOiSpurts().catch((err) => ({ error: err.message })),
     fetchArchivedIndexFuturesOi().catch(() => []),
     fetchCorporateActions().catch(() => ({ all: [], curated: [] })),
