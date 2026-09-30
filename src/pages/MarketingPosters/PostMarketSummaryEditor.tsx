@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, X, RotateCcw } from "lucide-react";
+import { Check, Pencil, X, RotateCcw } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useAnchoredPopoverPosition } from "../../lib/useAnchoredPopover";
@@ -325,13 +325,18 @@ export function PostMarketSummaryEditor({
 
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Bull / bear artwork</label>
-                  <div className="grid grid-cols-5 gap-1.5">
+                  <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Bull or bear artwork">
                     {MOOD_OPTIONS.map((opt) => (
                       <button
+                        type="button"
                         key={opt.label}
                         onClick={() => setDraft((d) => ({ ...d, moodOverride: opt.key }))}
-                        className={`focus-ring flex flex-col items-center gap-1 rounded-lg border-2 p-1 ${
-                          draft.moodOverride === opt.key ? "border-accent" : "border-transparent"
+                        role="radio"
+                        aria-checked={draft.moodOverride === opt.key}
+                        className={`focus-ring relative flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 p-1 transition-colors ${
+                          draft.moodOverride === opt.key
+                            ? "border-accent bg-accent-bg"
+                            : "border-border hover:border-border-strong hover:bg-hover"
                         }`}
                         title={opt.label}
                       >
@@ -340,7 +345,17 @@ export function PostMarketSummaryEditor({
                             Auto
                           </div>
                         ) : (
-                          <img src={MOOD_IMAGES[opt.key]} alt={opt.label} className="h-8 w-full rounded object-cover" />
+                          <img
+                            src={MOOD_IMAGES[opt.key]}
+                            alt=""
+                            draggable={false}
+                            className="pointer-events-none h-8 w-full rounded object-cover"
+                          />
+                        )}
+                        {draft.moodOverride === opt.key && (
+                          <span className="pointer-events-none absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-white shadow-sm">
+                            <Check size={10} strokeWidth={3} />
+                          </span>
                         )}
                         <span className="text-[9px] font-medium text-muted-foreground">{opt.label}</span>
                       </button>
