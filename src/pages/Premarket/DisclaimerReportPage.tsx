@@ -64,6 +64,15 @@ export const DisclaimerReportPage = forwardRef<HTMLDivElement, { settings: Discl
       </div>
 
       <p className="mt-4 text-xs italic leading-relaxed text-subtle-foreground">{settings.closingNote}</p>
+
+      <a
+        href="https://www.spotalpha.ai/Ramki/Disclaimer.pdf"
+        target="_blank"
+        rel="noreferrer"
+        className="mt-3 inline-block text-xs font-semibold text-accent underline underline-offset-2"
+      >
+        View full disclaimer PDF
+      </a>
     </div>
   );
 });
