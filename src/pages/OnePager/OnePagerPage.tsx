@@ -126,6 +126,7 @@ function OnePagerForm_() {
   const [resultCommentary, setResultCommentary] = useState<OnePagerCommentary | null>(null);
   const [resultFinancialStatements, setResultFinancialStatements] = useState<OnePagerFinancialStatements | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [previewEditing, setPreviewEditing] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
   // Whether each optional detail section renders in the actual report —
@@ -767,6 +768,9 @@ function OnePagerForm_() {
           <h3 className="text-sm font-extrabold tracking-tight text-foreground">Preview</h3>
           {result && (
             <div className="flex gap-2">
+              <Button variant={previewEditing ? "default" : "outline"} size="sm" onClick={() => setPreviewEditing((value) => !value)}>
+                {previewEditing ? "Done editing" : "Edit preview"}
+              </Button>
               <Button variant="outline" size="sm" onClick={handleExportDoc}>
                 <Download size={14} /> Export DOC
               </Button>
@@ -783,7 +787,12 @@ function OnePagerForm_() {
               Fill in the ticker and rating, then click "Generate One Pager".
             </p>
           ) : (
-            <div ref={previewRef} className="mx-auto w-[865px] overflow-hidden bg-surface text-[13px] shadow-sm">
+            <div
+              ref={previewRef}
+              contentEditable={previewEditing}
+              suppressContentEditableWarning
+              className={`mx-auto w-[865px] overflow-hidden bg-surface text-[13px] shadow-sm ${previewEditing ? "outline outline-2 outline-accent outline-offset-2" : ""}`}
+            >
               {/* Masthead */}
               <div className="flex items-center justify-between bg-accent px-6 py-2.5 text-accent-foreground">
                 <span className="text-[10px] font-bold uppercase tracking-[0.15em]">
