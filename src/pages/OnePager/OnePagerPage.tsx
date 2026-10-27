@@ -180,6 +180,7 @@ function OnePagerForm_() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.detail || data.error || "Lookup failed");
       setPreview({ companyName: data.name, sector: data.sector, bseCode: data.bseCode });
+      if (data.name) setForm((f) => (f.companyName.trim() ? f : { ...f, companyName: data.name }));
       // Auto-fill BSE Code only if the analyst hasn't already typed one —
       // never clobber a manual correction.
       if (data.bseCode) setForm((f) => (f.bseCode.trim() ? f : { ...f, bseCode: data.bseCode }));
@@ -229,6 +230,8 @@ function OnePagerForm_() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           symbol: form.symbol.trim().toUpperCase(),
+          companyName: form.companyName,
+          reportDate: form.reportDate,
           bseCode: form.bseCode,
           exchange: form.exchange,
           bookValue: form.bookValue,
@@ -398,6 +401,18 @@ function OnePagerForm_() {
               {fetchError && <span className="text-xs font-medium text-bearish">{fetchError}</span>}
             </label>
             <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-subtle-foreground">Company name (header)</span>
+                <Input
+                  value={form.companyName}
+                  onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                  placeholder="Auto-filled from ticker; editable"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-subtle-foreground">Report date</span>
+                <Input type="date" value={form.reportDate} onChange={(e) => setForm((f) => ({ ...f, reportDate: e.target.value }))} />
+              </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-subtle-foreground">BSE Code (auto-looked-up, editable)</span>
                 <Input value={form.bseCode} onChange={(e) => setForm((f) => ({ ...f, bseCode: e.target.value }))} placeholder="Fetch live data to auto-fill" />
@@ -733,7 +748,7 @@ function OnePagerForm_() {
                 <span className="text-[10px] font-bold uppercase tracking-[0.15em]">
                   Initial Research Report · {result.reportDateLabel}
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em]">Sharewealth Securities</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em]">{form.companyName || result.facts.companyName || "Company"}</span>
               </div>
 
               {/* Title band */}

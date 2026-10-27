@@ -113,7 +113,7 @@ export async function generateOnePager(symbol, manual) {
   }
 
   const facts = {
-    companyName: detail.name,
+    companyName: manual.companyName?.trim() || detail.name,
     symbol: detail.symbol,
     isin: detail.isin,
     // Manual entry wins if the analyst typed one in (e.g. to correct a bad
@@ -157,7 +157,7 @@ export async function generateOnePager(symbol, manual) {
       });
 
   return {
-    reportDateLabel: formatReportDate(new Date()),
+    reportDateLabel: manual.reportDate ? formatReportDate(new Date(`${manual.reportDate}T00:00:00`)) : formatReportDate(new Date()),
     facts,
     rating: manual.rating,
     targetPrice,

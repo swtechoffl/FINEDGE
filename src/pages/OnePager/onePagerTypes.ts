@@ -79,6 +79,8 @@ function emptyOnePagerFinancialStatements(): OnePagerFinancialStatements {
 
 export interface OnePagerForm {
   symbol: string;
+  companyName: string;
+  reportDate: string;
   bseCode: string;
   exchange: "NSE" | "BSE";
   bookValue: string;
@@ -113,6 +115,8 @@ export interface OnePagerForm {
 export function emptyOnePagerForm(): OnePagerForm {
   return {
     symbol: "",
+    companyName: "",
+    reportDate: new Date().toISOString().slice(0, 10),
     bseCode: "",
     exchange: "NSE",
     bookValue: "",
