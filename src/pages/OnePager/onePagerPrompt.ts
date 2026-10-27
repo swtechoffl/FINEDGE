@@ -123,6 +123,21 @@ export function buildOnePagerResearchPrompt(form: OnePagerForm): string {
   return lines.join("\n");
 }
 
+// Separate prompt for reports that must be written as-of an older publication
+// date. It keeps the normal prompt's JSON contract while making the research
+// cutoff explicit so current facts do not leak into a backdated report.
+export function buildBackdatedOnePagerResearchPrompt(form: OnePagerForm): string {
+  const reportDate = form.reportDate || "<REPORT DATE>";
+  return [
+    `BACKDATED REPORT MODE: Prepare this one-pager strictly as of ${reportDate}.`,
+    "Do not use information, results, shareholding, prices, management commentary, or events published after this date.",
+    "If a figure cannot be verified as available on or before the report date, use NA rather than substituting a later figure.",
+    "Use the fiscal years that had actually ended and were reported by that date; label estimates and actuals clearly.",
+    "",
+    buildOnePagerResearchPrompt(form),
+  ].join("\\n");
+}
+
 function toPct(v: unknown): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) return Number(v);

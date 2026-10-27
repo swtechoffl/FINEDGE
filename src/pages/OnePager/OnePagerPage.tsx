@@ -10,7 +10,7 @@ import { PinGate } from "../../components/PinGate";
 import { ANALYST, CONTACT, CLOSING_NOTE, DISCLAIMER_PARAGRAPHS } from "../Disclosure/disclaimerContent";
 import { OnePagerChart } from "./OnePagerChart";
 import { OnePagerPieChart } from "./OnePagerPieChart";
-import { buildOnePagerResearchPrompt, parseOnePagerNarrative } from "./onePagerPrompt";
+import { buildBackdatedOnePagerResearchPrompt, buildOnePagerResearchPrompt, parseOnePagerNarrative } from "./onePagerPrompt";
 import {
   emptyOnePagerForm,
   emptyOnePagerSegmentRow,
@@ -48,6 +48,14 @@ function fmtCr(v: number | null) {
 }
 function fmtRs(v: number | null) {
   return v == null ? "—" : `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
+
+function formatHeaderDate(value: string, fallback: string) {
+  if (!value) return fallback;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? fallback
+    : date.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -128,6 +136,7 @@ function OnePagerForm_() {
   const [showSegments, setShowSegments] = useState(true);
   const [showCommentary, setShowCommentary] = useState(true);
   const [showFinancialStatements, setShowFinancialStatements] = useState(true);
+  const [showValuation, setShowValuation] = useState(true);
 
   // Manual entry and paste-from-Claude are two fully independent data
   // paths for narrative + shareholding % + 3yr financials — switching
@@ -135,6 +144,7 @@ function OnePagerForm_() {
   const [dataMode, setDataMode] = useState<"manual" | "paste">("manual");
   const [pastedNarrative, setPastedNarrative] = useState("");
   const [promptCopied, setPromptCopied] = useState(false);
+  const [backdatedPromptCopied, setBackdatedPromptCopied] = useState(false);
 
   const parsedPaste = useMemo(
     () => (dataMode === "paste" && pastedNarrative.trim() ? parseOnePagerNarrative(pastedNarrative) : null),
@@ -145,6 +155,12 @@ function OnePagerForm_() {
     await navigator.clipboard.writeText(buildOnePagerResearchPrompt(form));
     setPromptCopied(true);
     setTimeout(() => setPromptCopied(false), 2000);
+  }
+
+  async function handleCopyBackdatedPrompt() {
+    await navigator.clipboard.writeText(buildBackdatedOnePagerResearchPrompt(form));
+    setBackdatedPromptCopied(true);
+    setTimeout(() => setBackdatedPromptCopied(false), 2000);
   }
 
   function updateFinancial(i: number, key: keyof OnePagerForm["financials"][number], value: string) {
@@ -295,12 +311,27 @@ function OnePagerForm_() {
     }
   }
 
+  function handleExportDoc() {
+    if (!previewRef.current || !result) return;
+    const company = (headerCompanyName || form.symbol || "one-pager").replace(/[<>:"/\\|?*]+/g, "-");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${company} One Pager</title><style>body{font-family:Arial,sans-serif;color:#172033}table{border-collapse:collapse;width:100%}td,th{border:1px solid #d9dee8;padding:5px;font-size:10pt}h1,h2,h3{color:#172033}p{line-height:1.45}</style></head><body>${previewRef.current.innerHTML}</body></html>`;
+    const blob = new Blob([html], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${company.toLowerCase().replace(/\s+/g, "-")}-one-pager.doc`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   // When there's no 3yr financial summary to show, the right column's only
   // real content is the chart, an optional shareholding pie, and the
   // valuation box — far less than the left column's paragraphs. Rather than
   // leave the text squeezed into a ~58%-width column beside mostly empty
   // space, the whole body collapses to one full-width column instead.
   const hasFinancialSummary = resultFinancials.some((f) => f.year.trim());
+  const headerCompanyName = form.companyName.trim() || result?.facts.companyName || "Company";
+  const headerDate = formatHeaderDate(form.reportDate, result?.reportDateLabel || "");
 
   return (
     <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 px-6 py-6 xl:grid-cols-2">
@@ -339,6 +370,10 @@ function OnePagerForm_() {
               <Button type="button" variant="outline" size="sm" onClick={handleCopyPrompt} className="self-start">
                 {promptCopied ? <Check size={14} /> : <Copy size={14} />}
                 {promptCopied ? "Copied!" : "Copy research prompt"}
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={handleCopyBackdatedPrompt} className="self-start">
+                {backdatedPromptCopied ? <Check size={14} /> : <Copy size={14} />}
+                {backdatedPromptCopied ? "Copied!" : "Copy backdated report prompt"}
               </Button>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-subtle-foreground">Paste the AI's JSON reply here</span>
@@ -704,6 +739,7 @@ function OnePagerForm_() {
                 ["Segment / Geography Mix", showSegments, setShowSegments],
                 ["Management Commentary", showCommentary, setShowCommentary],
                 ["Financial Statements", showFinancialStatements, setShowFinancialStatements],
+                ["Valuation", showValuation, setShowValuation],
               ] as [string, boolean, (v: boolean) => void][]
             ).map(([label, checked, setChecked]) => (
               <label key={label} className="flex items-center gap-2 text-xs font-medium text-foreground">
@@ -730,10 +766,15 @@ function OnePagerForm_() {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-extrabold tracking-tight text-foreground">Preview</h3>
           {result && (
-            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting}>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportDoc}>
+                <Download size={14} /> Export DOC
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting}>
               {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
               {exporting ? "Exporting…" : "Export PDF (A4)"}
-            </Button>
+              </Button>
+            </div>
           )}
         </div>
         <Card className="max-h-[85vh] overflow-auto p-6">
@@ -746,16 +787,16 @@ function OnePagerForm_() {
               {/* Masthead */}
               <div className="flex items-center justify-between bg-accent px-6 py-2.5 text-accent-foreground">
                 <span className="text-[10px] font-bold uppercase tracking-[0.15em]">
-                  Initial Research Report · {result.reportDateLabel}
+                  Initial Research Report · {headerDate}
                 </span>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.15em]">{form.companyName || result.facts.companyName || "Company"}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em]">{headerCompanyName}</span>
               </div>
 
               {/* Title band */}
               <div className="flex items-start justify-between gap-4 border-b border-border px-6 pb-4 pt-4">
                 <div>
                   <h2 className="text-[22px] font-extrabold leading-tight tracking-tight text-foreground">
-                    {result.facts.companyName}
+                    {headerCompanyName}
                   </h2>
                   <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="font-semibold">{result.facts.symbol}</span>
@@ -1010,21 +1051,23 @@ function OnePagerForm_() {
                     </div>
                   )}
 
-                  <div className="rounded-lg border border-accent/30 bg-accent-bg p-3">
-                    <SectionLabel>Valuation</SectionLabel>
-                    <p className="text-justify text-[11px] leading-relaxed text-muted-foreground">{result.narrative.valuationNote}</p>
-                    <p className="mt-1.5 text-[10px] text-subtle-foreground">
-                      <span className="font-semibold text-foreground">Time Horizon:</span> {result.timeHorizon}
-                      <br />
-                      {result.stopLoss != null && (
-                        <>
-                          <span className="font-semibold text-foreground">Stop Loss:</span> {fmtRs(result.stopLoss)}
-                          <br />
-                        </>
-                      )}
-                      <span className="font-semibold text-foreground">Strategy Fit:</span> {result.narrative.strategyFit}
-                    </p>
-                  </div>
+                  {showValuation && (
+                    <div className="rounded-lg border border-accent/30 bg-accent-bg p-3">
+                      <SectionLabel>Valuation</SectionLabel>
+                      <p className="text-justify text-[11px] leading-relaxed text-muted-foreground">{result.narrative.valuationNote}</p>
+                      <p className="mt-1.5 text-[10px] text-subtle-foreground">
+                        <span className="font-semibold text-foreground">Time Horizon:</span> {result.timeHorizon}
+                        <br />
+                        {result.stopLoss != null && (
+                          <>
+                            <span className="font-semibold text-foreground">Stop Loss:</span> {fmtRs(result.stopLoss)}
+                            <br />
+                          </>
+                        )}
+                        <span className="font-semibold text-foreground">Strategy Fit:</span> {result.narrative.strategyFit}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
