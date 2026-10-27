@@ -314,7 +314,19 @@ function OnePagerForm_() {
   function handleExportDoc() {
     if (!previewRef.current || !result) return;
     const company = (headerCompanyName || form.symbol || "one-pager").replace(/[<>:"/\\|?*]+/g, "-");
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${company} One Pager</title><style>body{font-family:Arial,sans-serif;color:#172033}table{border-collapse:collapse;width:100%}td,th{border:1px solid #d9dee8;padding:5px;font-size:10pt}h1,h2,h3{color:#172033}p{line-height:1.45}</style></head><body>${previewRef.current.innerHTML}</body></html>`;
+    // Word-compatible HTML does not automatically know the app's utility
+    // classes. Inline the generated stylesheet so the DOC keeps the same
+    // colors, spacing, typography, borders, and fixed report width as PDF.
+    const css = Array.from(document.styleSheets)
+      .flatMap((sheet) => {
+        try {
+          return Array.from(sheet.cssRules, (rule) => rule.cssText);
+        } catch {
+          return [];
+        }
+      })
+      .join("\\n");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${company} One Pager</title><style>${css}\nbody{margin:0;background:#fff}.one-pager-doc{width:865px;margin:0 auto}</style></head><body><div class="one-pager-doc">${previewRef.current.innerHTML}</div></body></html>`;
     const blob = new Blob([html], { type: "application/msword" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
