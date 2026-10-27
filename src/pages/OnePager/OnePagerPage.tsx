@@ -10,6 +10,7 @@ import { PinGate } from "../../components/PinGate";
 import { ANALYST, CONTACT, CLOSING_NOTE, DISCLAIMER_PARAGRAPHS } from "../Disclosure/disclaimerContent";
 import { OnePagerChart } from "./OnePagerChart";
 import { OnePagerPieChart } from "./OnePagerPieChart";
+import { downloadBlob, pngDataUrlToRtf } from "../../lib/pdfConverter";
 import { buildBackdatedOnePagerResearchPrompt, buildOnePagerResearchPrompt, parseOnePagerNarrative } from "./onePagerPrompt";
 import {
   emptyOnePagerForm,
@@ -319,14 +320,8 @@ function OnePagerForm_() {
     // the DOC preserves the exact same visual design as the PDF.
     const { toPng } = await import("html-to-image");
     const image = await toPng(previewRef.current, { pixelRatio: 2, backgroundColor: "#ffffff", cacheBust: true });
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${company} One Pager</title><style>body{margin:0;background:#fff}.one-pager-doc{width:865px;margin:0 auto}.one-pager-doc img{display:block;width:865px;height:auto}</style></head><body><div class="one-pager-doc"><img src="${image}" alt="${company} One Pager" /></div></body></html>`;
-    const blob = new Blob([html], { type: "application/msword" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${company.toLowerCase().replace(/\s+/g, "-")}-one-pager.doc`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const blob = pngDataUrlToRtf(image, `${company} One Pager`);
+    downloadBlob(blob, `${company.toLowerCase().replace(/\s+/g, "-")}-one-pager.doc`);
   }
 
   // When there's no 3yr financial summary to show, the right column's only
