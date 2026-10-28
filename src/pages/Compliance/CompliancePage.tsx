@@ -117,6 +117,22 @@ export function CompliancePage() {
     setViewer({ title, source: "Compliance Desk", type: "Internal guide", summary, url: "https://www.sebi.gov.in/rss.html" });
   }
 
+  const viewerForReader = viewer as ViewerItem;
+  if (Boolean(viewer)) {
+    const viewer = viewerForReader;
+    return (
+      <div className="min-h-screen bg-app p-4 sm:p-8">
+        <div className="mx-auto max-w-4xl overflow-hidden rounded-3xl border border-border bg-surface shadow-xl">
+          <div className="flex items-start justify-between gap-4 border-b border-border p-5 sm:p-7">
+            <div><div className="text-xs font-bold uppercase tracking-wider text-accent">In-app compliance viewer</div><h1 className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">{viewer.title}</h1><div className="mt-2 text-xs text-muted-foreground">{viewer.source}{viewer.ref ? ` · ${viewer.ref}` : ""}</div></div>
+            <button type="button" onClick={() => setViewer(null)} className="focus-ring rounded-lg p-2 text-muted-foreground hover:bg-hover hover:text-foreground" aria-label="Close viewer"><X size={18} /></button>
+          </div>
+          <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[1fr_280px]"><article><div className="rounded-2xl bg-accent-bg p-5"><div className="text-sm font-bold text-accent">Internal brief</div><p className="mt-3 text-sm leading-7 text-foreground">{viewer.summary ?? "This circular is tracked in the compliance desk. Review the official source for the complete legal text, clauses, annexures and submission format."}</p></div><div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">Official authority pages may block framing for security. This viewer intentionally keeps the compliance brief inside the site and does not attempt to load the authority page in a frame.</div></article><aside><div className="text-xs font-bold uppercase tracking-wider text-subtle-foreground">Source verification</div><p className="mt-3 text-sm leading-6 text-muted-foreground">Use the official source to read the full circular, annexures and submission instructions.</p><a href={viewer.url} target="_blank" rel="noreferrer" className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-xs font-bold text-foreground hover:bg-hover">Open official source <ExternalLink size={14} /></a></aside></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-app">
       <Header title="Compliance Desk" meta="BROKING CONTROL ROOM" searchValue={query} onSearchChange={setQuery} searchPlaceholder="Search circulars, refs, obligations..." extra={<Button variant="outline" size="sm" onClick={() => setQuery("")}><RefreshCw size={14} /> Refresh</Button>} />
