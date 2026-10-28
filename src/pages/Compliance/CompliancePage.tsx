@@ -30,6 +30,7 @@ const sources = [
 ];
 
 const notices = [
+  { source: "SEBI", date: "28 Oct 2026", priority: "Critical" as Priority, type: "Audit", title: "Digital accessibility / disability audit compliance", ref: "SEBI/HO/ITD-1/ITD_VIAP/P/CIR/2025/111 · extension Jul 2026", due: "Due this week", dueTone: "critical", summary: "Complete the accessibility audit, close priority findings, and submit the compliance confirmation through the applicable authority channel.", url: "https://www.sebi.gov.in/legal/circulars/jul-2026/extension-of-timelines-with-repect-to-compliance-of-digital-accessibility-circulars-_103277.html" },
   { source: "SEBI", date: "28 Oct 2026", priority: "Critical" as Priority, type: "Circular", title: "Cybersecurity and cyber resilience framework for regulated entities", ref: "SEBI/HO/ITD-1/ITD_VI/2026/114", due: "Due in 4 days", dueTone: "critical", summary: "Controls and incident reporting requirements need owner acknowledgement and implementation mapping.", url: "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=1" },
   { source: "NSE", date: "27 Oct 2026", priority: "High" as Priority, type: "Circular", title: "Revision to client-level trading and reporting obligations", ref: "NSE/INSP/2026/287", due: "Due in 9 days", dueTone: "warning", summary: "Review impacted workflows, update SOPs and retain evidence of member communication.", url: "https://www.nseindia.com/resources/exchange-communication-circulars" },
   { source: "BSE", date: "26 Oct 2026", priority: "High" as Priority, type: "Notice", title: "Enhanced Surveillance Measure (ESM)", ref: "20261026-41", due: "Due in 12 days", dueTone: "warning", summary: "Check affected scrips and align RMS / client communication controls before the effective date.", url: "https://www.bseindia.com/markets/MarketInfo/DispNewNoticesCirculars.aspx" },
@@ -38,11 +39,20 @@ const notices = [
 ];
 
 const deadlines = [
+  { day: "31", month: "OCT", title: "Disability / digital accessibility audit submission", owner: "Compliance + Product", source: "SEBI", tone: "critical", label: "This week" },
   { day: "01", month: "NOV", title: "SEBI cyber resilience control mapping", owner: "Compliance + IT", source: "SEBI", tone: "critical", label: "4 days" },
   { day: "06", month: "NOV", title: "NSE client reporting workflow sign-off", owner: "Operations", source: "NSE", tone: "warning", label: "9 days" },
   { day: "09", month: "NOV", title: "BSE ESM readiness review", owner: "Risk + RMS", source: "BSE", tone: "warning", label: "12 days" },
   { day: "15", month: "NOV", title: "CDSL reconciliation evidence pack", owner: "Depository Ops", source: "CDSL", tone: "normal", label: "18 days" },
   { day: "21", month: "NOV", title: "MCX contract master update", owner: "Technology", source: "MCX", tone: "normal", label: "24 days" },
+];
+
+const masterCirculars = [
+  { authority: "SEBI", title: "Master Circular for Stock Brokers", detail: "Broker obligations, investor protection, operations and reporting", url: "https://www.sebi.gov.in/legal/master-circulars/may-2024/master-circular-for-stock-brokers_83521.html" },
+  { authority: "NSE", title: "Capital Market Consolidated Circular", detail: "Exchange operating, inspection and member compliance requirements", url: "https://betanseapi.nseindia.com/static/resources/consolidated-master-circulars" },
+  { authority: "BSE", title: "Master Circulars & Notices", detail: "Trading, surveillance and member-facing circular archive", url: "https://www.bseindia.com/markets/MarketInfo/DispNewNoticesCirculars.aspx" },
+  { authority: "CDSL", title: "Depository Participant Circulars", detail: "DP operations, reconciliation and participant compliance", url: "https://www.cdslindia.com/eservices/Publications/Communique" },
+  { authority: "MCX", title: "All Commodity Circulars", detail: "Trading, surveillance, technology and contract updates", url: "https://www.mcxindia.com/circulars/general" },
 ];
 
 function sourceColor(source: string) {
@@ -81,6 +91,8 @@ export function CompliancePage() {
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {sources.map((source) => <a key={source.name} href={source.url} target="_blank" rel="noreferrer" className="group rounded-2xl border border-border bg-surface p-4 shadow-xs transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md"><div className="flex items-start justify-between"><div className="flex items-center gap-2.5"><span className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black text-white" style={{ background: source.color }}>{source.name.slice(0, 1)}</span><div><div className="text-sm font-bold text-foreground">{source.name}</div><div className="text-[11px] text-muted-foreground">{source.kind}</div></div></div><ExternalLink size={14} className="text-subtle-foreground opacity-0 transition group-hover:opacity-100" /></div><div className="mt-4 flex items-center justify-between"><span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{source.status}</span><span className="text-[11px] text-subtle-foreground">{source.cadence}</span></div><div className="mt-2 truncate text-[11px] text-subtle-foreground">{source.feed}</div></a>)}
         </section>
+
+        <section className="rounded-2xl border border-border bg-surface p-5 shadow-xs"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><ShieldCheck size={18} className="text-accent" /><h3 className="text-lg font-bold text-foreground">Master circular library</h3></div><p className="mt-1 text-xs text-muted-foreground">Start with the governing circular, then layer the latest notices on top.</p></div><span className="rounded-full bg-accent-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">5 authorities · official links</span></div><div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">{masterCirculars.map((item) => <a key={item.authority} href={item.url} target="_blank" rel="noreferrer" className="group rounded-xl border border-border bg-surface-2/40 p-4 transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-surface"><div className="flex items-center justify-between"><span className="text-xs font-black" style={{ color: sourceColor(item.authority) }}>{item.authority}</span><ExternalLink size={13} className="text-subtle-foreground opacity-0 transition group-hover:opacity-100" /></div><div className="mt-2 text-sm font-bold leading-5 text-foreground">{item.title}</div><div className="mt-1 text-[11px] leading-4 text-muted-foreground">{item.detail}</div></a>)}</div></section>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.8fr)]">
           <section className="rounded-2xl border border-border bg-surface shadow-xs">
