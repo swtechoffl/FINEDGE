@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import {
   BellRing,
   CalendarClock,
@@ -12,6 +12,7 @@ import {
   Rss,
   ShieldCheck,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { Header } from "../../components/Header";
 import { Badge } from "../../components/ui/Badge";
@@ -59,10 +60,23 @@ function sourceColor(source: string) {
   return sources.find((item) => item.name === source)?.color ?? "#64748b";
 }
 
+type ViewerItem = {
+  title: string;
+  source: string;
+  date?: string;
+  priority?: Priority;
+  type?: string;
+  ref?: string;
+  due?: string;
+  summary?: string;
+  url: string;
+};
+
 export function CompliancePage() {
   const [activeSource, setActiveSource] = useState<Source>("All");
   const [query, setQuery] = useState("");
   const [onlyActionable, setOnlyActionable] = useState(false);
+  const [viewer, setViewer] = useState<ViewerItem | null>(null);
 
   const filtered = useMemo(() => notices.filter((notice) => {
     const matchesSource = activeSource === "All" || notice.source === activeSource;
@@ -71,10 +85,20 @@ export function CompliancePage() {
     return matchesSource && matchesQuery && matchesActionable;
   }), [activeSource, onlyActionable, query]);
 
+  function handleInAppLinkClick(event: MouseEvent<HTMLElement>) {
+    const link = (event.target as HTMLElement).closest("a") as HTMLAnchorElement | null;
+    if (!link) return;
+    const item = [...notices, ...masterCirculars].find((candidate) => candidate.url === link.href);
+    if (!item) return;
+    event.preventDefault();
+    if ("authority" in item) setViewer({ title: item.title, source: item.authority, summary: item.detail, url: item.url });
+    else setViewer(item);
+  }
+
   return (
     <div className="min-h-screen bg-app">
       <Header title="Compliance Desk" meta="BROKING CONTROL ROOM" searchValue={query} onSearchChange={setQuery} searchPlaceholder="Search circulars, refs, obligations..." extra={<Button variant="outline" size="sm" onClick={() => setQuery("")}><RefreshCw size={14} /> Refresh</Button>} />
-      <main className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6 lg:p-8">
+      <main onClick={handleInAppLinkClick} className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6 lg:p-8">
         <section className="relative overflow-hidden rounded-3xl border border-[#173d36] bg-[#0d201d] px-5 py-6 text-white shadow-lg sm:px-8 sm:py-8">
           <div className="absolute -right-12 -top-24 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
           <div className="relative max-w-3xl">
@@ -107,6 +131,7 @@ export function CompliancePage() {
           </aside>
         </div>
       </main>
+      {viewer && <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={viewer.title} onClick={() => setViewer(null)}><div className="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl border border-border bg-surface shadow-2xl sm:h-[88vh] sm:rounded-3xl" onClick={(event) => event.stopPropagation()}><div className="flex items-start justify-between gap-4 border-b border-border p-5"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="text-xs font-black" style={{ color: sourceColor(viewer.source) }}>{viewer.source}</span>{viewer.date && <span className="text-[11px] text-muted-foreground">{viewer.date}</span>}{viewer.type && <Badge size="sm">{viewer.type}</Badge>}{viewer.priority && <Badge size="sm" className={viewer.priority === "Critical" ? "bg-red-100 text-red-700" : viewer.priority === "High" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}>{viewer.priority}</Badge>}</div><h2 className="mt-2 text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{viewer.title}</h2>{viewer.ref && <div className="mt-1 text-xs text-muted-foreground">{viewer.ref}</div>}</div><button type="button" onClick={() => setViewer(null)} className="focus-ring rounded-lg p-2 text-muted-foreground hover:bg-hover hover:text-foreground" aria-label="Close circular viewer"><X size={18} /></button></div><div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_280px]"><div className="min-h-0 bg-surface-2"><iframe title={`${viewer.title} official document`} src={viewer.url} className="h-full w-full border-0" /></div><aside className="border-t border-border p-5 lg:border-l lg:border-t-0"><div className="text-xs font-bold uppercase tracking-wider text-subtle-foreground">In-app brief</div><p className="mt-3 text-sm leading-6 text-foreground">{viewer.summary ?? "Official circular or master circular source."}</p>{viewer.due && <div className="mt-5 rounded-xl bg-accent-bg p-3"><div className="text-[10px] font-bold uppercase tracking-wider text-accent">Submission status</div><div className="mt-1 text-sm font-bold text-foreground">{viewer.due}</div></div>}<a href={viewer.url} target="_blank" rel="noreferrer" className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-xs font-bold text-foreground hover:bg-hover">Open official source <ExternalLink size={14} /></a><p className="mt-3 text-[10px] leading-4 text-muted-foreground">If the authority blocks embedded viewing, use the official source button to open the original circular in a new tab.</p></aside></div></div></div>}
     </div>
   );
 }
