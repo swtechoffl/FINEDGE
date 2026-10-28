@@ -12,6 +12,8 @@ import {
   Rss,
   ShieldCheck,
   SlidersHorizontal,
+  Share2,
+  TrendingUp,
   X,
 } from "lucide-react";
 import { Header } from "../../components/Header";
@@ -54,6 +56,11 @@ const masterCirculars = [
   { authority: "BSE", title: "Master Circulars & Notices", detail: "Trading, surveillance and member-facing circular archive", url: "https://www.bseindia.com/markets/MarketInfo/DispNewNoticesCirculars.aspx" },
   { authority: "CDSL", title: "Depository Participant Circulars", detail: "DP operations, reconciliation and participant compliance", url: "https://www.cdslindia.com/eservices/Publications/Communique" },
   { authority: "MCX", title: "All Commodity Circulars", detail: "Trading, surveillance, technology and contract updates", url: "https://www.mcxindia.com/circulars/general" },
+];
+
+const socialMarketItems = [
+  { area: "Social media", icon: Share2, tone: "violet", title: "Investor communication & social media review", detail: "Check research calls, performance claims, disclaimers, influencer content and approval records before publication.", action: "Open communication checklist" },
+  { area: "Market operations", icon: TrendingUp, tone: "blue", title: "Market-wide trading and surveillance changes", detail: "Track RMS, surveillance measures, trading session changes, settlement cycles and client notification requirements.", action: "View market controls" },
 ];
 
 function sourceColor(source: string) {
@@ -117,6 +124,8 @@ export function CompliancePage() {
         </section>
 
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-xs"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><ShieldCheck size={18} className="text-accent" /><h3 className="text-lg font-bold text-foreground">Master circular library</h3></div><p className="mt-1 text-xs text-muted-foreground">Start with the governing circular, then layer the latest notices on top.</p></div><span className="rounded-full bg-accent-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">5 authorities · official links</span></div><div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">{masterCirculars.map((item) => <a key={item.authority} href={item.url} target="_blank" rel="noreferrer" className="group rounded-xl border border-border bg-surface-2/40 p-4 transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-surface"><div className="flex items-center justify-between"><span className="text-xs font-black" style={{ color: sourceColor(item.authority) }}>{item.authority}</span><ExternalLink size={13} className="text-subtle-foreground opacity-0 transition group-hover:opacity-100" /></div><div className="mt-2 text-sm font-bold leading-5 text-foreground">{item.title}</div><div className="mt-1 text-[11px] leading-4 text-muted-foreground">{item.detail}</div></a>)}</div></section>
+
+        <section className="grid gap-4 lg:grid-cols-2">{socialMarketItems.map((item) => { const Icon = item.icon; return <article key={item.area} className="rounded-2xl border border-border bg-surface p-5 shadow-xs"><div className="flex items-start gap-4"><div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl", item.tone === "violet" ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700")}><Icon size={20} /></div><div><div className="text-[10px] font-bold uppercase tracking-wider text-subtle-foreground">Special section · {item.area}</div><h3 className="mt-1 text-base font-bold text-foreground">{item.title}</h3><p className="mt-2 text-xs leading-5 text-muted-foreground">{item.detail}</p><button type="button" className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-bold text-foreground transition hover:bg-hover"><ShieldCheck size={13} className="text-accent" /> {item.action}</button></div></div></article>; })}</section>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.8fr)]">
           <section className="rounded-2xl border border-border bg-surface shadow-xs">
