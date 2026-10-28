@@ -93,6 +93,17 @@ export function CompliancePage() {
   }), [activeSource, onlyActionable, query]);
 
   function handleInAppLinkClick(event: MouseEvent<HTMLElement>) {
+    const button = (event.target as HTMLElement).closest("button") as HTMLButtonElement | null;
+    if (button?.textContent?.includes("communication checklist")) {
+      event.preventDefault();
+      openSpecialSection("Investor communication & social media review", "Review research calls, performance claims, disclaimers, influencer content, approval records and required disclosures before publication.");
+      return;
+    }
+    if (button?.textContent?.includes("market controls")) {
+      event.preventDefault();
+      openSpecialSection("Market-wide trading and surveillance controls", "Review RMS changes, surveillance measures, trading sessions, settlement cycles and client notification requirements.");
+      return;
+    }
     const link = (event.target as HTMLElement).closest("a") as HTMLAnchorElement | null;
     if (!link) return;
     const item = [...notices, ...masterCirculars].find((candidate) => candidate.url === link.href);
@@ -100,6 +111,10 @@ export function CompliancePage() {
     event.preventDefault();
     if ("authority" in item) setViewer({ title: item.title, source: item.authority, summary: item.detail, url: item.url });
     else setViewer(item);
+  }
+
+  function openSpecialSection(title: string, summary: string) {
+    setViewer({ title, source: "Compliance Desk", type: "Internal guide", summary, url: "https://www.sebi.gov.in/rss.html" });
   }
 
   return (

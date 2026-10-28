@@ -310,3 +310,8 @@ body {
 .animate-toast-in {
   animation: toast-in 0.4s var(--ease-out-expo);
 }
+
+/* Authority sites such as SEBI disallow iframe embedding via CSP/X-Frame-Options. */
+iframe[title$="official document"] {
+  display: none;
+}
