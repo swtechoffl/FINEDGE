@@ -16,6 +16,7 @@ import { DisclosurePage } from "./pages/Disclosure/DisclosurePage";
 import { ReportMakerPage } from "./pages/ReportMaker/ReportMakerPage";
 import { OnePagerPage } from "./pages/OnePager/OnePagerPage";
 import { ResearchTrackerPage } from "./pages/ResearchTracker/ResearchTrackerPage";
+import { CompliancePage } from "./pages/Compliance/CompliancePage";
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
         <Route path="/report-maker" element={<ReportMakerPage />} />
         <Route path="/one-pager" element={<OnePagerPage />} />
         <Route path="/research-tracker" element={<ResearchTrackerPage />} />
+        <Route path="/compliance" element={<CompliancePage />} />
         <Route path="/stock/:symbol" element={<StockDetailPage />} />
         <Route path="/disclosure" element={<DisclosurePage />} />
         <Route path="*" element={<Navigate to="/news" replace />} />
